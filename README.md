@@ -12,6 +12,11 @@
 기존 SI 산출물의 문제는 "만든 순간부터 낡는다" 입니다. 이 도구는 산출물을
 **운영계로 소스를 넘기는 시점에 다시 만들어** 항상 운영 소스와 일치시킵니다.
 
+| 문서 | 내용 |
+|---|---|
+| [서비스 기획서](design/서비스기획서.md) | 문제 정의 · 타깃 · 기능 범위 · 사업 모델 · 리스크 |
+| [온톨로지 스키마 v1.0.0](design/온톨로지-스키마.md) | 노드 11종 · 관계 19종 · 식별자 규칙 · 검증 규칙 (확정) |
+
 ---
 
 ## 설계 원칙: 사실과 서술을 분리한다
@@ -25,6 +30,11 @@
 
 LLM 에게는 "확인되지 않으면 '소스상 확인 불가'로 쓰라"고 지시합니다.
 흐름도(mermaid)는 LLM 이 그리지 않고 실제 호출 그래프에서 렌더링합니다.
+
+이 분리는 말이 아니라 [온톨로지 스키마](design/온톨로지-스키마.md)에 박혀 있습니다.
+모든 사실에 `derivation` 이 붙습니다 — `static`(파서) / `derived`(계산) / `llm`(서술).
+샘플 기준 노드 146개 중 **144개가 `static`** 입니다. 감리에서 "어디까지 믿을 수 있나"를
+물으면 `llm` 절만 검토 대상이라고 답할 수 있습니다.
 
 ---
 
@@ -58,6 +68,9 @@ uv run llmwiki serve       # http://127.0.0.1:8722
 | `llmwiki generate [--only ID] [--force]` | LLM 으로 MD 생성. 소스 해시가 같으면 건너뜀 |
 | `llmwiki serve [--reload]` | 위키 서버 |
 | `llmwiki pipeline` | parse + generate (CI 용, 실패 시 exit 1) |
+| `llmwiki ontology show` | 확정 스키마(노드·관계) 보기 |
+| `llmwiki ontology validate` | 산출물이 스키마를 지키는지 검사 (위반 시 exit 1) |
+| `llmwiki ontology export [--graph]` | 스키마 또는 분석 결과 그래프를 JSON 으로 |
 
 ---
 
@@ -81,6 +94,10 @@ llm:
     base_url: "http://211.119.38.216:11434"
     model: "qwen2.5-coder:32b"
     keep_alive: "30m"
+
+output:
+  docs_dir: "./docs"
+  language: ko              # ko | en — 산출물 생성 언어 + 뷰어 초기 언어
 ```
 
 `provider` 한 줄만 바꾸면 개발/데모(Claude API) ↔ 고객사 사내망(Ollama) 전환이 됩니다.
@@ -102,6 +119,7 @@ generate-docs:
   script:
     - uv pip install -e .
     - uv run llmwiki pipeline          # 변경된 프로그램만 재생성
+    - uv run llmwiki ontology validate # 산출물이 스키마를 지키는지 (위반 시 실패)
     - rsync -a docs/ wiki@wiki-server:/srv/llmwiki/docs/
   only: [master]
 ```
@@ -117,8 +135,43 @@ LLM 을 호출합니다. 1,000본짜리 시스템에서도 일상 배포 비용�
 - 한글·영문 통합 검색 (업무명 / 테이블명 / 클래스명 / URL / 본문)
 - 프로그램 명세서 열람 + 호출 흐름도(mermaid) 렌더링
 - 테이블 클릭 → **이 테이블을 함께 쓰는 다른 프로그램**(영향도)
-- 원본 소스 인라인 열람
+- **소스 브라우저** — 아래 참조
 - **Excel 내려받기** (개요 / 클래스 / CRUD / SQL / 영향도 / 소스 시트)
+
+### 소스 브라우저
+
+명세서를 읽다가 "실제 코드는 어떻게 생겼나"를 바로 확인하는 창입니다.
+좌측 하단 **소스 브라우저 열기**, 명세서의 *분석 대상 소스* 파일, 테이블 상세의
+SQL 파일 경로 — 어디서든 열립니다. (`Esc` 로 닫힘)
+
+- `source_roots` 전체를 파일 트리로 탐색. `com/gng/inst` 처럼 자식이 하나뿐인
+  디렉터리는 한 줄로 접어 Java 패키지 깊이에 파묻히지 않게 했습니다.
+- 파일 경로 검색 / 파일 내 검색(이전·다음 이동, Enter·Shift+Enter)
+- 줄번호 + 구문 강조 (Java / XML / SQL / properties / YAML / JSON)
+  — 망분리 반입을 전제로 **외부 하이라이터 없이** 직접 구현했습니다
+- 초록 점 = 정적 분석에 실제로 쓰인 파일(.java/.xml)
+
+파일은 `source_roots` 안으로만 읽습니다. 상위 경로(`../`)·심볼릭 링크·2MB 초과
+파일·바이너리는 서버에서 차단합니다.
+
+---
+
+## 다국어 (한국어 / English)
+
+`output.language` 한 줄로 **산출물이 생성되는 언어**가 바뀝니다.
+프롬프트·템플릿·MD 부록 제목·Excel 시트명이 모두 따라갑니다.
+
+```bash
+LLMWIKI_LANG=en uv run llmwiki generate --force
+```
+
+뷰어는 우상단 `KO / EN` 토글로 전환하며, 선택은 브라우저에 저장됩니다.
+저장된 선택이 없으면 `output.language` 를 따릅니다. 서버 오류 메시지도 같은
+언어로 내려옵니다.
+
+문서 본문의 언어는 **생성 시점에 고정**되므로(프론트매터의 `language`),
+UI 를 EN 으로 바꿔도 이미 한국어로 만든 명세서는 한국어 그대로 보입니다.
+Excel 시트명은 UI 가 아니라 그 문서가 생성된 언어를 따릅니다.
 
 ---
 
@@ -133,10 +186,16 @@ llmwiki/
     graph.py      호출 그래프 · 프로그램 단위 · 영향도
   llm/            claude | ollama | template 공급자
   docgen/         프롬프트 + MD 렌더링(부록은 파서가 직접 작성)
-  server/         FastAPI · 검색 · Excel
-web/              React 뷰어
+  server/         FastAPI · 검색 · Excel · 소스 열람
+  ontology.py     확정 스키마 v1.0.0 + 검증기 + 그래프 내보내기
+  i18n.py         ko/en 문자열 (산출물·Excel·서버 메시지)
+web/
+  src/i18n.ts     뷰어 UI 문자열 + 언어 토글
+  src/highlight.ts  의존성 없는 구문 강조
+  src/SourceBrowser.tsx  소스 브라우저
 sample/           예제 Spring+MyBatis 소스
-tests/            파서 회귀 테스트
+tests/            파서 회귀 · 다국어 · 소스 API · 온톨로지 테스트
+design/           서비스 기획서 · 온톨로지 스키마 문서
 ```
 
 ---
