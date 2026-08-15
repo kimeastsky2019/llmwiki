@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gng.inst.cust.CustomerMapper">
+
+  <sql id="custBaseColumns">
+    C.CUST_NO, C.CUST_NM, C.GRADE_CD, C.STAT_CD, C.HP_NO, C.REG_DT, C.UPD_DT
+  </sql>
+
+  <select id="selectCustomerList" parameterType="com.gng.inst.cust.CustomerVO"
+          resultType="com.gng.inst.cust.CustomerVO">
+    SELECT
+      <include refid="custBaseColumns"/>,
+      G.CD_NM AS GRADE_NM
+    FROM TB_CUST C
+    LEFT JOIN TB_COM_CODE G
+      ON G.CD_GRP = 'CD001'
+     AND G.CD = C.GRADE_CD
+    WHERE C.STAT_CD = '01'
+    <if test="searchKeyword != null and searchKeyword != ''">
+      AND (C.CUST_NM LIKE '%' || #{searchKeyword} || '%'
+           OR C.CUST_NO = #{searchKeyword})
+    </if>
+    <if test="gradeCd != null and gradeCd != ''">
+      AND C.GRADE_CD = #{gradeCd}
+    </if>
+    ORDER BY C.REG_DT DESC
+    LIMIT #{firstIndex}, #{lastIndex}
+  </select>
+
+  <select id="selectCustomerListTotCnt" parameterType="com.gng.inst.cust.CustomerVO"
+          resultType="int">
+    SELECT COUNT(1)
+    FROM TB_CUST C
+    WHERE C.STAT_CD = '01'
+    <if test="searchKeyword != null and searchKeyword != ''">
+      AND (C.CUST_NM LIKE '%' || #{searchKeyword} || '%'
+           OR C.CUST_NO = #{searchKeyword})
+    </if>
+  </select>
+
+  <select id="selectCustomer" resultType="com.gng.inst.cust.CustomerVO">
+    SELECT
+      <include refid="custBaseColumns"/>
+    FROM TB_CUST C
+    WHERE C.CUST_NO = #{custNo}
+      AND C.STAT_CD = '01'
+  </select>
+
+  <select id="selectCustomerAccounts" resultType="java.util.HashMap">
+    SELECT A.ACCT_NO, A.ACCT_KIND_CD, A.BAL_AMT, A.OPEN_DT
+    FROM TB_ACCT A
+    WHERE A.CUST_NO = #{custNo}
+      AND A.STAT_CD = '01'
+    ORDER BY A.OPEN_DT DESC
+  </select>
+
+  <select id="selectCustomerDupCnt" parameterType="com.gng.inst.cust.CustomerVO"
+          resultType="int">
+    SELECT COUNT(1)
+    FROM TB_CUST
+    WHERE RRNO = #{rrno}
+      AND STAT_CD = '01'
+  </select>
+
+  <select id="selectNextCustNo" resultType="string">
+    SELECT LPAD(NEXT_VAL, 10, '0')
+    FROM TB_CUST_SEQ
+  </select>
+
+  <select id="selectActiveAccountCnt" resultType="int">
+    SELECT COUNT(1)
+    FROM TB_ACCT
+    WHERE CUST_NO = #{custNo}
+      AND STAT_CD = '01'
+      AND BAL_AMT > 0
+  </select>
+
+  <insert id="insertCustomer" parameterType="com.gng.inst.cust.CustomerVO">
+    INSERT INTO TB_CUST (
+      CUST_NO, CUST_NM, RRNO, GRADE_CD, STAT_CD, HP_NO, REG_DT
+    ) VALUES (
+      #{custNo}, #{custNm}, #{rrno}, #{gradeCd}, #{statCd}, #{hpNo}, SYSDATE
+    )
+  </insert>
+
+  <insert id="insertCustomerHist" parameterType="com.gng.inst.cust.CustomerVO">
+    INSERT INTO TB_CUST_HIST (
+      CUST_NO, CUST_NM, GRADE_CD, STAT_CD, HIST_DT
+    ) VALUES (
+      #{custNo}, #{custNm}, #{gradeCd}, #{statCd}, SYSDATE
+    )
+  </insert>
+
+  <update id="updateCustomer" parameterType="com.gng.inst.cust.CustomerVO">
+    UPDATE TB_CUST
+    <set>
+      <if test="custNm != null">CUST_NM = #{custNm},</if>
+      <if test="gradeCd != null">GRADE_CD = #{gradeCd},</if>
+      <if test="hpNo != null">HP_NO = #{hpNo},</if>
+      UPD_DT = SYSDATE
+    </set>
+    WHERE CUST_NO = #{custNo}
+      AND STAT_CD = '01'
+  </update>
+
+  <update id="deleteCustomer">
+    UPDATE TB_CUST
+    SET STAT_CD = '09',
+        UPD_DT = SYSDATE
+    WHERE CUST_NO = #{custNo}
+  </update>
+
+</mapper>

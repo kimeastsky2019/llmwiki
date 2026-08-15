@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gng.channel.acct.AccountMapper">
+
+  <select id="selectCustomerSummary" resultType="java.util.HashMap">
+    SELECT C.CUST_NO, C.CUST_NM, C.GRADE_CD
+    FROM TB_CUST C
+    WHERE C.CUST_NO = #{custNo}
+      AND C.STAT_CD = '01'
+  </select>
+
+  <select id="selectAccountList" parameterType="com.gng.channel.acct.AccountVO"
+          resultType="java.util.HashMap">
+    SELECT A.ACCT_NO, A.ACCT_KIND_CD, A.BAL_AMT, A.OPEN_DT
+    FROM TB_ACCT A
+    WHERE A.CUST_NO = #{custNo}
+      AND A.STAT_CD = '01'
+    ORDER BY A.OPEN_DT DESC
+  </select>
+
+  <select id="selectTransactionList" parameterType="com.gng.channel.acct.AccountVO"
+          resultType="java.util.HashMap">
+    SELECT T.TRN_SEQ, T.TRN_DT, T.TRN_TP_CD, T.TRN_AMT, T.BAL_AMT, T.REMARK
+    FROM TB_TRN_HIST T
+    WHERE T.ACCT_NO = #{acctNo}
+    <if test="fromDt != null and fromDt != ''">
+      AND T.TRN_DT &gt;= #{fromDt}
+    </if>
+    <if test="toDt != null and toDt != ''">
+      AND T.TRN_DT &lt;= #{toDt}
+    </if>
+    ORDER BY T.TRN_DT DESC, T.TRN_SEQ DESC
+  </select>
+
+  <select id="selectBalance" resultType="long">
+    SELECT BAL_AMT
+    FROM TB_ACCT
+    WHERE ACCT_NO = #{acctNo}
+      AND STAT_CD = '01'
+  </select>
+
+  <update id="updateWithdraw" parameterType="com.gng.channel.acct.AccountVO">
+    UPDATE TB_ACCT
+    SET BAL_AMT = BAL_AMT - #{trnAmt},
+        UPD_DT = SYSDATE
+    WHERE ACCT_NO = #{acctNo}
+      AND BAL_AMT &gt;= #{trnAmt}
+      AND STAT_CD = '01'
+  </update>
+
+  <update id="updateDeposit" parameterType="com.gng.channel.acct.AccountVO">
+    UPDATE TB_ACCT
+    SET BAL_AMT = BAL_AMT + #{trnAmt},
+        UPD_DT = SYSDATE
+    WHERE ACCT_NO = #{toAcctNo}
+      AND STAT_CD = '01'
+  </update>
+
+  <insert id="insertTransaction" parameterType="com.gng.channel.acct.AccountVO">
+    INSERT INTO TB_TRN_HIST (
+      ACCT_NO, TRN_DT, TRN_TP_CD, TRN_AMT, CNTR_ACCT_NO, REMARK
+    ) VALUES (
+      #{acctNo}, SYSDATE, '11', #{trnAmt}, #{toAcctNo}, '이체'
+    )
+  </insert>
+
+</mapper>

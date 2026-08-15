@@ -1,0 +1,46 @@
+# LLMWiki 설정
+project:
+  name: "샘플 금융시스템"
+  # 분석 대상 소스 루트 (여러 개 지정 가능)
+  source_roots:
+    - "./sample"
+  # 시스템 구분: 경로 패턴 → 계층명 (뷰어 좌측 트리 1단)
+  layers:
+    - { name: "기관계", match: "**/inst/**" }
+    - { name: "채널계", match: "**/channel/**" }
+    - { name: "공통", match: "**/common/**" }
+
+parse:
+  include: ["**/*.java", "**/*.xml"]
+  exclude: ["**/target/**", "**/build/**", "**/test/**", "**/generated/**"]
+  # LLM 컨텍스트에 넣을 클래스당 최대 문자수 (초과 시 메서드 시그니처만)
+  max_class_chars: 12000
+
+llm:
+  # claude | ollama
+  provider: claude
+
+  claude:
+    model: claude-opus-5
+    effort: high          # low | medium | high | xhigh | max
+    max_tokens: 16000
+    concurrency: 4
+
+  ollama:
+    base_url: "http://211.119.38.216:11434"
+    model: "qwen2.5-coder:32b"
+    num_ctx: 32768
+    concurrency: 1
+    # keep_alive: 모델을 메모리에 유지 (0이면 매 호출 재적재 → 매우 느림)
+    keep_alive: "30m"
+
+output:
+  docs_dir: "./docs"
+  index_file: "./docs/index.json"
+  # 산출물 생성 언어. ko | en (환경변수 LLMWIKI_LANG 로 덮어쓰기)
+  # 뷰어 UI 의 초기 언어도 이 값을 따른다.
+  language: ko
+
+server:
+  host: "127.0.0.1"
+  port: 8722

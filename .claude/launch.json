@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "llmwiki",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "llmwiki", "serve"],
+      "port": 8722
+    }
+  ]
+}
