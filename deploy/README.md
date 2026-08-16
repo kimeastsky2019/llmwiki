@@ -11,6 +11,8 @@
 ```
 브라우저 ──80──▶ nginx ──┬─▶ /            rag-ai-gov (기존 서비스, 그대로 둔다)
                          └─▶ /wiki/       llmwiki  127.0.0.1:8722
+                                          ├ 위키 뷰어      (SPA)
+                                          └ /api/reg/…     규제 지식그래프·판정
 ```
 
 `/wiki/` 하위 경로로 붙인 것은, 80 을 기존 서비스가 `default_server` 로 잡고
@@ -29,7 +31,7 @@
 ```bash
 # 1) 서비스 계정과 디렉터리
 sudo useradd --system --home-dir /opt/llmwiki --shell /usr/sbin/nologin llmwiki
-sudo mkdir -p /opt/llmwiki/{docs,projects,uploads,sources} /etc/llmwiki
+sudo mkdir -p /opt/llmwiki/{docs,projects,uploads,sources,compliance} /etc/llmwiki
 sudo chown -R llmwiki:llmwiki /opt/llmwiki
 
 # 2) 코드 (web/dist 는 로컬에서 빌드해 올린다 — 서버에 node 가 없다)
@@ -82,6 +84,52 @@ sudo systemctl reload nginx
 `auth_basic` 은 location 사이에 상속되지 않는다. `llmwiki-app.conf` 안의
 프록시 location 이 두 개이므로 **양쪽 모두**에 적혀 있어야 한다. 하나라도
 빠지면 그 경로만 무인증으로 열린다.
+
+## 규제 지식그래프 (`/wiki/api/reg/…`)
+
+같은 서비스·같은 basic auth 안에서 돈다. 별도 포트도 별도 유닛도 없다.
+
+```bash
+# 데모 데이터 (한 번만 — 저널이 append-only 라 두 번 넣으면 이력이 겹친다)
+sudo -u llmwiki HOME=/opt/llmwiki /opt/llmwiki/.venv/bin/llmwiki reg seed \
+     -c /opt/llmwiki/config.yaml
+
+# 판정 · 검증 · 골드셋 (LLM 을 부르지 않는다)
+sudo -u llmwiki HOME=/opt/llmwiki /opt/llmwiki/.venv/bin/llmwiki reg assess \
+     -c /opt/llmwiki/config.yaml
+
+# 조문 → 의무 추출 제안 (Grok). 키는 EnvironmentFile 에만 있으므로 넘겨 준다.
+sudo -u llmwiki env $(sudo cat /etc/llmwiki/llmwiki.env | grep ^XAI_) HOME=/opt/llmwiki \
+     /opt/llmwiki/.venv/bin/llmwiki reg propose --llm -c /opt/llmwiki/config.yaml
+
+# 문서·작업물 (docx·xlsx·pdf)
+L="sudo -u llmwiki HOME=/opt/llmwiki /opt/llmwiki/.venv/bin/llmwiki reg"
+$L ingest 규정.docx --uuid reg-x --name "AI 거버넌스 규정" --issuer AX팀
+$L template HI-19 별첨01.docx          # 서식 → 필수 절 (구성 검토 절차)
+$L submit 작업물.docx --uuid evd-001 --signed --control HI-19 --service svc-001
+$L consistency                          # 문서 간 값 불일치
+$L link 작업물.docx --service svc-001   # 사내 sLM 이 증적 연결 제안
+```
+
+- **사내 sLM 은 서버 안에서만 열려 있다** (`127.0.0.1:11434`). 바깥에서 붙지 않으므로
+  `reg link` 같은 sLM 명령은 서버에서 실행해야 한다. 망분리 관점에서는 이게 맞는 구성이다.
+  모델은 `hf.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF:Q4_K_M` 이고 A30 24GB 중
+  ~19GB 를 쓴다. rag-api 와 공유하므로 동시 부하를 피할 것.
+- 문서 명령은 CLI 전용이다. 파일 업로드를 API 로 열면 인증·크기·경로 문제가 따라오는데,
+  지금 뷰어에는 규제용 업로드 화면이 없으므로 열지 않았다.
+
+- **`/opt/llmwiki/compliance` 는 산출물이 아니라 감사 추적이다.** append-only
+  저널이라 지우면 과거 판정의 근거가 사라진다. `docs/`·`projects/` 와 달리
+  재생성할 수 없으므로 **백업 대상**이다.
+- **판정은 LLM 을 호출하지 않는다.** `reg assess` 는 그래프 조회만 하므로 GPU 도
+  Grok 크레딧도 쓰지 않는다. Grok 을 쓰는 것은 `reg propose --llm` 하나뿐이고,
+  그 결과는 승인 그래프가 아니라 결재 큐로 간다.
+- **쓰기 경로는 둘뿐이다** — 커밋 결재(`/changes/{id}/approve`)와 확정
+  서명(`/assess/{uuid}/confirm`). 노드를 직접 만들거나 지우는 API 는 없다.
+- 뷰어에서는 `/wiki/reg` 다. 좌측 하단 **규제 준수 평가 열기 →** 로 들어간다.
+  판정·커버리지 갭·커밋 결재·그래프 네 탭이며, 화면에서 승인과 확정 서명을 할 수 있다.
+  **프론트를 고쳤으면 `VITE_BASE=/wiki/` 로 다시 빌드해 올려야 한다** — 이 값이
+  nginx 의 경로 접두어와 어긋나면 자산을 404 로 받아 화면이 하얗게 뜬다.
 
 ## 운영
 

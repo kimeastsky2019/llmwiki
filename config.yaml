@@ -36,7 +36,7 @@ llm:
 
   ollama:
     base_url: "http://211.119.38.216:11434"
-    model: "qwen2.5-coder:32b"
+    model: "hf.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF:Q4_K_M"
     num_ctx: 32768
     concurrency: 1
     # keep_alive: 모델을 메모리에 유지 (0이면 매 호출 재적재 → 매우 느림)
@@ -48,6 +48,14 @@ output:
   # 산출물 생성 언어. ko | en (환경변수 LLMWIKI_LANG 로 덮어쓰기)
   # 뷰어 UI 의 초기 언어도 이 값을 따른다.
   language: ko
+
+# 규제 지식그래프 · 근거기반 자동평가 (llmwiki reg …)
+compliance:
+  # 승인 저널·변경 제안·원문·골드셋이 쌓이는 곳. append-only 라 지우면 복구되지 않는다.
+  dir: "./compliance"
+  # 판정에 적용할 룰셋 버전 (판정 결과에 함께 기록되어 재현의 근거가 된다)
+  ruleset: "1.0.0"
+  standard: "2026.08"
 
 server:
   host: "127.0.0.1"

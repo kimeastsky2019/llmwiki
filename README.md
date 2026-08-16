@@ -17,6 +17,7 @@
 |---|---|
 | [서비스 기획서](design/서비스기획서.md) | 문제 정의 · 타깃 · 기능 범위 · 사업 모델 · 리스크 |
 | [온톨로지 스키마 v1.0.0](design/온톨로지-스키마.md) | 노드 11종 · 관계 19종 · 식별자 규칙 · 검증 규칙 (확정) |
+| [규제 지식그래프 v1.0.0](design/규제-지식그래프.md) | 근거기반 자동평가 엔진 · 권한 3분할 · 커밋 결재 (확정) |
 
 ---
 
@@ -75,6 +76,105 @@ uv run llmwiki serve       # http://127.0.0.1:8722
 
 ---
 
+## 규제 지식그래프 — 근거기반 자동평가
+
+같은 원칙(사실과 서술을 분리한다)을 규제 준수 평가에 적용한 하위 시스템입니다.
+한 줄로는 **"LLM은 그래프를 채우고, 판정은 그래프 위의 룰이 한다."**
+
+설계는 [규제 지식그래프 문서](design/규제-지식그래프.md)에, 스키마의 단일 원본은
+`llmwiki/compliance/ontology.py` 에 있습니다.
+
+```bash
+uv run llmwiki reg seed        # 데모 데이터 적재 (커밋 결재 경로를 그대로 지나갑니다)
+uv run llmwiki reg validate    # 승인 그래프가 스키마·헌법 셋을 지키는지
+uv run llmwiki reg assess      # 판정 — LLM 을 호출하지 않습니다
+uv run llmwiki reg coverage    # 통제하지 않고 있는 규제 의무
+uv run llmwiki reg goldset     # 커버리지와 정밀도를 나눠서 측정
+```
+
+`reg assess` 는 시드 데이터에서 커버리지 50% · 정밀도 100% 를 냅니다. 나머지 50% 는
+틀린 것이 아니라 **판단 유보**로 사람에게 넘긴 것입니다. 애매한 것을 자동 처리하면
+심사자가 물량에 압도되고, 그러면 형식 승인이 나서 통제 실효성 자체가 무너집니다.
+
+| 명령 | 설명 |
+|---|---|
+| `llmwiki reg schema` | 규제 온톨로지(노드 13종·관계 14종·유보 트리거) 보기 |
+| `llmwiki reg seed` | 데모 데이터 적재 |
+| `llmwiki reg graph [--as-of]` | 승인 그래프 요약 (과거 시점으로 되돌리기) |
+| `llmwiki reg validate` | 형상·근거 스팬·인용 강도·저널 검사 (위반 시 exit 1) |
+| `llmwiki reg assess [--service] [--commit]` | 판정. `--commit` 이면 PROV 계보와 함께 그래프에 기록 |
+| `llmwiki reg confirm <uuid> --by <agent>` | 확정 서명 (게이트 3) |
+| `llmwiki reg coverage` | 커버리지 갭 · 수기 의존 통제 |
+| `llmwiki reg impact <조문uuid>` | 규제 변경 영향분석 |
+| `llmwiki reg goldset` | 골드셋 회귀 (커버리지 · 정밀도 · Cohen κ) |
+| `llmwiki reg ingest <파일> --uuid ... --name ...` | 규제 문서(docx·xlsx·pdf·txt)를 조문 단위로 수집 (L0) |
+| `llmwiki reg template <통제> <서식>` | 회사 서식에서 필수 절을 뽑아 구성 검토 절차 생성 |
+| `llmwiki reg submit <작업물> --uuid ...` | 직원 작업물을 증적으로 적재 (절·미기입 자리 기록) |
+| `llmwiki reg consistency` | 문서 간 정합성 — 같은 값을 다르게 적은 곳 |
+| `llmwiki reg link <작업물> --service ...` | 사내 sLM 이 증적 연결 **제안** |
+| `llmwiki reg propose [--llm]` | 조문에서 의무 추출 **제안** (L1) |
+| `llmwiki reg link-programs` | LLMWiki 가 뽑은 운영 프로그램 → 증적 생산 기능 |
+| `llmwiki reg changes list \| show \| approve \| reject` | 커밋 결재 (L6) |
+
+뷰어에서는 좌측 하단 **규제 준수 평가 열기 →** (`/reg`) 로 들어갑니다.
+
+| 탭 | 보여 주는 것 |
+|---|---|
+| 판정 | 서비스 × 통제별 판정, 유보 사유, 근거 증적과 재현용 4개 버전, 확정 서명 |
+| 커버리지 갭 | 통제 없는 의무 · 부분만 덮는 통제 · 수기 의존 통제 |
+| 커밋 결재 | 제안 목록(등급·상태·영향), diff, 게이트가 막은 사유, 승인/반려 |
+| 그래프 | 노드 집계 · 스키마 검증 · 골드셋 회귀 |
+
+API 는 `/api/reg/…` 로 열려 있습니다. 승인 그래프를 움직이는 경로는 **결재와 확정
+서명 둘뿐**이며, 노드를 직접 만들거나 지우는 엔드포인트는 없습니다. 화면도 같은
+경로를 씁니다 — UI 가 우회로를 만들지 않습니다.
+
+### 세 개의 헌법
+
+| 원칙 | 강제 방식 |
+|---|---|
+| **근거 없는 사실 금지** | 문서 유래 사실은 원문 스팬 필수. `문서[start:end] == 인용문` 을 기계가 대조하므로, 지어낸 근거는 오프셋이 맞지 않아 제안 단계에서 버려집니다 |
+| **삭제 없음** | 저장소가 append-only 저널이라 삭제 연산이 없습니다. `obsolete` + `replaced_by` 만 허용 |
+| **판정 재현성** | 모든 판정이 온톨로지·룰셋·기준·조문 4개 버전을 기록. `--as-of` 로 과거 그래프를 그대로 되살립니다 |
+
+여기에 **인용 강도** 검증이 붙습니다. 조문이 "공개하도록 노력하여야 한다"(권고)인데
+제안이 "필수 의무"라고 말하면, 문장은 인용했지만 주장이 근거를 넘어선 것입니다.
+`주장 강도 ≤ 근거 강도` 를 요구해 이런 제안을 사람 앞에 보내지 않습니다.
+
+### 문서와 작업물 검토
+
+규제 문서만이 아니라 **직원이 만든 산출물**도 같은 그래프에 들어옵니다.
+`.docx` · `.xlsx` · `.pdf` 를 평문 + 절 + 문자 오프셋으로 바꾸므로, 근거 스팬이
+코드에서와 똑같이 동작합니다.
+
+검토하는 것은 **구성이지 내용이 아닙니다.**
+
+| 검사 | 방법 |
+|---|---|
+| 요구된 절이 있는가 | 회사 서식(별첨01~15)을 파싱해 필수 절을 뽑습니다. **체크리스트를 손으로 만들지 않습니다** — 서식이 개정되면 다시 뽑아 결재에 올리면 됩니다 |
+| 서식을 실제로 채웠는가 | `……`, `YYYY.MM.DD`, `예시)` 같은 자리표시자가 남아 있으면 판단유보 |
+| 문서끼리 말이 맞는가 | 기획서 임계치 0.75 vs 검증결과서 0.70 같은 불일치. 숫자·날짜·예아니오만 대조하고 자유 서술은 건드리지 않습니다 |
+
+내용의 적정성("이 위험평가가 충실한가")은 판정하지 않습니다. LLM 이 사람의 작업물을
+채점하면 이 설계가 거부한 LLM-as-judge 를 다시 들이는 것이라, 그 판단은 사람 몫으로
+남기고 룰은 판단유보로 넘깁니다.
+
+**Word 자동 번호 복원** — 실제 규정 문서에는 본문에 "제1조" 라는 글자가 없습니다.
+Word 가 스타일 번호매기기로 화면에만 그립니다. `styles.xml → numbering.xml` 을
+따라가 번호를 재구성하지 않으면 조문 앵커 자체를 만들 수 없습니다.
+
+### ★ 조문 앵커 — 단일 실패 지점
+
+법령이 개정되며 "제13조" 가 "제13조의2" 로 분화되면, 조문 번호를 식별자로 쓴 매핑은
+전부 깨집니다. 그래서 조문 ID 는 **불변 UUID** 이고 번호는 속성입니다. 분화는
+`SPLIT_INTO` 계보로 잇습니다. 이 결정은 `tests/test_compliance_ontology.py` 가 지킵니다.
+
+실제 규정 문서를 넣어 보니 이유가 하나 더 있었습니다. **조 번호는 절마다 1부터 다시
+시작합니다** — 실측한 규정 한 건에 "제1조" 가 **14개** 있었습니다. 번호는 문서 안에서도
+유일하지 않으므로, 앵커는 `제2장/제2절/제1조` 같은 **절 경로**에서 유도합니다.
+
+---
+
 ## 설정 (`config.yaml`)
 
 ```yaml
@@ -93,7 +193,7 @@ llm:
     concurrency: 4
   ollama:                   # 망분리 반입용
     base_url: "http://211.119.38.216:11434"
-    model: "qwen2.5-coder:32b"
+    model: "hf.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF:Q4_K_M"
     keep_alive: "30m"
 
 output:
@@ -252,10 +352,24 @@ llmwiki/
     python.py     ast 기반 파이썬 파서 (모듈/클래스/라우트/호출)
     pydata.py     SQLAlchemy · 원시 SQL · SPARQL 접근 지점 추출
     graph.py      호출 그래프 · 프로그램 단위 · 영향도
-  llm/            claude | ollama | template 공급자
+  llm/            claude | grok | ollama | template 공급자
   docgen/         프롬프트 + MD 렌더링(부록은 파서가 직접 작성)
+  compliance/     규제 지식그래프 · 근거기반 자동평가
+    ontology.py   규제 스키마 v1.0.0 (노드 13종·관계 14종) — 단일 원본
+    docparse.py   docx·xlsx·pdf → 평문+절+오프셋 (Word 자동 번호 복원)
+    template.py   회사 서식 → 필수 절, 자리표시자(미기입) 검출
+    consistency.py 문서 간 정합성 — 같은 값을 다르게 적은 곳
+    spans.py      근거 스팬 대조 + 인용 강도 (환각을 막는 두 겹)
+    store.py      append-only 저널 · 승인본/제안본 분리 · as_of 재현
+    changeset.py  커밋 결재 — 등급 G1~G4 · 영향분석 · 승인/반려
+    rules.py      결정론적 판정 엔진 (이 파일에 LLM 이 없다)
+    verify.py     형상 검증 · 골드셋 회귀 · Cohen κ
+    analysis.py   커버리지 갭 · 규제 변경 영향 · 수기 의존 통제
+    propose.py    조문 수집 · sLM 의무 제안 · LLMWiki Program 연계
+    seed.py       데모 데이터 (샘플 규제 원문 포함)
   server/
     app.py        FastAPI 라우트 (프로젝트별로 인덱스·문서를 갈라 서비스)
+    compliance.py 규제 API (/api/reg/…) — 쓰기는 결재·확정 서명뿐
     jobs.py       파싱·생성 백그라운드 작업 추적
   workspace.py    프로젝트 레지스트리 · 로컬 폴더 탐색기
   ontology.py     확정 스키마 v1.0.0 + 검증기 + 그래프 내보내기
@@ -269,7 +383,9 @@ sample/           예제 Spring+MyBatis 소스
 sample_py/        예제 FastAPI+Flask+SQLAlchemy+SPARQL 소스
 projects/         뷰어로 불러온 로컬 프로젝트 (gitignore)
 tests/            파서 회귀(Java/Python) · 다국어 · 소스 API · 온톨로지 · 워크스페이스
-design/           서비스 기획서 · 온톨로지 스키마 문서
+                  · 규제 온톨로지 · 판정 엔진 · 규제 API
+design/           서비스 기획서 · 온톨로지 스키마 · 규제 지식그래프 문서
+compliance/       승인 저널 · 변경 제안 · 원문 · 골드셋 (gitignore, 백업 대상)
 ```
 
 ---

@@ -129,6 +129,26 @@ class Config:
             self.root / self.raw.get("output", {}).get("workspace_dir", "./projects")
         ).resolve()
 
+    # --- compliance (규제 지식그래프) ---
+    @property
+    def compliance_dir(self) -> Path:
+        """승인 저널·변경 제안·원문이 쌓이는 곳.
+
+        docs/ 와 섞지 않는다 — 여기 있는 것은 재생성 가능한 산출물이 아니라
+        감사 추적이라, 지우면 과거 판정의 근거가 사라진다.
+        """
+        return (
+            self.root / self.raw.get("compliance", {}).get("dir", "./compliance")
+        ).resolve()
+
+    @property
+    def ruleset_version(self) -> str:
+        return str(self.raw.get("compliance", {}).get("ruleset", "1.0.0"))
+
+    @property
+    def standard_version(self) -> str:
+        return str(self.raw.get("compliance", {}).get("standard", ""))
+
     # --- server ---
     @property
     def host(self) -> str:

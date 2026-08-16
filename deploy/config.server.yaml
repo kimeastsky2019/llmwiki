@@ -40,6 +40,16 @@ output:
   workspace_dir: "./projects"
   language: ko
 
+# 규제 지식그래프 · 근거기반 자동평가 (/wiki/api/reg/…)
+compliance:
+  # ⚠ 이 디렉터리는 재생성 가능한 산출물이 아니라 **감사 추적**이다.
+  #   append-only 저널이라 지우면 과거 판정의 근거가 사라진다. 백업 대상.
+  #   systemd 의 ReadWritePaths=/opt/llmwiki 안에 있어야 서비스가 쓸 수 있다.
+  dir: "/opt/llmwiki/compliance"
+  # 판정 결과에 함께 기록되어 재현의 근거가 된다.
+  ruleset: "1.0.0"
+  standard: "2026.08"
+
 server:
   host: "127.0.0.1"
   port: 8722

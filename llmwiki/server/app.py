@@ -823,6 +823,18 @@ def _read(path: Path) -> str | None:
 
 
 # --------------------------------------------------------------------------- #
+# 규제 지식그래프 · 판정 엔진 (/api/reg/…)
+#
+# SPA 폴백(`/{full_path:path}`)보다 **먼저** 등록해야 한다. 라우트는 선언 순서대로
+# 매칭되므로 뒤에 붙이면 전부 index.html 로 삼켜진다.
+# --------------------------------------------------------------------------- #
+from .compliance import bind as bind_compliance  # noqa: E402
+
+app.include_router(bind_compliance(cfg))
+app.state.compliance_root = str(cfg.compliance_dir)
+
+
+# --------------------------------------------------------------------------- #
 # 정적 파일 (빌드된 뷰어)
 # --------------------------------------------------------------------------- #
 WEB_DIST = Path(__file__).resolve().parents[2] / "web" / "dist"

@@ -15,6 +15,11 @@ from .indexer import load_index, save_index, scan
 app = typer.Typer(help="레거시 소스 → AI 분석 → 산출물(MD) → 위키 뷰어", no_args_is_help=True)
 console = Console()
 
+# 규제 지식그래프 · 근거기반 자동평가 (llmwiki reg …)
+from .compliance.cli import app as reg_app  # noqa: E402
+
+app.add_typer(reg_app, name="reg")
+
 ConfigOpt = typer.Option("config.yaml", "--config", "-c", help="설정 파일 경로")
 
 
