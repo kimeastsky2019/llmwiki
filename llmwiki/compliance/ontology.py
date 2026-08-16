@@ -50,8 +50,10 @@ DERIVATIONS: tuple[str, ...] = ("collected", "llm", "human", "rule")
 #: 자동화 수준. L3 는 정성 판단이라 룰이 판정하지 않고 항상 사람에게 넘긴다.
 AUTO_LEVELS: tuple[str, ...] = ("L1", "L2", "L3")
 
-#: 의무의 강제력
-OBLIGATION_LEVELS: tuple[str, ...] = ("필수", "권고")
+#: 의무의 강제력. 화면·API 로 그대로 나가는 값이라 영어로 둔다.
+MANDATORY = "mandatory"
+RECOMMENDED = "recommended"
+OBLIGATION_LEVELS: tuple[str, ...] = (MANDATORY, RECOMMENDED)
 
 #: 평가 절차의 종류.
 #: section 은 "서식이 요구한 절이 작업물에 있는가" — 내용 평가가 아니라 구성 검토다.
@@ -82,29 +84,42 @@ DEFERRED = "DEFERRED"
 
 VERDICTS: tuple[str, ...] = (SATISFIED, PARTIAL, UNSATISFIED, NOT_APPLICABLE, DEFERRED)
 
-VERDICT_KO: dict[str, str] = {
-    SATISFIED: "충족",
-    PARTIAL: "부분충족",
-    UNSATISFIED: "미충족",
-    NOT_APPLICABLE: "해당없음",
-    DEFERRED: "판단유보",
+#: 판정의 결재 상태. 노드 생애 상태(NODE_STATUSES)와는 다른 축이다 —
+#: 룰이 낸 판정은 사람이 서명하기 전까지 provisional 로 남는다.
+#: 그래프에 저장되는 값이므로 영어로 둔다.
+PROVISIONAL = "provisional"
+CONFIRMED = "confirmed"
+DECISION_STATUSES: tuple[str, ...] = (PROVISIONAL, CONFIRMED)
+
+#: 화면에 그대로 찍히는 판정 라벨.
+VERDICT_LABELS: dict[str, str] = {
+    SATISFIED: "Satisfied",
+    PARTIAL: "Partially satisfied",
+    UNSATISFIED: "Not satisfied",
+    NOT_APPLICABLE: "Not applicable",
+    DEFERRED: "Deferred to reviewer",
 }
 
 #: 판단 유보 트리거 — 정밀도 우선.
 #: 커버리지를 늘리려다 심사자가 물량에 압도되면 형식 승인이 발생하고,
 #: 그것은 통제 실효성 자체를 무너뜨린다. 애매하면 사람에게 넘긴다.
 DEFERRAL_TRIGGERS: dict[str, str] = {
-    "QUALITATIVE": "통제의 auto_level 이 L3 — 정성 판단 필요",
-    "PARTIAL_EVIDENCE": "필요 증적 중 일부만 존재 — 충족 여부가 실질 판단에 달림",
-    "THRESHOLD_UNDEFINED": "지표는 있으나 임계치가 미정의",
-    "METRIC_MISSING": "임계치는 있으나 지표 측정값이 없음",
-    "EVIDENCE_EXPIRING": "증적 유효기간 만료 임박 (30일 이내)",
-    "PROVISION_AMENDING": "참조 조문이 개정 진행 중 — 기준 자체가 흔들림",
-    "VERDICT_FLIPPED": "직전 차수 판정과 결과가 뒤집힘 — 변경 사유 확인 필요",
-    "CITATION_WEAK": "근거 엣지의 인용 강도 검증 실패 — 주장이 근거보다 강함",
-    "TEMPLATE_UNFILLED": "서식의 자리표시자가 그대로 남아 있음 — 미기입으로 보이나 "
-                         "예시문일 수 있어 사람이 확인해야 한다",
-    "DOC_CONFLICT": "같은 값을 말하는 문서끼리 값이 다름 — 어느 쪽이 맞는지 사람이 정한다",
+    "QUALITATIVE": "Control is auto_level L3 — needs human judgement",
+    "PARTIAL_EVIDENCE": "Only some required evidence is present — sufficiency is a "
+                        "judgement call",
+    "THRESHOLD_UNDEFINED": "Metric exists but no threshold is defined",
+    "METRIC_MISSING": "Threshold is defined but no measurement was found",
+    "EVIDENCE_EXPIRING": "Evidence expires within 30 days",
+    "PROVISION_AMENDING": "Cited provision is being amended — the standard itself is "
+                          "in flux",
+    "VERDICT_FLIPPED": "Verdict flipped since the previous run — the reason for the "
+                       "change needs checking",
+    "CITATION_WEAK": "Citation-strength check failed — the claim is stronger than the "
+                     "quoted text supports",
+    "TEMPLATE_UNFILLED": "Template placeholders are still in place — looks unfilled, "
+                         "but may be sample text, so a human must confirm",
+    "DOC_CONFLICT": "Documents asserting the same value disagree — a human decides "
+                    "which one holds",
 }
 
 #: 증적 만료 임박 판정 기준 (일)
@@ -380,7 +395,7 @@ def schema_dict() -> dict[str, Any]:
             "node_status": list(NODE_STATUSES),
             "verdict": list(VERDICTS),
         },
-        "verdict_ko": dict(VERDICT_KO),
+        "verdict_labels": dict(VERDICT_LABELS),
         "deferral_triggers": dict(DEFERRAL_TRIGGERS),
         "nodes": {
             n.name: {

@@ -3,25 +3,31 @@
 운영 서버에 올라가 있는 구성 그대로다. 여기 파일들은 서버에 있는 것을 그대로
 가져온 것이므로, 서버를 고쳤으면 여기도 같이 고쳐야 한다.
 
-서비스 주소: `http://<서버>/wiki/` — 실제 호스트와 계정은 저장소에 적지 않는다
+서비스 주소: 전용 도메인의 루트. 실제 호스트와 계정은 저장소에 적지 않는다
 (공개 저장소다). 사내 위키나 운영 문서를 볼 것.
 
 ## 구성
 
 ```
-브라우저 ──80──▶ nginx ──┬─▶ /            rag-ai-gov (기존 서비스, 그대로 둔다)
-                         └─▶ /wiki/       llmwiki  127.0.0.1:8722
-                                          ├ 위키 뷰어      (SPA)
-                                          └ /api/reg/…     규제 지식그래프·판정
+브라우저 ──80──▶ nginx ──┬─ Host: 기존 도메인·IP ─▶ rag-ai-gov (그대로 둔다)
+                         └─ Host: llmwiki 도메인 ─▶ llmwiki  127.0.0.1:8722
+                                                   ├ 위키 뷰어    (SPA)
+                                                   └ /api/reg/…   규제 지식그래프·판정
 ```
 
-`/wiki/` 하위 경로로 붙인 것은, 80 을 기존 서비스가 `default_server` 로 잡고
-있고 443·별도 포트가 상위망에서 열리지 않는 환경이기 때문이다. 접두어를 바꾸려면
-프론트를 같은 값으로 다시 빌드해야 한다 (`VITE_BASE`).
+처음에는 전용 도메인이 없어 기존 서비스 아래 `/wiki/` 로 붙였다. 80 을 기존
+서비스가 `default_server` 로 잡고 있고 443·별도 포트가 상위망에서 열리지 않는
+환경이었기 때문이다. 도메인이 생긴 뒤로는 Host 로 갈라 **루트에서** 서빙한다 —
+프론트를 `base "/"` 로 빌드할 수 있어 자산 경로가 단순해진다. 옛 `/wiki/` 링크는
+도메인으로 301 시킨다 (`llmwiki-app.conf`).
+
+llmwiki 서버 블록에는 `default_server` 를 붙이지 않는다. 그래야 IP 로 들어온
+요청이 종전대로 기존 서비스로 간다.
 
 | 파일 | 배치 위치 |
 |---|---|
-| `nginx/llmwiki-app.conf` | `/etc/nginx/snippets/llmwiki-app.conf` |
+| `nginx/llmwiki-site.conf` | `/etc/nginx/sites-available/llmwiki.conf` (+ sites-enabled 링크) |
+| `nginx/llmwiki-app.conf` | `/etc/nginx/snippets/llmwiki-app.conf` — 옛 `/wiki/` 301 |
 | `systemd/llmwiki.service` | `/etc/systemd/system/llmwiki.service` |
 | `config.server.yaml` | `/opt/llmwiki/config.yaml` |
 | `llmwiki.env.example` | `/etc/llmwiki/llmwiki.env` (키를 채워서) |
@@ -35,8 +41,9 @@ sudo mkdir -p /opt/llmwiki/{docs,projects,uploads,sources,compliance} /etc/llmwi
 sudo chown -R llmwiki:llmwiki /opt/llmwiki
 
 # 2) 코드 (web/dist 는 로컬에서 빌드해 올린다 — 서버에 node 가 없다)
-#    VITE_BASE 는 nginx 의 경로 접두어와 반드시 같아야 한다.
-cd web && VITE_BASE=/wiki/ npm run build && cd ..
+#    전용 도메인 루트에서 서빙하므로 base 는 기본값 "/" 이다.
+#    (하위 경로로 붙일 때만 VITE_BASE 를 준다)
+cd web && npm run build && cd ..
 rsync -a --exclude __pycache__ --exclude '* 2.*' llmwiki pyproject.toml <서버>:/tmp/up/
 rsync -a --delete web/dist/ <서버>:/tmp/up/dist/
 # 서버에서:
@@ -55,7 +62,10 @@ sudo install -o root -g llmwiki -m 640 llmwiki.env /etc/llmwiki/llmwiki.env
 sudo cp systemd/llmwiki.service /etc/systemd/system/
 sudo systemctl daemon-reload && sudo systemctl enable --now llmwiki
 
-# 6) nginx — 기존 앱 설정에서 include 한다 (80·443 양쪽에 함께 적용된다)
+# 6) nginx — 전용 도메인 서버 블록
+sudo cp nginx/llmwiki-site.conf /etc/nginx/sites-available/llmwiki.conf
+sudo ln -sfn /etc/nginx/sites-available/llmwiki.conf /etc/nginx/sites-enabled/
+#    옛 /wiki/ 링크를 살리려면 기존 앱 설정에서 include 한다
 sudo cp nginx/llmwiki-app.conf /etc/nginx/snippets/
 #   /etc/nginx/snippets/rag-ai-gov-app.conf 안에 아래 한 줄 추가:
 #     include /etc/nginx/snippets/llmwiki-app.conf;
@@ -81,9 +91,12 @@ sudo systemctl reload nginx
 운영해야 한다면 그 사실을 알고 쓰는 사람에게만 계정을 주고, 다른 곳에서 쓰는
 비밀번호를 재사용하지 않는다.
 
-`auth_basic` 은 location 사이에 상속되지 않는다. `llmwiki-app.conf` 안의
-프록시 location 이 두 개이므로 **양쪽 모두**에 적혀 있어야 한다. 하나라도
-빠지면 그 경로만 무인증으로 열린다.
+`auth_basic` 은 location 사이에 상속되지 않는다. `llmwiki-site.conf` 의 프록시
+location 이 두 개(`/` 와 업로드 전용)이므로 **양쪽 모두**에 적혀 있어야 한다.
+하나라도 빠지면 그 경로만 무인증으로 열린다.
+
+도메인이 생겼으니 443 만 열리면 Let's Encrypt 로 바로 전환할 수 있다
+(`/.well-known/acme-challenge/` 는 인증에서 빼 두었다).
 
 ## 규제 지식그래프 (`/wiki/api/reg/…`)
 

@@ -38,28 +38,28 @@ FORBIDDEN = "FORBIDDEN"
 
 GRADES: dict[str, dict[str, str]] = {
     G1: {
-        "approver": "도메인 담당자",
-        "scope": "속성 보강, 근거 링크 추가, 라벨 수정",
+        "approver": "Domain owner",
+        "scope": "Property enrichment, added evidence links, label fixes",
         "breaking": "no",
     },
     G2: {
-        "approver": "AI거버넌스담당자",
-        "scope": "신규 조문·의무·통제 추가, 신규 매핑 엣지",
+        "approver": "AI governance officer",
+        "scope": "New provisions, obligations and controls; new mapping edges",
         "breaking": "no",
     },
     G3: {
-        "approver": "AI거버넌스담당자 + 마이그레이션 계획",
-        "scope": "임계치·배점 변경, 자동화 수준 변경, 매핑 술어 변경, 노드 폐기",
+        "approver": "AI governance officer + migration plan",
+        "scope": "Threshold and scoring changes, automation-level changes, mapping predicate changes, node retirement",
         "breaking": "yes",
     },
     G4: {
-        "approver": "AI거버넌스협의체",
-        "scope": "기준 세트 판올림, 룰셋 변경, 온톨로지 구조 변경",
+        "approver": "AI governance committee",
+        "scope": "Standard version bumps, ruleset changes, ontology structure changes",
         "breaking": "yes",
     },
     FORBIDDEN: {
-        "approver": "불허",
-        "scope": "노드·엣지 물리 삭제 — obsolete + replaced_by 만 허용",
+        "approver": "Not permitted",
+        "scope": "Hard delete of nodes or edges — only obsolete + replaced_by is allowed",
         "breaking": "-",
     },
 }
@@ -305,7 +305,7 @@ def stage(
         cs.checks["shacl"] = "FAIL"
         cs.checks.setdefault("issues", []).append(
             {"level": "error", "code": "op.forbidden",
-             "message": "물리 삭제는 불허다 — obsolete + replaced_by 만 허용한다"}
+             "message": "Hard deletes are forbidden — use obsolete + replaced_by"}
         )
     cs.status = PENDING if cs.checks["shacl"] == "PASS" else BLOCKED
     store.put_changeset(cs.to_dict())

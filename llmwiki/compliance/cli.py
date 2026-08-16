@@ -12,7 +12,7 @@ from rich.table import Table
 
 from ..config import load_config
 from . import analysis, changeset as cs, propose, rules, verify
-from .ontology import COMPLIANCE_ONTOLOGY_VERSION, EDGE_TYPES, NODE_TYPES, VERDICT_KO
+from .ontology import COMPLIANCE_ONTOLOGY_VERSION, EDGE_TYPES, NODE_TYPES, VERDICT_LABELS
 from .ontology import DEFERRAL_TRIGGERS, schema_dict
 from .seed import RULESET_VERSION, seed as seed_demo
 from .store import Store
@@ -147,7 +147,7 @@ def assess(
         color = VERDICT_COLOR[a.verdict]
         t.add_row(
             str(name), a.control_code, f"[{color}]{a.label}[/]",
-            VERDICT_KO[a.raw_verdict],
+            VERDICT_LABELS[a.raw_verdict],
             a.reason if not a.triggers else a.reason + f"  [dim]({', '.join(a.triggers)})[/]",
         )
     console.print(t)
@@ -176,7 +176,7 @@ def confirm(
     props = rules.confirm(store, assessment, agent_id=by, verdict=verdict, note=note)
     console.print(
         f"[green]확정[/] {props['control_code']} / {props['service_uuid']} → "
-        f"{VERDICT_KO[props['verdict']]} (by {by})"
+        f"{VERDICT_LABELS[props['verdict']]} (by {by})"
     )
 
 

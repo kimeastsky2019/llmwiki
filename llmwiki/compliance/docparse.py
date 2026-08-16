@@ -444,8 +444,13 @@ _HEAD_PATTERNS: tuple[tuple[str, int], ...] = (
     (r"제\s*(\d+)\s*장", 0),
     (r"제\s*(\d+)\s*절", 1),
     (r"제\s*(\d+)\s*조(?:\s*의\s*\d+)?", 2),
+    # 영문 규정. 한국어 조문과 같은 수준으로 잡아 같은 경로를 타게 한다.
+    (r"Chapter\s+(\d+)", 0),
+    (r"Section\s+(\d+)", 1),
+    (r"Article\s+(\d+)", 2),
     (r"([IVXivx]+)\.", 1),
     (r"(붙임|별첨|부록)\s*\.?\s*\d*", 1),
+    (r"(Annex|Appendix|Attachment)\s*\.?\s*\d*", 1),
     (r"(\d+)\.", 2),
     (r"([가-힣])\.", 3),
 )

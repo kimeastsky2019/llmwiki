@@ -96,28 +96,28 @@ def validate_graph(graph: Graph, documents: dict[str, str] | None = None) -> Val
         ntype = node["type"]
         spec = NODE_TYPES.get(ntype)
         if spec is None:
-            r.add("error", "node.type", f"{nid}: 정의되지 않은 노드 타입 {ntype}")
+            r.add("error", "node.type", f"{nid}: unknown node type {ntype}")
             continue
         if spec.staging:
             r.add("error", "node.staging",
-                  f"{nid}: {ntype} 은 제안본 전용인데 승인 그래프에 있다")
+                  f"{nid}: {ntype} is proposal-only but appears in the approved graph")
         props = node["props"]
         for key in spec.required:
             if props.get(key) in (None, ""):
-                r.add("error", "node.required", f"{nid}: 필수 속성 {key} 없음")
+                r.add("error", "node.required", f"{nid}: required property {key} is missing")
         try:
             if node_id(ntype, **props) != nid:
-                r.add("error", "node.id", f"{nid}: ID 가 id_parts 규칙과 다르다")
+                r.add("error", "node.id", f"{nid}: ID does not follow the id_parts rule")
         except (KeyError, ValueError):
-            r.add("error", "node.id", f"{nid}: ID 를 재구성할 수 없다")
+            r.add("error", "node.id", f"{nid}: ID cannot be reconstructed")
         if node["status"] not in NODE_STATUSES:
-            r.add("error", "node.status", f"{nid}: 알 수 없는 상태 {node['status']}")
+            r.add("error", "node.status", f"{nid}: unknown status {node['status']}")
         _check_enums(r, nid, ntype, props)
 
         spans = parse_spans(node.get("spans"))
         if spec.requires_span and not spans:
             r.add("error", "span.required",
-                  f"{nid}: {ntype} 은 근거 스팬이 필수다 (근거 없는 사실 금지)")
+                  f"{nid}: {ntype} requires a source span — no unsourced facts")
         for span in spans:
             for issue in verify_span(span, documents).issues:
                 r.add("error", issue.code, f"{nid}: {issue.message}")
@@ -127,37 +127,37 @@ def validate_graph(graph: Graph, documents: dict[str, str] | None = None) -> Val
         # 판정은 룰이나 사람이 낸다 — 모델이 낼 수 없다
         if ntype == "Assessment" and node["derivation"] not in ("rule", "human"):
             r.add("error", "assessment.derivation",
-                  f"{nid}: 판정의 derivation 이 {node['derivation']} 이다 — "
-                  "판정은 룰 또는 사람만 낼 수 있다")
+                  f"{nid}: assessment derivation is {node['derivation']} — "
+                  "only a rule or a human may issue a verdict")
         if node["status"] == "obsolete" and not props.get("replaced_by"):
-            r.add("warning", "node.replaced_by", f"{nid}: 폐기됐는데 대체 노드가 없다")
+            r.add("warning", "node.replaced_by", f"{nid}: retired but has no replacement node")
 
     for key, edge in graph.edges.items():
         etype = edge["type"]
         spec = EDGE_TYPES.get(etype)
         if spec is None:
-            r.add("error", "edge.type", f"{key}: 정의되지 않은 엣지 타입 {etype}")
+            r.add("error", "edge.type", f"{key}: unknown edge type {etype}")
             continue
         if spec.staging:
-            r.add("error", "edge.staging", f"{key}: {etype} 은 제안본 전용이다")
+            r.add("error", "edge.staging", f"{key}: {etype} is proposal-only")
         src, dst = edge["source"], edge["target"]
         if src not in graph.nodes:
-            r.add("error", "edge.dangling", f"{key}: 출발 노드 없음 — {src}")
+            r.add("error", "edge.dangling", f"{key}: source node missing — {src}")
         elif graph.nodes[src]["type"] not in spec.domain:
             r.add("error", "edge.domain",
-                  f"{key}: 출발이 {graph.nodes[src]['type']} (허용 {spec.domain})")
+                  f"{key}: source is {graph.nodes[src]['type']} (allowed: {spec.domain})")
         if dst not in graph.nodes:
-            r.add("error", "edge.dangling", f"{key}: 도착 노드 없음 — {dst}")
+            r.add("error", "edge.dangling", f"{key}: target node missing — {dst}")
         elif graph.nodes[dst]["type"] not in spec.range:
             r.add("error", "edge.range",
-                  f"{key}: 도착이 {graph.nodes[dst]['type']} (허용 {spec.range})")
+                  f"{key}: target is {graph.nodes[dst]['type']} (allowed: {spec.range})")
         for prop, allowed in ((p, a) for (t, p), a in _EDGE_ENUMS.items() if t == etype):
             value = edge["props"].get(prop)
             if value not in (None, "") and value not in allowed:
-                r.add("error", "edge.enum", f"{key}: {prop}={value} 은 허용되지 않는다")
+                r.add("error", "edge.enum", f"{key}: {prop}={value} is not an allowed value")
         spans = parse_spans(edge.get("spans"))
         if spec.requires_span and not spans and edge["status"] == "active":
-            r.add("error", "span.required", f"{key}: {etype} 은 근거 스팬이 필수다")
+            r.add("error", "span.required", f"{key}: {etype} requires a source span")
         for span in spans:
             for issue in verify_span(span, documents).issues:
                 r.add("error", issue.code, f"{key}: {issue.message}")
@@ -168,7 +168,7 @@ def validate_graph(graph: Graph, documents: dict[str, str] | None = None) -> Val
             continue
         if graph.props(edge["target"]).get("required_yn") is not True:
             r.add("warning", "produces.required",
-                  f"{edge['key']}: PRODUCES 대상이 required_yn=True 가 아니다")
+                  f"{edge['key']}: PRODUCES target is not required_yn=True")
     return r
 
 
@@ -178,7 +178,7 @@ def validate_journal(store: Store) -> ValidationResult:
     for rec in store.read_journal():
         if rec.get("op") not in ("upsert", "obsolete"):
             r.add("error", "journal.op",
-                  f"seq {rec.get('seq')}: 허용되지 않는 연산 {rec.get('op')} — 삭제는 없다")
+                  f"seq {rec.get('seq')}: operation {rec.get('op')} is not allowed — nothing is deleted")
     return r
 
 
@@ -209,22 +209,22 @@ def validate_ops(
         name = op["op"]
         if name not in OPS:
             r.add("error", "op.unknown",
-                  f"{tag}: 허용되지 않는 연산 '{name}' — 물리 삭제는 불허다")
+                  f"{tag}: operation '{name}' is not allowed — hard deletes are forbidden")
             continue
 
         if name == "node.create":
             ntype = op.get("node_type", "")
             spec = NODE_TYPES.get(ntype)
             if spec is None:
-                r.add("error", "op.node_type", f"{tag}: 정의되지 않은 노드 타입 {ntype}")
+                r.add("error", "op.node_type", f"{tag}: unknown node type {ntype}")
                 continue
             if proposer_kind == "SoftwareAgent" and not spec.llm_proposable:
                 r.add("error", "authority.propose",
-                      f"{tag}: sLM 은 {ntype} 를 제안할 수 없다 — 제안/판정/확정은 분리된다")
+                      f"{tag}: an sLM may not propose {ntype} — propose/decide/confirm stay separate")
             props = op.get("props", {})
             for key in spec.required:
                 if props.get(key) in (None, ""):
-                    r.add("error", "node.required", f"{tag}: 필수 속성 {key} 없음")
+                    r.add("error", "node.required", f"{tag}: required property {key} is missing")
             try:
                 node_id(ntype, **props)
             except (KeyError, ValueError) as exc:
@@ -234,7 +234,7 @@ def validate_ops(
             spans = parse_spans(op.get("spans"))
             if spec.requires_span and not spans:
                 r.add("error", "span.required",
-                      f"{tag}: {ntype} 은 근거 스팬이 필수다 (근거 없는 사실 금지)")
+                      f"{tag}: {ntype} requires a source span — no unsourced facts")
             for span in spans:
                 for issue in verify_span(span, documents).issues:
                     r.add("error", issue.code, f"{tag}: {issue.message}")
@@ -245,32 +245,35 @@ def validate_ops(
             etype = op.get("edge_type", "")
             spec = EDGE_TYPES.get(etype)
             if spec is None:
-                r.add("error", "op.edge_type", f"{tag}: 정의되지 않은 엣지 타입 {etype}")
+                r.add("error", "op.edge_type", f"{tag}: unknown edge type {etype}")
                 continue
             if proposer_kind == "SoftwareAgent" and not spec.llm_proposable:
                 r.add("error", "authority.propose",
-                      f"{tag}: sLM 은 {etype} 엣지를 제안할 수 없다")
+                      f"{tag}: an sLM may not propose a {etype} edge")
             src, dst = op.get("source", ""), op.get("target", "")
-            for side, ident, allowed in (("출발", src, spec.domain), ("도착", dst, spec.range)):
+            for side, ident, allowed in (
+                ("source", src, spec.domain),
+                ("target", dst, spec.range),
+            ):
                 if not ident:
-                    r.add("error", "edge.missing", f"{tag}: {side} 노드가 비었다")
+                    r.add("error", "edge.missing", f"{tag}: {side} node is empty")
                     continue
                 if ident not in graph.nodes and ident not in creating:
                     r.add("error", "edge.dangling",
-                          f"{tag}: {side} 노드가 승인 그래프에도 이 제안에도 없다 — {ident}")
+                          f"{tag}: {side} node is in neither the approved graph nor this proposal — {ident}")
                     continue
                 kind = type_of(ident)
                 if kind and kind not in allowed:
-                    r.add("error", f"edge.{'domain' if side == '출발' else 'range'}",
+                    r.add("error", f"edge.{'domain' if side == 'source' else 'range'}",
                           f"{tag}: {side}가 {kind} (허용 {allowed})")
             props = op.get("props", {})
             for prop, allowed in ((p, a) for (t, p), a in _EDGE_ENUMS.items() if t == etype):
                 value = props.get(prop)
                 if value not in (None, "") and value not in allowed:
-                    r.add("error", "edge.enum", f"{tag}: {prop}={value} 은 허용되지 않는다")
+                    r.add("error", "edge.enum", f"{tag}: {prop}={value} is not an allowed value")
             spans = parse_spans(op.get("spans"))
             if spec.requires_span and not spans:
-                r.add("error", "span.required", f"{tag}: {etype} 은 근거 스팬이 필수다")
+                r.add("error", "span.required", f"{tag}: {etype} requires a source span")
             for span in spans:
                 for issue in verify_span(span, documents).issues:
                     r.add("error", issue.code, f"{tag}: {issue.message}")
@@ -278,15 +281,15 @@ def validate_ops(
         elif name == "node.obsolete":
             nid = op.get("id", "")
             if nid not in graph.nodes:
-                r.add("error", "obsolete.missing", f"{tag}: 폐기 대상이 없다 — {nid}")
+                r.add("error", "obsolete.missing", f"{tag}: nothing to retire — {nid}")
             replaced = op.get("replaced_by", "")
             if replaced and replaced not in graph.nodes and replaced not in creating:
                 r.add("error", "obsolete.replaced_by",
-                      f"{tag}: 대체 노드를 찾을 수 없다 — {replaced}")
+                      f"{tag}: replacement node not found — {replaced}")
 
         elif name == "edge.obsolete":
             if op.get("key", "") not in graph.edges:
-                r.add("error", "obsolete.missing", f"{tag}: 폐기 대상 엣지가 없다")
+                r.add("error", "obsolete.missing", f"{tag}: no such edge to retire")
 
     return r
 
@@ -297,7 +300,7 @@ def _check_enums(r: ValidationResult, tag: str, ntype: str, props: dict[str, Any
             continue
         value = props.get(prop)
         if value not in (None, "") and value not in allowed:
-            r.add("error", "node.enum", f"{tag}: {prop}={value} 은 허용되지 않는다 ({allowed})")
+            r.add("error", "node.enum", f"{tag}: {prop}={value} is not an allowed value ({allowed})")
 
 
 # --------------------------------------------------------------------------- #

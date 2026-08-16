@@ -15,7 +15,7 @@ from typing import Any
 from fastapi import APIRouter, Body, HTTPException, Query
 
 from ..compliance import analysis, changeset as cs, rules, verify
-from ..compliance.ontology import VERDICT_KO, node_id, schema_dict
+from ..compliance.ontology import VERDICT_LABELS, node_id, schema_dict
 from ..compliance.store import Store
 from ..config import Config
 
@@ -112,7 +112,7 @@ def assess(service: str | None = Query(None), today: str | None = Query(None),
     return {
         "graph_seq": g.seq,
         "metrics": verify.audit_metrics(results),
-        "verdict_labels": VERDICT_KO,
+        "verdict_labels": VERDICT_LABELS,
         "assessments": [
             {**a.to_dict(),
              "service_name": g.props(node_id("Service", uuid=a.service_uuid)).get("name", ""),

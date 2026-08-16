@@ -24,7 +24,7 @@ from pathlib import Path
 
 from . import docparse
 from .changeset import create_edge, create_node
-from .ontology import node_id
+from .ontology import MANDATORY, OBLIGATION_LEVELS, RECOMMENDED, node_id
 from .spans import FORCE_MUST, FORCE_SHOULD, Span, digest, force_of, locate_quote
 from .store import Store
 
@@ -143,7 +143,8 @@ def ingest_regulation(
     return Proposal(ops=ops, note=note, parsed=parsed)
 
 
-_ARTICLE_RE = re.compile(r"^제\s*\d+\s*조")
+#: 조문 줄. 한국어 규정과 영문 규정을 같이 받는다.
+_ARTICLE_RE = re.compile(r"^(?:제\s*\d+\s*조|Article\s+\d+)")
 
 
 # --------------------------------------------------------------------------- #
@@ -280,7 +281,7 @@ SYSTEM_PROMPT = """너는 규제 문서에서 '의무'를 추출하는 도구다
 
 출력은 JSON 배열 하나뿐이다. 설명을 붙이지 마라.
 [
-  {"title": "의무를 한 문장으로", "level": "필수" 또는 "권고",
+  {"title": "의무를 한 문장으로", "level": "mandatory" 또는 "recommended",
    "quote": "원문에서 그대로 옮긴 근거 문장",
    "mapping_type": "equivalent-to|subset-of|superset-of|intersects-with"}
 ]
@@ -330,7 +331,7 @@ def propose_obligations(
             quote = str(item.get("quote", "")).strip()
             title = str(item.get("title", "")).strip()
             level = str(item.get("level", "")).strip()
-            if not quote or not title or level not in ("필수", "권고"):
+            if not quote or not title or level not in OBLIGATION_LEVELS:
                 result.rejected.append({"provision": props.get("uuid"), "item": item,
                                         "reason": "필수 항목 누락 또는 알 수 없는 강제력"})
                 continue
@@ -402,9 +403,9 @@ def _baseline_obligations(text: str, limit: int) -> list[dict[str, Any]]:
             continue
         force = force_of(sentence)
         if force == FORCE_MUST:
-            level = "필수"
+            level = MANDATORY
         elif force == FORCE_SHOULD:
-            level = "권고"
+            level = RECOMMENDED
         else:
             continue
         title = re.sub(r"^[①②③④⑤⑥⑦⑧⑨⑩]\s*", "", sentence)

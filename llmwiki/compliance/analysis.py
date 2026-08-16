@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
-from .ontology import node_id
+from .ontology import CONFIRMED, node_id
 from .store import Graph
 
 # --------------------------------------------------------------------------- #
@@ -97,7 +97,7 @@ def coverage_gap(graph: Graph) -> dict[str, Any]:
                 "title": graph.props(edge["source"]).get("title"),
                 "control": graph.props(edge["target"]).get("code"),
                 "mapping_type": mapping,
-                "note": "통제가 의무를 일부만 덮는다",
+                "note": "control covers the obligation only in part",
             })
 
     no_evidence: list[dict[str, Any]] = []
@@ -116,7 +116,7 @@ def coverage_gap(graph: Graph) -> dict[str, Any]:
         if required and not any(graph.targets(e, "COLLECTED_FROM") for e in required):
             manual.append({
                 "control": code, "title": ctrl["props"].get("title"),
-                "note": "증적을 생산하는 시스템 기능이 없다 — 수기 의존, 자동화 후보",
+                "note": "no system function produces this evidence — manual today, candidate for automation",
             })
 
     return {
@@ -169,7 +169,7 @@ def provision_impact(graph: Graph, provision_uuid: str) -> dict[str, Any]:
         "services": sorted(filter(None, (graph.props(s).get("name") for s in services))),
         "assessments": len(assessments),
         "confirmed_assessments": len(
-            [a for a in assessments if a["props"].get("decision_status") == "확정"]
+            [a for a in assessments if a["props"].get("decision_status") == CONFIRMED]
         ),
     }
 

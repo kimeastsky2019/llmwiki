@@ -79,9 +79,9 @@ def test_as_of_reproduces_a_past_graph(store):
 
 def test_obsolete_keeps_the_node_and_marks_it(store):
     work = Store(store.root)
-    target = node_id("Evidence", uuid="req-rm03-log")
+    target = node_id("Evidence", uuid="req-risk-review-log")
     change = cs.stage(
-        work, [cs.obsolete_node(target, replaced_by=node_id("Evidence", uuid="req-rm03-report"))],
+        work, [cs.obsolete_node(target, replaced_by=node_id("Evidence", uuid="req-risk-review-report"))],
         proposer={"type": "Person", "id": "gov-officer"},
     )
     cs.approve(work, change.changeset_id, approver="gov-officer")
@@ -93,7 +93,7 @@ def test_obsolete_keeps_the_node_and_marks_it(store):
     cs.approve(
         work,
         cs.stage(work, [cs.create_node("Evidence", {
-            "uuid": "req-rm03-log", "title": "위험 점검 이력",
+            "uuid": "req-risk-review-log", "title": "위험 점검 이력",
             "evidence_kind": "점검이력", "required_yn": True, "status": "active",
             "replaced_by": "",
         })], proposer={"type": "Person", "id": "gov-officer"}).changeset_id,
@@ -106,7 +106,7 @@ def test_obsolete_keeps_the_node_and_marks_it(store):
 # 커밋 결재 (L6)
 # --------------------------------------------------------------------------- #
 def test_physical_delete_is_forbidden(store, graph):
-    ops = [{"op": "node.delete", "id": node_id("Control", code="HI-19")}]
+    ops = [{"op": "node.delete", "id": node_id("Control", code="ACC-01")}]
     assert cs.grade_of(graph, ops) == cs.FORBIDDEN
     change = cs.stage(store, ops, proposer={"type": "Person", "id": "tester"})
     assert change.status == cs.BLOCKED
@@ -120,14 +120,14 @@ def test_new_node_is_g2_and_threshold_change_is_g3(store, graph):
     assert cs.grade_of(graph, new_node) == cs.G2
 
     threshold = [cs.create_node("TestProcedure", {
-        "control_code": "PF-07", "seq": "2", "kind": "metric",
+        "control_code": "PRF-02", "seq": "2", "kind": "metric",
         "metric": "model_auc", "operator": ">=", "threshold": 0.90})]
     assert cs.grade_of(graph, threshold) == cs.G3
     assert cs.impact_of(graph, threshold)["breaking"] is True
 
 
 def test_label_touch_up_is_g1(store, graph):
-    ops = [cs.create_node("Control", {"code": "HI-19", "title": "이해관계자 책임관계 문서",
+    ops = [cs.create_node("Control", {"code": "ACC-01", "title": "이해관계자 책임관계 문서",
                                       "auto_level": "L1", "note": "표기 정리"})]
     assert cs.grade_of(graph, ops) == cs.G1
     assert cs.impact_of(graph, ops)["breaking"] is False
@@ -140,17 +140,17 @@ def test_ruleset_change_is_g4(store, graph):
 
 def test_impact_is_computed_before_merge(store, graph):
     ops = [cs.create_node("TestProcedure", {
-        "control_code": "PF-07", "seq": "2", "kind": "metric",
+        "control_code": "PRF-02", "seq": "2", "kind": "metric",
         "metric": "model_auc", "operator": ">=", "threshold": 0.99})]
     impact = cs.impact_of(graph, ops)
-    assert impact["affected_control_codes"] == ["PF-07"]
-    assert impact["affected_services"] >= 2      # PF-07 은 두 서비스에 적용돼 있다
+    assert impact["affected_control_codes"] == ["PRF-02"]
+    assert impact["affected_services"] >= 2      # PRF-02 은 두 서비스에 적용돼 있다
 
 
 def test_slm_cannot_propose_a_judgement(store, graph):
     """권한 3분할 — 모델은 판정 노드를 만들 수 없다."""
     ops = [cs.create_node("Assessment", {
-        "uuid": "fake", "service_uuid": "svc-001", "control_code": "HI-19",
+        "uuid": "fake", "service_uuid": "svc-credit-scoring", "control_code": "ACC-01",
         "verdict": "SATISFIED", "versions": {}, "assessed_at": "2026-08-17"})]
     result = verify.validate_ops(graph, ops, proposer_kind="SoftwareAgent")
     assert any(i.code == "authority.propose" for i in result.errors)
@@ -166,17 +166,17 @@ def test_a_person_may_register_a_judgement_but_the_model_may_not(graph):
 
 def test_proposal_without_evidence_span_is_blocked(store, graph):
     ops = [cs.create_node("Obligation", {
-        "uuid": "obl-nospan", "title": "근거 없는 의무", "level": "필수"})]
+        "uuid": "obl-nospan", "title": "근거 없는 의무", "level": "mandatory"})]
     result = verify.validate_ops(graph, ops, proposer_kind="SoftwareAgent")
     assert any(i.code == "span.required" for i in result.errors)
 
 
 def test_hallucinated_citation_is_blocked(store, graph):
     """원문에 없는 문장을 근거로 단 제안은 사람 앞에 가지 못한다."""
-    fake = Span(doc_id="sample-ai-risk-guideline-2026", start=0, end=30,
+    fake = Span(doc_id="ai-risk-guideline-2026", start=0, end=30,
                 quote="금융회사는 모든 모형을 외부 기관의 검증을 받아야 한다")
     ops = [cs.create_node("Obligation", {
-        "uuid": "obl-fake", "title": "외부 검증 의무", "level": "필수"},
+        "uuid": "obl-fake", "title": "외부 검증 의무", "level": "mandatory"},
         spans=[fake.to_dict()])]
     change = cs.stage(store, ops, proposer={"type": "SoftwareAgent", "id": "slm"})
     assert change.status == cs.BLOCKED
@@ -184,39 +184,40 @@ def test_hallucinated_citation_is_blocked(store, graph):
 
 
 def test_overclaiming_a_recommendation_as_mandatory_is_blocked(store, graph):
-    text = store.document("sample-ai-risk-guideline-2026")
-    quote = "금융회사는 성능지표의 산출 근거를 이용자에게 공개하도록 노력하여야 한다."
+    text = store.document("ai-risk-guideline-2026")
+    quote = ("A financial institution should disclose to users the basis on which "
+             "performance\nindicators are calculated.")
     start = text.find(quote)
     assert start >= 0
-    span = Span.of("sample-ai-risk-guideline-2026", text, start, start + len(quote))
+    span = Span.of("ai-risk-guideline-2026", text, start, start + len(quote))
     ops = [cs.create_node("Obligation", {
-        "uuid": "obl-overclaim", "title": "산출 근거 공개 의무", "level": "필수"},
+        "uuid": "obl-overclaim", "title": "Disclose calculation basis", "level": "mandatory"},
         spans=[span.to_dict()])]
     change = cs.stage(store, ops, proposer={"type": "SoftwareAgent", "id": "slm"})
     assert change.status == cs.BLOCKED
     assert any(i["code"] == "citation.force" for i in change.checks["issues"])
     # 같은 근거로 '권고' 라고 주장하면 통과한다
-    ops[0]["props"]["level"] = "권고"
+    ops[0]["props"]["level"] = "recommended"
     ok = cs.stage(store, ops, proposer={"type": "SoftwareAgent", "id": "slm"})
     assert ok.status == cs.PENDING
 
 
 def test_dangling_edge_proposal_is_blocked(store, graph):
     ops = [cs.create_edge("IMPLEMENTED_BY", node_id("Obligation", uuid="ghost"),
-                          node_id("Control", code="HI-19"))]
+                          node_id("Control", code="ACC-01"))]
     assert any(i.code == "edge.dangling"
                for i in verify.validate_ops(graph, ops).errors)
 
 
 def test_edge_range_is_enforced(graph):
-    ops = [cs.create_edge("PRODUCES", node_id("Control", code="HI-19"),
-                          node_id("Service", uuid="svc-001"))]
+    ops = [cs.create_edge("PRODUCES", node_id("Control", code="ACC-01"),
+                          node_id("Service", uuid="svc-credit-scoring"))]
     assert any(i.code == "edge.range" for i in verify.validate_ops(graph, ops).errors)
 
 
 def test_blocked_proposal_cannot_be_approved(store, graph):
     change = cs.stage(store, [cs.create_node("Obligation", {
-        "uuid": "obl-blocked", "title": "근거 없음", "level": "필수"})],
+        "uuid": "obl-blocked", "title": "근거 없음", "level": "mandatory"})],
         proposer={"type": "SoftwareAgent", "id": "slm"})
     assert change.status == cs.BLOCKED
     with pytest.raises(ValueError):
@@ -238,89 +239,92 @@ def test_rejection_keeps_the_history(store, graph):
 # 판정 (L3)
 # --------------------------------------------------------------------------- #
 def test_evidence_present_signed_and_valid_is_satisfied(store):
-    a = verdicts(store)[("svc-001", "HI-19")]
+    a = verdicts(store)[("svc-credit-scoring", "ACC-01")]
     assert a.verdict == SATISFIED
     assert a.have == a.need == 1
     assert a.evidence_ids
 
 
 def test_missing_evidence_is_unsatisfied(store):
-    assert verdicts(store)[("svc-001", "MN-05")].verdict == UNSATISFIED
+    assert verdicts(store)[("svc-credit-scoring", "CHG-04")].verdict == UNSATISFIED
 
 
 def test_partial_evidence_is_deferred_not_guessed(store):
-    a = verdicts(store)[("svc-001", "RM-03")]
+    a = verdicts(store)[("svc-credit-scoring", "RSK-03")]
     assert a.verdict == DEFERRED
     assert a.raw_verdict == "PARTIAL"
     assert "PARTIAL_EVIDENCE" in a.triggers
 
 
 def test_qualitative_control_is_never_auto_decided(store):
-    a = verdicts(store)[("svc-001", "QA-11")]
+    a = verdicts(store)[("svc-credit-scoring", "EXP-06")]
     assert a.verdict == DEFERRED
     assert "QUALITATIVE" in a.triggers
 
 
 def test_undefined_threshold_defers_instead_of_failing(store):
-    a = verdicts(store)[("svc-001", "TH-09")]
+    a = verdicts(store)[("svc-credit-scoring", "DRF-05")]
     assert a.verdict == DEFERRED
     assert "THRESHOLD_UNDEFINED" in a.triggers
 
 
 def test_expiring_evidence_defers(store):
-    a = verdicts(store)[("svc-002", "PF-07")]
+    a = verdicts(store)[("svc-call-summary", "PRF-02")]
     assert a.verdict == DEFERRED
     assert "EVIDENCE_EXPIRING" in a.triggers
 
 
 def test_metric_is_compared_deterministically(store):
-    a = verdicts(store)[("svc-001", "PF-07")]
+    a = verdicts(store)[("svc-credit-scoring", "PRF-02")]
     assert a.verdict == SATISFIED
-    assert "model_auc 0.82 >= 0.75 충족" in a.reason
+    assert "model_auc 0.82 >= 0.75 met" in a.reason
 
 
 def test_metric_below_threshold_is_unsatisfied(store, graph):
-    low = {"svc-001": {"model_auc": 0.60}}
-    a = rules.adjudicate(graph, "svc-001", "PF-07", metrics=low,
+    low = {"svc-credit-scoring": {"model_auc": 0.60}}
+    a = rules.adjudicate(graph, "svc-credit-scoring", "PRF-02", metrics=low,
                          ruleset_version=RULESET_VERSION)
     assert a.raw_verdict in ("PARTIAL", "UNSATISFIED")
     assert a.verdict != SATISFIED
 
 
 def test_control_not_applied_is_not_applicable(graph):
-    a = rules.adjudicate(graph, "svc-002", "HI-19", ruleset_version=RULESET_VERSION)
+    # RSK-03(연차 위험 점검)은 고영향 서비스에만 적용된다 — 콜센터에는 붙지 않는다
+    a = rules.adjudicate(graph, "svc-call-summary", "RSK-03", ruleset_version=RULESET_VERSION)
     assert a.verdict == "NOT_APPLICABLE"
 
 
 def test_unsigned_evidence_does_not_count(store, graph):
     g = graph.copy()
-    g.nodes[node_id("Evidence", uuid="evd-hi19-svc001")]["props"]["sign_yn"] = False
-    a = rules.adjudicate(g, "svc-001", "HI-19", ruleset_version=RULESET_VERSION)
+    g.nodes[node_id("Evidence", uuid="evd-acc-credit")]["props"]["sign_yn"] = False
+    a = rules.adjudicate(g, "svc-credit-scoring", "ACC-01", ruleset_version=RULESET_VERSION)
     assert a.verdict == UNSATISFIED
-    assert "서명 없음" in a.reason
+    assert "unsigned" in a.reason
 
 
 def test_expired_evidence_does_not_count(store, graph):
     g = graph.copy()
-    g.nodes[node_id("Evidence", uuid="evd-hi19-svc001")]["props"]["valid_to"] = "2020-01-01"
-    a = rules.adjudicate(g, "svc-001", "HI-19", ruleset_version=RULESET_VERSION)
+    g.nodes[node_id("Evidence", uuid="evd-acc-credit")]["props"]["valid_to"] = "2020-01-01"
+    a = rules.adjudicate(g, "svc-credit-scoring", "ACC-01", ruleset_version=RULESET_VERSION)
     assert a.verdict == UNSATISFIED
-    assert "유효기간 만료" in a.reason
+    assert "expired" in a.reason
 
 
 def test_amending_provision_defers_everything_downstream(store, graph):
     g = graph.copy()
     for node in g.of_type("Provision"):
-        if "책임관계" in str(node["props"].get("text", "")):
+        if "stakeholders and their responsibilities" in str(
+            node["props"].get("text", "")
+        ).lower():
             node["props"]["status"] = "amending"
-    a = rules.adjudicate(g, "svc-001", "HI-19", ruleset_version=RULESET_VERSION)
+    a = rules.adjudicate(g, "svc-credit-scoring", "ACC-01", ruleset_version=RULESET_VERSION)
     assert a.verdict == DEFERRED
     assert "PROVISION_AMENDING" in a.triggers
 
 
 def test_flipped_verdict_defers_for_review(graph):
-    a = rules.adjudicate(graph, "svc-001", "HI-19", ruleset_version=RULESET_VERSION,
-                         prior={"HI-19": UNSATISFIED})
+    a = rules.adjudicate(graph, "svc-credit-scoring", "ACC-01", ruleset_version=RULESET_VERSION,
+                         prior={"ACC-01": UNSATISFIED})
     assert a.verdict == DEFERRED
     assert "VERDICT_FLIPPED" in a.triggers
 
@@ -356,19 +360,19 @@ def test_confirmation_is_required_and_recorded(tmp_path):
     results = rules.adjudicate_all(work.approved(), ruleset_version=RULESET_VERSION,
                                    metrics=work.metrics)
     rules.commit(work, results, ruleset_version=RULESET_VERSION)
-    target = next(a for a in results if a.control_code == "HI-19")
+    target = next(a for a in results if a.control_code == "ACC-01")
 
     graph = work.approved()
     node = graph.node(node_id("Assessment", uuid=target.uuid))
-    assert node["props"]["decision_status"] == "잠정"
+    assert node["props"]["decision_status"] == "provisional"
     assert node["derivation"] == "rule"
 
     props = rules.confirm(work, target.uuid, agent_id="gov-officer")
-    assert props["decision_status"] == "확정"
+    assert props["decision_status"] == "confirmed"
     after = work.approved().node(node_id("Assessment", uuid=target.uuid))
     assert after["derivation"] == "rule"          # 값을 바꾸지 않았으므로 여전히 룰
 
-    other = next(a for a in results if a.control_code == "RM-03")
+    other = next(a for a in results if a.control_code == "RSK-03")
     rules.confirm(work, other.uuid, agent_id="gov-officer", verdict="PARTIAL")
     flipped = work.approved().node(node_id("Assessment", uuid=other.uuid))
     assert flipped["props"]["verdict"] == "PARTIAL"
@@ -382,7 +386,7 @@ def test_committed_assessments_carry_prov_lineage(tmp_path):
                                    metrics=work.metrics)
     rules.commit(work, results, ruleset_version=RULESET_VERSION)
     g = work.approved()
-    target = next(a for a in results if a.control_code == "HI-19")
+    target = next(a for a in results if a.control_code == "ACC-01")
     asmt = node_id("Assessment", uuid=target.uuid)
     assert g.targets(asmt, "used")                        # 무엇을 근거로 삼았나
     assert g.targets(asmt, "wasAttributedTo")             # 누가 냈나
@@ -411,22 +415,26 @@ def test_cohen_kappa_math():
 def test_coverage_gap_finds_uncontrolled_obligations(graph):
     gap = analysis.coverage_gap(graph)
     assert gap["summary"]["uncovered"] >= 1
-    assert any("공개하도록 노력" in row["title"] for row in gap["uncovered_obligations"])
+    # 제10조(인적 감독)에는 대응 통제를 두지 않았다 — 갭 분석이 이걸 잡아야 한다
+    assert any(
+        "Human oversight" in row["title"] for row in gap["uncovered_obligations"]
+    )
 
 
 def test_manual_controls_are_flagged_as_automation_candidates(graph):
     gap = analysis.coverage_gap(graph)
-    assert [row["control"] for row in gap["manual_controls"]] == ["MN-05"]
+    assert [row["control"] for row in gap["manual_controls"]] == ["CHG-04"]
 
 
 def test_provision_impact_reaches_services(graph):
     provision = next(
         n for n in graph.of_type("Provision")
-        if "책임관계" in str(n["props"].get("text", ""))
+        if "stakeholders and their responsibilities"
+        in str(n["props"].get("text", "")).lower()
     )
     impact = analysis.provision_impact(graph, provision["props"]["uuid"])
-    assert impact["controls"] == ["HI-19"]
-    assert "여신심사 스코어링" in impact["services"]
+    assert impact["controls"] == ["ACC-01"]
+    assert "Credit Scoring" in impact["services"]
 
 
 # --------------------------------------------------------------------------- #

@@ -16,7 +16,7 @@ from llmwiki.compliance.ontology import (
     DEFERRAL_TRIGGERS,
     EDGE_TYPES,
     NODE_TYPES,
-    VERDICT_KO,
+    VERDICT_LABELS,
     VERDICTS,
     edge_key,
     node_id,
@@ -65,7 +65,7 @@ def test_edge_key_props_are_declared_properties():
 
 
 def test_every_verdict_has_a_korean_label():
-    assert set(VERDICT_KO) == set(VERDICTS)
+    assert set(VERDICT_LABELS) == set(VERDICTS)
 
 
 def test_deferral_triggers_are_documented():
@@ -130,9 +130,9 @@ def test_document_derived_types_require_spans():
 # 식별자
 # --------------------------------------------------------------------------- #
 def test_node_id_is_deterministic():
-    a = node_id("Control", code="HI-19")
-    b = node_id("Control", code="HI-19")
-    assert a == b == "ctrl:HI-19"
+    a = node_id("Control", code="ACC-01")
+    b = node_id("Control", code="ACC-01")
+    assert a == b == "ctrl:ACC-01"
 
 
 def test_node_id_rejects_missing_parts():
@@ -147,8 +147,8 @@ def test_type_of_recovers_the_node_type():
 
 def test_satisfied_by_edges_are_distinct_per_service():
     """같은 통제·같은 증적이라도 서비스가 다르면 다른 엣지다."""
-    a = edge_key("SATISFIED_BY", "ctrl:HI-19", "evd:1", {"service_uuid": "svc-001"})
-    b = edge_key("SATISFIED_BY", "ctrl:HI-19", "evd:1", {"service_uuid": "svc-002"})
+    a = edge_key("SATISFIED_BY", "ctrl:ACC-01", "evd:1", {"service_uuid": "svc-credit-scoring"})
+    b = edge_key("SATISFIED_BY", "ctrl:ACC-01", "evd:1", {"service_uuid": "svc-call-summary"})
     assert a != b
 
 
@@ -236,21 +236,21 @@ def test_effort_clause_is_not_read_as_mandatory():
 
 def test_claim_stronger_than_evidence_is_rejected():
     span = Span.of("doc", "금융회사는 공개하도록 노력하여야 한다.", 0, 24)
-    check = check_citation_force({"level": "필수"}, [span], label="obl:x")
+    check = check_citation_force({"level": "mandatory"}, [span], label="obl:x")
     assert not check.ok
     assert any(i.code == "citation.force" for i in check.issues)
 
 
 def test_claim_within_evidence_passes():
     span = Span.of("doc", TEXT, 0, len(TEXT))
-    assert check_citation_force({"level": "필수"}, [span]).ok
-    assert check_citation_force({"level": "권고"}, [span]).ok
+    assert check_citation_force({"level": "mandatory"}, [span]).ok
+    assert check_citation_force({"level": "recommended"}, [span]).ok
 
 
 def test_org_decisions_do_not_need_a_document_citation():
     """'우리는 이 증적을 요구한다' 는 문서 인용이 아니라 조직의 결정이다."""
     assert check_citation_force({"required_yn": True}, []).ok
-    assert not check_citation_force({"level": "필수"}, []).ok
+    assert not check_citation_force({"level": "mandatory"}, []).ok
 
 
 # --------------------------------------------------------------------------- #

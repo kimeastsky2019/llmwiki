@@ -286,7 +286,7 @@ function AssessTab({
                       )}
                     </td>
                     <td>
-                      {a.decision_status === "확정" ? (
+                      {a.decision_status === "confirmed" ? (
                         <span className="chip signed">
                           {t("regConfirmed")} · {a.confirmed_by}
                         </span>
@@ -402,7 +402,9 @@ function CoverageTab({ onError }: { onError: (e: string | null) => void }) {
               {data.uncovered_obligations.map((row) => (
                 <tr key={row.obligation}>
                   <td>
-                    <span className={`chip force-${row.level === "필수" ? "must" : "should"}`}>
+                    <span
+                      className={`chip force-${row.level === "mandatory" ? "must" : "should"}`}
+                    >
                       {row.level}
                     </span>
                   </td>

@@ -35,7 +35,9 @@ from .ontology import (
     PARTIAL,
     SATISFIED,
     UNSATISFIED,
-    VERDICT_KO,
+    CONFIRMED,
+    PROVISIONAL,
+    VERDICT_LABELS,
     node_id,
 )
 from .spans import check_citation_force, parse_spans
@@ -50,8 +52,6 @@ from .store import (
     today_iso,
 )
 
-PROVISIONAL = "잠정"
-CONFIRMED = "확정"
 
 
 @dataclass
@@ -83,7 +83,7 @@ class Assessment:
 
     @property
     def label(self) -> str:
-        return VERDICT_KO[self.verdict]
+        return VERDICT_LABELS[self.verdict]
 
     @property
     def deferred(self) -> bool:
@@ -147,7 +147,7 @@ def adjudicate(
     if control is None or control["status"] != "active":
         return Assessment(
             service_uuid, control_code, NOT_APPLICABLE, NOT_APPLICABLE,
-            reason=f"통제 {control_code} 가 승인 그래프에 없거나 폐기됨",
+            reason=f"Control {control_code} is absent from the approved graph or retired",
             versions=versions, assessed_at=now_iso(), as_of=today_str,
         )
 
@@ -155,7 +155,7 @@ def adjudicate(
     if not applies:
         return Assessment(
             service_uuid, control_code, NOT_APPLICABLE, NOT_APPLICABLE,
-            reason="이 서비스에 적용되지 않는 통제",
+            reason="Control does not apply to this service",
             versions=versions, assessed_at=now_iso(), as_of=today_str,
         )
 
@@ -181,14 +181,14 @@ def adjudicate(
             continue
         props = evd["props"]
         if props.get("sign_yn") is not True:
-            rejected.append(f"{props.get('title', evd_id)}: 서명 없음")
+            rejected.append(f"{props.get('title', evd_id)}: unsigned")
             continue
         valid_from, valid_to = parse_date(props.get("valid_from")), parse_date(props.get("valid_to"))
         if today_date and valid_from and today_date < valid_from:
-            rejected.append(f"{props.get('title', evd_id)}: 유효기간 시작 전")
+            rejected.append(f"{props.get('title', evd_id)}: not yet valid")
             continue
         if today_date and valid_to and today_date > valid_to:
-            rejected.append(f"{props.get('title', evd_id)}: 유효기간 만료")
+            rejected.append(f"{props.get('title', evd_id)}: expired")
             continue
         if today_date and valid_to and 0 <= days_between(today_date, valid_to) <= EXPIRY_WINDOW_DAYS:
             expiring.append(props.get("title", evd_id))
@@ -229,9 +229,11 @@ def adjudicate(
             unfilled.extend(left)
             if not gap:
                 metric_passed += 1
-                metric_notes.append(f"구성 검토 통과 ({len(props.get('sections') or [])}절)")
+                metric_notes.append(
+                    f"section check passed ({len(props.get('sections') or [])} sections)"
+                )
             else:
-                metric_notes.append(f"빠진 절 {len(gap)}개: " + ", ".join(gap[:3]))
+                metric_notes.append(f"{len(gap)} sections missing: " + ", ".join(gap[:3]))
             continue
         if kind != "metric":
             continue
@@ -247,9 +249,13 @@ def adjudicate(
         value = readings[metric]
         if compare(value, str(operator), float(threshold)):
             metric_passed += 1
-            metric_notes.append(f"{metric} {value}{props.get('unit', '')} {operator} {threshold} 충족")
+            metric_notes.append(
+                f"{metric} {value}{props.get('unit', '')} {operator} {threshold} met"
+            )
         else:
-            metric_notes.append(f"{metric} {value}{props.get('unit', '')} {operator} {threshold} 미충족")
+            metric_notes.append(
+                f"{metric} {value}{props.get('unit', '')} {operator} {threshold} not met"
+            )
 
     # 이 판정이 쓴 문서들 사이에 불일치가 보고돼 있는가
     conflict_notes: list[str] = []
@@ -545,30 +551,32 @@ def _reason(
 ) -> str:
     parts: list[str] = []
     if need:
-        parts.append(f"필수 증적 {have}/{need}")
+        parts.append(f"required evidence {have}/{need}")
     if metric_total:
-        parts.append(f"지표·구성 {metric_passed}/{metric_total}")
+        parts.append(f"metric/section checks {metric_passed}/{metric_total}")
     if missing_sections:
-        parts.append("빠진 절: " + ", ".join(missing_sections[:4]))
+        parts.append("missing sections: " + ", ".join(missing_sections[:4]))
     if unfilled:
-        parts.append("미기입 의심: " + ", ".join(unfilled[:3]))
+        parts.append("possibly unfilled: " + ", ".join(unfilled[:3]))
     if conflict_notes:
-        parts.append("문서 간 불일치: " + "; ".join(conflict_notes[:2]))
+        parts.append("documents disagree: " + "; ".join(conflict_notes[:2]))
     if qualitative:
-        parts.append("정성 항목 — 룰이 판정하지 않는다")
+        parts.append("qualitative control — rules do not decide it")
     if not parts:
-        parts.append("요구 증적·지표 없음")
+        parts.append("no evidence or metric required")
     if rejected:
-        parts.append("불인정: " + "; ".join(rejected))
+        parts.append("rejected: " + "; ".join(rejected))
     if expiring:
-        parts.append("만료 임박: " + ", ".join(expiring))
+        parts.append("expiring soon: " + ", ".join(expiring))
     if threshold_undefined:
-        parts.append("임계치 미정: " + ", ".join(threshold_undefined))
+        parts.append("threshold undefined: " + ", ".join(threshold_undefined))
     if metric_missing:
-        parts.append("측정값 없음: " + ", ".join(metric_missing))
+        parts.append("measurement missing: " + ", ".join(metric_missing))
     if metric_notes:
         parts.append(" / ".join(metric_notes))
-    head = f"룰 판정 {VERDICT_KO[raw]}"
-    if triggers:
-        head += " → 판단유보"
+    head = f"Rule verdict: {VERDICT_LABELS[raw]}"
+    # 룰이 이미 DEFERRED 를 냈으면 화살표를 붙이지 않는다 —
+    # "Deferred to reviewer → deferred to reviewer" 가 되어 읽는 사람을 헷갈리게 한다.
+    if triggers and raw != DEFERRED:
+        head += " → deferred to reviewer"
     return head + " — " + " · ".join(parts)

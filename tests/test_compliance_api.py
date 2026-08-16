@@ -9,6 +9,8 @@ from __future__ import annotations
 import os
 
 import pytest
+
+import llmwiki.compliance.seed as seed_mod
 from fastapi.testclient import TestClient
 
 from llmwiki.compliance import changeset as cs
@@ -63,7 +65,7 @@ def client(tmp_path_factory):
 def test_schema_and_graph(client):
     assert client.get("/api/reg/schema").json()["ontology"] == "1.0.0"
     graph = client.get("/api/reg/graph").json()
-    assert graph["counts"]["Control"] == 6
+    assert graph["counts"]["Control"] == len(seed_mod.CONTROLS)
     assert graph["pending_changes"] == 0
 
 

@@ -27,8 +27,9 @@ FORCE_MAY = 1       # 재량
 FORCE_SHOULD = 2    # 권고 · 노력 의무
 FORCE_MUST = 3      # 필수 의무 · 금지
 
-FORCE_KO: dict[int, str] = {
-    FORCE_INFO: "서술", FORCE_MAY: "재량", FORCE_SHOULD: "권고", FORCE_MUST: "필수",
+FORCE_NAMES: dict[int, str] = {
+    FORCE_INFO: "informative", FORCE_MAY: "discretionary",
+    FORCE_SHOULD: "recommended", FORCE_MUST: "mandatory",
 }
 
 #: 완화 어미. "노력하여야 한다" 는 "하여야 한다" 를 포함하므로 먼저 걷어낸다.
@@ -64,7 +65,7 @@ _PATTERNS: tuple[tuple[str, int], ...] = (
 )
 
 #: 제안된 사실이 주장하는 강도. 여기 없는 종류는 검증 대상이 아니다.
-_CLAIM_FORCE: dict[str, int] = {"필수": FORCE_MUST, "권고": FORCE_SHOULD}
+_CLAIM_FORCE: dict[str, int] = {"mandatory": FORCE_MUST, "recommended": FORCE_SHOULD}
 
 
 @dataclass
@@ -221,8 +222,8 @@ def check_citation_force(
     if claim > evidence:
         check.fail(
             "citation.force",
-            f"{label}: 주장 강도 {FORCE_KO[claim]} > 근거 강도 {FORCE_KO[evidence]} "
-            f"— 근거: {spans[0].quote[:40]!r}",
+            f"{label}: claim is {FORCE_NAMES[claim]} but the quoted text is only "
+            f"{FORCE_NAMES[evidence]} — quote: {spans[0].quote[:40]!r}",
         )
     return check
 
