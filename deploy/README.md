@@ -104,7 +104,7 @@ sudo -u llmwiki env $(sudo cat /etc/llmwiki/llmwiki.env | grep ^XAI_) HOME=/opt/
 
 # 문서·작업물 (docx·xlsx·pdf)
 L="sudo -u llmwiki HOME=/opt/llmwiki /opt/llmwiki/.venv/bin/llmwiki reg"
-$L ingest 규정.docx --uuid reg-x --name "AI 거버넌스 규정" --issuer AX팀
+$L ingest 규정.docx --uuid reg-x --name "AI 거버넌스 규정" --issuer 소관부서
 $L template HI-19 별첨01.docx          # 서식 → 필수 절 (구성 검토 절차)
 $L submit 작업물.docx --uuid evd-001 --signed --control HI-19 --service svc-001
 $L consistency                          # 문서 간 값 불일치
