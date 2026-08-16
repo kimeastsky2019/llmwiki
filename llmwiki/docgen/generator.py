@@ -77,6 +77,7 @@ def _render(cfg: Config, idx: Index, prog: Program, provider, digest: str) -> st
     crud_rows = _crud_rows(idx, prog)
 
     lang = cfg.language
+    stack = _stack_of(prog)
     prompt = build_prompt(
         program_name=prog.name,
         layer=prog.layer,
@@ -87,13 +88,20 @@ def _render(cfg: Config, idx: Index, prog: Program, provider, digest: str) -> st
         sources=sources,
         statements=statements,
         lang=lang,
+        stack=stack,
     )
-    narrative = provider.complete(system_prompt(lang), prompt).strip()
+    narrative = provider.complete(system_prompt(lang, stack), prompt).strip()
     narrative = _strip_frontmatter(narrative)
 
     front = _frontmatter(cfg, prog, digest, provider)
     appendix = _appendix(idx, prog, crud_rows, statements, lang)
     return f"{front}\n{narrative}\n\n{appendix}"
+
+
+def _stack_of(prog: Program) -> str:
+    """산출물 대상이 파이썬인지 자바인지. 파일 확장자가 유일하게 확실한 근거다."""
+    py = sum(1 for f in prog.files if f.endswith(".py"))
+    return "python" if py and py >= len(prog.files) / 2 else "java"
 
 
 def _frontmatter(cfg: Config, prog: Program, digest: str, provider) -> str:
@@ -111,6 +119,7 @@ def _frontmatter(cfg: Config, prog: Program, digest: str, provider) -> str:
         "service_ids": prog.service_ids,
         "files": prog.files,
         "language": cfg.language,
+        "stack": _stack_of(prog),
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "generator": f"{provider.name}:{getattr(provider, 'model', '')}",
         "source_hash": digest,

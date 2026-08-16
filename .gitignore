@@ -15,4 +15,7 @@ web/dist/
 docs/*.md
 docs/index.json
 
+# 뷰어에서 불러온 로컬 프로젝트들 (사용자 머신마다 다름)
+projects/
+
 .DS_Store

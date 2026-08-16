@@ -115,7 +115,6 @@ export default function SourceBrowser({ target, onClose }: Props) {
                   }
                   selected={selected}
                   onPick={(path) => setSelected({ path, root: root.index })}
-                  showRootName={(roots?.length ?? 0) > 1}
                 />
               ))}
             </div>
@@ -189,7 +188,6 @@ function RootTree({
   onToggle,
   selected,
   onPick,
-  showRootName,
 }: {
   root: SourceRoot;
   filter: string;
@@ -197,7 +195,6 @@ function RootTree({
   onToggle: (key: string) => void;
   selected: SourceTarget | null;
   onPick: (path: string) => void;
-  showRootName: boolean;
 }) {
   const { t } = useLang();
   const needle = filter.trim().toLowerCase();
@@ -215,7 +212,8 @@ function RootTree({
 
   return (
     <div className="sb-root">
-      {showRootName && <div className="sb-root-name">{root.name}</div>}
+      {/* 접힌 최상위 경로(sample/src/main 처럼)를 머리말로 보여 준다 — 트리에서는 생략되므로 */}
+      <div className="sb-root-name">{tree.name}</div>
       <DirRows
         node={shown}
         depth={0}
@@ -323,7 +321,8 @@ function CodeView({ file, jumpTo }: { file: SourceContent; jumpTo?: number }) {
 
   const scrollToLine = (line: number) => {
     const el = scroller.current?.querySelector(`[data-line="${line}"]`);
-    el?.scrollIntoView({ block: "center" });
+    // inline:"nearest" — 가로 위치는 건드리지 않는다 (읽던 열이 튀지 않도록)
+    el?.scrollIntoView({ block: "center", inline: "nearest" });
   };
 
   useEffect(() => {
@@ -387,22 +386,27 @@ function CodeView({ file, jumpTo }: { file: SourceContent; jumpTo?: number }) {
       {tooBig && <div className="sb-note">{t("highlightOff")}</div>}
 
       <div className="sb-code-scroll" ref={scroller}>
-        <table className="sb-lines">
-          <tbody>
-            {lines.map((tokens, i) => {
-              const no = i + 1;
-              return (
-                <tr
-                  key={no}
-                  data-line={no}
-                  className={`${hitLines.has(no) ? "hit" : ""} ${no === activeLine ? "cur" : ""}`}
-                >
-                  <td className="sb-no">{no}</td>
-                  <td className="sb-src">
-                    {tokens.length === 0 ? (
-                      " "
-                    ) : (
-                      tokens.map((tok, k) =>
+        {/* 표가 아니라 flex 로 그린다. table 은 내용이 넓어지면 열 폭을 다시
+            잡아 줄번호와 코드가 어긋난다. */}
+        <div
+          className="sb-lines"
+          style={{ "--gutter": `${String(lines.length).length + 1}ch` } as React.CSSProperties}
+        >
+          {lines.map((tokens, i) => {
+            const no = i + 1;
+            return (
+              <div
+                key={no}
+                data-line={no}
+                className={`sb-line ${hitLines.has(no) ? "sb-hit" : ""} ${
+                  no === activeLine ? "sb-cur" : ""
+                }`}
+              >
+                <span className="sb-no">{no}</span>
+                <span className="sb-src">
+                  {tokens.length === 0
+                    ? " "
+                    : tokens.map((tok, k) =>
                         tok.cls ? (
                           <span key={k} className={`hl-${tok.cls}`}>
                             {tok.text}
@@ -410,14 +414,12 @@ function CodeView({ file, jumpTo }: { file: SourceContent; jumpTo?: number }) {
                         ) : (
                           <span key={k}>{tok.text}</span>
                         )
-                      )
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                      )}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

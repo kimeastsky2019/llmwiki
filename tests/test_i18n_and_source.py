@@ -18,6 +18,9 @@ from llmwiki.server.excel import _parse_crud, build_workbook
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# 활성 프로젝트는 사용자가 뷰어에서 바꿀 수 있으므로 테스트는 항상 명시한다
+DEFAULT = {"project": "default"}
+
 
 @pytest.fixture(scope="module")
 def index():
@@ -136,7 +139,7 @@ def test_parse_crud_reads_both_languages(heading, header):
 # 소스 브라우저 API
 # --------------------------------------------------------------------------- #
 def test_source_tree_lists_parsed_files(client):
-    roots = client.get("/api/source/tree").json()
+    roots = client.get("/api/source/tree", params=DEFAULT).json()
     assert roots and roots[0]["name"] == "sample"
     paths = {f["path"]: f for f in roots[0]["files"]}
     controller = "src/main/java/com/gng/inst/cust/CustomerController.java"
@@ -148,7 +151,7 @@ def test_source_tree_lists_parsed_files(client):
 def test_source_returns_content_and_lang(client):
     r = client.get(
         "/api/source",
-        params={"path": "src/main/java/com/gng/inst/cust/CustomerController.java", "root": 0},
+        params={**DEFAULT, "path": "src/main/java/com/gng/inst/cust/CustomerController.java", "root": 0},
     )
     assert r.status_code == 200
     body = r.json()
@@ -163,19 +166,19 @@ def test_source_returns_content_and_lang(client):
 )
 def test_source_rejects_paths_outside_roots(client, path):
     """source_roots 밖은 어떤 경로 조합으로도 새어 나가면 안 된다."""
-    assert client.get("/api/source", params={"path": path}).status_code == 404
+    assert client.get("/api/source", params={**DEFAULT, "path": path}).status_code == 404
 
 
 def test_error_messages_follow_lang_param(client):
-    assert client.get("/api/table/NOPE", params={"lang": "ko"}).json()["detail"] == (
+    assert client.get("/api/table/NOPE", params={**DEFAULT, "lang": "ko"}).json()["detail"] == (
         "테이블을 찾을 수 없습니다."
     )
-    assert client.get("/api/table/NOPE", params={"lang": "en"}).json()["detail"] == (
+    assert client.get("/api/table/NOPE", params={**DEFAULT, "lang": "en"}).json()["detail"] == (
         "Table not found."
     )
 
 
 def test_meta_exposes_language(client):
-    body = client.get("/api/meta").json()
+    body = client.get("/api/meta", params=DEFAULT).json()
     assert body["language"] in ("ko", "en")
     assert body["source_roots"] == ["sample"]

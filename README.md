@@ -1,11 +1,12 @@
 # LLMWiki
 
-레거시 운영 소스(Java Spring + MyBatis)를 정적 분석 + LLM 으로 읽어
+운영 소스(Java Spring+MyBatis / Python FastAPI·Flask+SQLAlchemy·rdflib)를
+정적 분석 + LLM 으로 읽어
 **프로그램 명세서를 자동 생성**하고, 이를 **검색 가능한 위키**로 서비스합니다.
 
 ```
 운영 소스 ──▶ 정적 분석 ──▶ LLM 서술 생성 ──▶ MD 산출물 ──▶ 웹 뷰어
- (Java/XML)   (파서/그래프)    (Claude/Ollama)   (docs/*.md)   (FastAPI+React)
+(Java/XML/py)  (파서/그래프)    (Claude/Ollama)   (docs/*.md)   (FastAPI+React)
                     └──────────── CI/CD 배포 훅에서 매번 재실행 ────────────┘
 ```
 
@@ -131,12 +132,77 @@ LLM 을 호출합니다. 1,000본짜리 시스템에서도 일상 배포 비용�
 
 ## 뷰어에서 할 수 있는 것
 
+- **로컬 폴더 불러오기** — 아래 참조
 - 계층(기관계/채널계/공통) → 프로그램 트리 탐색
 - 한글·영문 통합 검색 (업무명 / 테이블명 / 클래스명 / URL / 본문)
 - 프로그램 명세서 열람 + 호출 흐름도(mermaid) 렌더링
+- 프로그램별 **명세서 생성 / 재생성** 버튼 (LLM 호출을 화면에서)
 - 테이블 클릭 → **이 테이블을 함께 쓰는 다른 프로그램**(영향도)
 - **소스 브라우저** — 아래 참조
 - **Excel 내려받기** (개요 / 클래스 / CRUD / SQL / 영향도 / 소스 시트)
+
+### 로컬 폴더 불러오기
+
+`config.yaml` 을 고치지 않고, 뷰어에서 내 컴퓨터의 소스 폴더를 열어 바로 분석합니다.
+좌측 상단 **프로젝트 → ＋ 로컬 폴더 열기**.
+
+브라우저의 기본 폴더 선택창은 보안상 실제 절대경로를 주지 않아 쓸 수 없습니다.
+서버가 로컬에서 도는 점을 이용해 **탐색기를 직접 만들었습니다.**
+
+```
+┌─ 로컬 폴더 열기 ─────────────────────────────────────────────┐
+│ /Users/me/workspace                                  [이동]  │
+├───────────────┬──────────────────────────────────────────────┤
+│ 바로가기      │ me / workspace / loan      [이 폴더에서 찾기] │
+│  홈           ├──────────────────────────────────────────────┤
+│  바탕화면     │ ⬆ 상위 폴더                                  │
+│  문서         │ 📁 loan-batch          git   Java 210 · XML 44│
+│ 최근          │ 📁 loan-web       maven git  Java 380 · XML 91│
+│  loan         │ 📁 docs                                      │
+│ 폴더          │                                              │
+│  ▾ me         │                                              │
+│    ▾ workspace│                                              │
+│      · loan   │                                              │
+├───────────────┴──────────────────────────────────────────────┤
+│ /Users/me/workspace/loan                                     │
+│ Java 590 · XML 135 · git   ↑↓ 이동·Enter·Backspace [이 폴더 분석]│
+└──────────────────────────────────────────────────────────────┘
+```
+
+- **바로가기** — 홈 / 바탕화면 / 문서 / 다운로드 (있는 것만)
+- **최근** — 분석했던 폴더 (브라우저에 저장)
+- **폴더 트리** — 현재 경로가 자동으로 펼쳐지고, 하위는 누를 때 받아옵니다
+- **브레드크럼** — 경로 어느 단계로든 한 번에
+- **필터** — 현재 폴더의 하위 폴더 이름으로
+- **키보드** — `↑`/`↓` 이동, `Enter` 들어가기, `Backspace` 상위, `Esc` 닫기
+- **표식** — `maven` `gradle` `ant` `git` `svn` `webapp` 을 최상위에서만 판별해
+  배지로 붙입니다. 하위까지 뒤지면 온통 배지가 돼 신호가 안 됩니다.
+- 폴더마다 `Java n · XML n` 을 미리 세어 보여 줍니다. 큰 폴더는 도중에 세기를
+  멈추고 `12+` 처럼 표시합니다 — 0건으로 잘못 단정하지 않습니다.
+- 경로를 이미 알고 있으면 상단 입력창에 붙여넣고 Enter.
+
+폴더를 고르면 **정적 분석까지 자동**으로 돌고, LLM 명세서는 프로그램 화면의
+**명세서 생성** 버튼으로 따로 만듭니다. 큰 저장소에서 API 비용이 갑자기 튀지
+않게 하려는 의도입니다.
+- 불러온 프로젝트는 목록에 남아 상단에서 전환합니다. 프로젝트마다
+  `projects/<id>/docs` 와 `index.json` 을 따로 두므로 산출물이 섞이지 않습니다.
+- 목록에서 제거해도 **원본 소스는 건드리지 않습니다.** 지우는 것은
+  `projects/<id>/` 아래 생성 산출물뿐입니다.
+
+`.git` · `node_modules` · `.venv` · `target` · `build` 같은 디렉터리는 스캔·열람
+양쪽에서 아예 들어가지 않습니다. 이게 없으면 임의의 로컬 폴더를 열었을 때
+파일 수십만 개를 헤매느라 응답이 수십 초로 뜁니다.
+
+탐색 범위는 기본이 홈 디렉터리입니다. 넓히거나 좁히려면:
+
+```yaml
+server:
+  browse_roots: ["~/workspace", "/svn/checkout"]
+```
+
+> 이 탐색기는 서버가 도는 머신의 파일 목록을 노출합니다. 기본 바인드가
+> `127.0.0.1` 인 것을 전제로 한 기능이니, 외부에 열어 서비스할 때는
+> `browse_roots` 를 실제 소스 경로로 좁히십시오.
 
 ### 소스 브라우저
 
@@ -183,20 +249,73 @@ llmwiki/
     scanner.py    주석·문자열 제거 (중괄호 매칭이 깨지지 않도록)
     java.py       클래스/메서드/필드/어노테이션/호출 추출
     mybatis.py    Mapper XML → SQL, 테이블, CRUD, 파라미터
+    python.py     ast 기반 파이썬 파서 (모듈/클래스/라우트/호출)
+    pydata.py     SQLAlchemy · 원시 SQL · SPARQL 접근 지점 추출
     graph.py      호출 그래프 · 프로그램 단위 · 영향도
   llm/            claude | ollama | template 공급자
   docgen/         프롬프트 + MD 렌더링(부록은 파서가 직접 작성)
-  server/         FastAPI · 검색 · Excel · 소스 열람
+  server/
+    app.py        FastAPI 라우트 (프로젝트별로 인덱스·문서를 갈라 서비스)
+    jobs.py       파싱·생성 백그라운드 작업 추적
+  workspace.py    프로젝트 레지스트리 · 로컬 폴더 탐색기
   ontology.py     확정 스키마 v1.0.0 + 검증기 + 그래프 내보내기
   i18n.py         ko/en 문자열 (산출물·Excel·서버 메시지)
 web/
   src/i18n.ts     뷰어 UI 문자열 + 언어 토글
   src/highlight.ts  의존성 없는 구문 강조
   src/SourceBrowser.tsx  소스 브라우저
+  src/Projects.tsx  프로젝트 전환기 + 폴더 선택기
 sample/           예제 Spring+MyBatis 소스
-tests/            파서 회귀 · 다국어 · 소스 API · 온톨로지 테스트
+sample_py/        예제 FastAPI+Flask+SQLAlchemy+SPARQL 소스
+projects/         뷰어로 불러온 로컬 프로젝트 (gitignore)
+tests/            파서 회귀(Java/Python) · 다국어 · 소스 API · 온톨로지 · 워크스페이스
 design/           서비스 기획서 · 온톨로지 스키마 문서
 ```
+
+---
+
+## 파이썬 지원 (FastAPI · Flask · SQLAlchemy · rdflib)
+
+`.py` 파일은 정규식이 아니라 **표준 라이브러리 `ast`** 로 읽습니다. 문법을 정확히
+파싱하므로 Java 파서에 있는 "특이한 코드는 놓칠 수 있다"는 제약이 없습니다.
+
+| 파이썬 개념 | 산출물에서의 자리 |
+|---|---|
+| `@router.get("/x")` · `@app.route("/x", methods=[...])` | 호출 URL |
+| `APIRouter(prefix=...)` · `Blueprint(url_prefix=...)` | URL 앞부분 (놓치면 주소가 반쪽) |
+| `__tablename__` + `Column(...)` | 테이블 + 컬럼 |
+| `db.add / query / delete`, 속성 변경 + `commit()` | CRUD 매트릭스 |
+| `cursor.execute("SELECT …")` · `text(...)` | 원시 SQL (테이블은 SQL 파싱) |
+| `graph.query("SELECT ?s …")` · `graph.update("INSERT DATA …")` | **온톨로지 클래스/그래프** + CRUD |
+| 모듈 · 클래스 docstring 첫 줄 | 업무명 |
+
+**프로그램 단위**는 Java(컨트롤러 1개)와 다릅니다. FastAPI 는 라우트를 모듈 하나에
+수십 개씩 늘어놓는 일이 흔해서 — 실제로 `main.py` 한 파일에 69개가 몰린 사례가
+있었습니다 — 라우트가 12개를 넘으면 **URL 의 업무 세그먼트**로 쪼갭니다.
+`/api/v1/auth/...` 와 `/api/v1/assessments/...` 는 각각 다른 명세서가 됩니다
+(`api`, `v1` 같은 껍데기 세그먼트는 건너뜁니다).
+
+### 파이썬에서 특히 신경 쓴 것
+
+- **모델은 다른 모듈에 있습니다.** `models/entities.py` 에 정의하고 `services/` 에서
+  씁니다. 파일 단위로만 모으면 CRUD 가 통째로 빕니다 — 그래서 스캔을 두 번 합니다.
+- **쓰기는 변수를 거칩니다.** `db.add(customer)` 의 `customer` 가 어느 모델인지
+  함수 스코프에서 추적하지 않으면 CRUD 가 **R 만** 나옵니다.
+- **UPDATE 는 호출이 아니라 대입입니다.** `user.name = x` 뒤에 `commit()` 이 있을
+  때만 UPDATE 로 셉니다. 커밋 없는 대입까지 세면 과탐입니다.
+- **테이블명 표기를 맞춥니다.** 원시 SQL 은 `TB_CUSTOMER`, ORM 은 `tb_customer` 로
+  나와 같은 테이블이 둘로 갈라지면 영향도가 깨집니다.
+- **유틸 모듈은 프로그램이 아닙니다.** 파이썬은 거의 모든 모듈이 '함수를 가진
+  서비스'라, 데이터를 실제로 만지는 것만 독립 명세서로 만듭니다.
+
+### 아직 못 하는 것
+
+- Django (`urls.py` · Django ORM) — 규칙이 달라 별도 작업이 필요합니다
+- 동적 라우트 등록(`app.add_api_route(...)`), 리플렉션으로만 이어지는 호출
+- 타입힌트가 없는 코드의 호출 그래프는 Java 보다 성깁니다 (실측 55% 가 힌트 보유)
+- SPARQL 은 코드 안 문자열만 봅니다. `.rq` 파일이나 런타임 조립 질의는 못 읽습니다
+
+`sample_py/` 에 FastAPI + Flask + SQLAlchemy + SPARQL 예제가 들어 있습니다.
 
 ---
 
@@ -204,6 +323,7 @@ design/           서비스 기획서 · 온톨로지 스키마 문서
 
 **현재 다루는 범위**
 - Spring MVC(`@Controller`/`@RestController`) + MyBatis Mapper XML / 인터페이스
+- FastAPI / Flask + SQLAlchemy / rdflib (위 '파이썬 지원' 참조)
 - 레거시 DAO 의 `sqlSession.selectList("ns.id")` 직접 호출
 - 프로그램 단위 = 컨트롤러 1개 (컨트롤러가 없는 서비스는 별도 프로그램)
 
