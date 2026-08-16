@@ -185,6 +185,169 @@ export interface SourceContent {
   content: string;
 }
 
+// --------------------------------------------------------------------------
+// 규제 지식그래프 · 근거기반 자동평가 (/api/reg/…)
+//
+// 여기 있는 것은 프로젝트 단위가 아니다. 소스 분석은 프로젝트마다 갈리지만
+// 규제 그래프는 조직 전체에 하나뿐이라, 프로젝트를 바꿔도 같은 것을 본다.
+// --------------------------------------------------------------------------
+export interface RegVersions {
+  ontology: string;
+  ruleset: string;
+  standard: string;
+  provisions: { uuid: string; number: string; effective_from: string }[];
+}
+
+export interface RegAssessment {
+  uuid: string;
+  service_uuid: string;
+  service_name: string;
+  control_code: string;
+  control_title: string;
+  /** 유보를 반영한 최종 판정 */
+  verdict: string;
+  /** 룰이 계산한 값 — 유보로 넘어간 이유를 보려면 이 둘을 같이 봐야 한다 */
+  raw_verdict: string;
+  label: string;
+  reason: string;
+  triggers: string[];
+  evidence_ids: string[];
+  need: number;
+  have: number;
+  versions: RegVersions;
+  assessed_at: string;
+  as_of: string;
+  /** 잠정 | 확정 — 노드 생애 상태와는 다른 축이다 */
+  decision_status: string;
+  confirmed_by: string;
+  confirmed_at: string;
+}
+
+export interface RegMetrics {
+  total: number;
+  decided: number;
+  deferred: number;
+  auto_rate: number;
+  by_verdict: Record<string, number>;
+  by_trigger: Record<string, number>;
+}
+
+export interface RegAssessResponse {
+  graph_seq: number;
+  metrics: RegMetrics;
+  verdict_labels: Record<string, string>;
+  assessments: RegAssessment[];
+}
+
+export interface RegGraph {
+  version: string;
+  seq: number;
+  edges: number;
+  pending_changes: number;
+  counts: Record<string, number>;
+  coverage: Record<string, number>;
+  system_functions: { linked: number; unlinked: number };
+}
+
+export interface RegCoverage {
+  uncovered_obligations: {
+    obligation: string;
+    title: string;
+    level: string;
+    provisions: string[];
+  }[];
+  partially_covered: {
+    obligation: string;
+    title: string;
+    control: string;
+    mapping_type: string;
+    note: string;
+  }[];
+  controls_without_evidence: { control: string; title: string }[];
+  controls_without_procedure: { control: string; title: string }[];
+  manual_controls: { control: string; title: string; note: string }[];
+  summary: Record<string, number>;
+}
+
+export interface RegIssue {
+  level: string;
+  code: string;
+  message: string;
+}
+
+export interface RegValidation {
+  ok: boolean;
+  errors: number;
+  warnings: number;
+  issues: RegIssue[];
+}
+
+export interface RegGoldset {
+  total: number;
+  decided: number;
+  correct: number;
+  deferred: number;
+  coverage: number;
+  precision: number;
+  kappa: number;
+  confusion: Record<string, Record<string, number>>;
+  misses: {
+    service: string;
+    control: string;
+    expected: string;
+    actual: string;
+    reason: string;
+  }[];
+  result: string;
+}
+
+export interface RegChangeOp {
+  op: string;
+  node_type?: string;
+  edge_type?: string;
+  source?: string;
+  target?: string;
+  props?: Record<string, unknown>;
+  spans?: { doc_id: string; start: number; end: number; quote: string }[];
+}
+
+export interface RegChange {
+  changeset_id: string;
+  proposer: { type: string; id: string };
+  source: { type: string; id: string } | null;
+  ops: RegChangeOp[];
+  status: string;
+  grade: string;
+  impact: {
+    affected_controls: number;
+    affected_control_codes: string[];
+    affected_assessments: number;
+    affected_services: number;
+    breaking: boolean;
+  };
+  checks: { shacl?: string; issues?: RegIssue[] };
+  created_at: string;
+  reviewed_by: string;
+  reviewed_at: string;
+  review_note: string;
+}
+
+export interface RegChangeDetail extends RegChange {
+  approver: string;
+  diff?: {
+    added_nodes: { id: string; type: string; props: Record<string, unknown> }[];
+    added_edges: { key: string; type: string; source: string; target: string }[];
+    changed_nodes: { id: string; type: string; changes: Record<string, unknown[]> }[];
+    obsoleted: string[];
+  };
+}
+
+export interface RegGrade {
+  approver: string;
+  scope: string;
+  breaking: string;
+}
+
 /** 서버 오류 메시지도 뷰어 언어를 따르도록 모든 요청에 lang 을 붙인다.
  *  프로젝트도 마찬가지 — 서버에 상태를 두지 않으면 탭을 여러 개 열어도 안 꼬인다. */
 let currentLang: Lang = "ko";
@@ -266,6 +429,40 @@ export const api = {
   generate: (docId?: string, provider?: string) =>
     post<{ job: string }>("/api/generate", { doc_id: docId, provider }),
   job: (id: string) => get<Job>(`/api/jobs/${id}`),
+
+  // --- 규제 지식그래프 ---
+  // 쓰기는 결재(approve/reject)와 확정 서명(confirm) 둘뿐이다.
+  // 노드를 직접 만들거나 지우는 길은 API 에 없다 — 있으면 커밋 결재가 우회된다.
+  reg: {
+    /** 유보 사유 설명은 온톨로지(ontology.py)가 원본이다 — 화면에 복사해 두지 않는다. */
+    schema: () =>
+      get<{
+        deferral_triggers: Record<string, string>;
+        verdict_ko: Record<string, string>;
+      }>("/api/reg/schema"),
+    graph: () => get<RegGraph>("/api/reg/graph"),
+    validate: () => get<RegValidation>("/api/reg/validate"),
+    assess: (service?: string) =>
+      get<RegAssessResponse>(
+        `/api/reg/assess${service ? `?service=${encodeURIComponent(service)}` : ""}`
+      ),
+    coverage: () => get<RegCoverage>("/api/reg/coverage"),
+    goldset: () => get<RegGoldset>("/api/reg/goldset"),
+    changes: () =>
+      get<{ grades: Record<string, RegGrade>; changes: RegChange[] }>("/api/reg/changes"),
+    change: (id: string) =>
+      get<RegChangeDetail>(`/api/reg/changes/${encodeURIComponent(id)}`),
+    approve: (id: string, by: string, note?: string) =>
+      post<RegChange>(`/api/reg/changes/${encodeURIComponent(id)}/approve`, { by, note }),
+    reject: (id: string, by: string, note?: string) =>
+      post<RegChange>(`/api/reg/changes/${encodeURIComponent(id)}/reject`, { by, note }),
+    confirm: (uuid: string, by: string, verdict?: string, note?: string) =>
+      post<Record<string, unknown>>(
+        `/api/reg/assess/${encodeURIComponent(uuid)}/confirm`,
+        { by, verdict, note }
+      ),
+    commit: () => post<{ assessments: number; records: number }>("/api/reg/assess/commit"),
+  },
 };
 
 /** 업로드는 fetch 대신 XHR 을 쓴다 — fetch 는 업로드 진행률을 주지 않는다.

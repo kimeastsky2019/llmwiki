@@ -28,17 +28,23 @@ import {
 } from "./i18n";
 import Markdown from "./Markdown";
 import SourceBrowser, { type SourceTarget } from "./SourceBrowser";
+import Compliance, { REG_TABS, type RegTab } from "./Compliance";
 
 type Route =
   | { kind: "home" }
   | { kind: "program"; id: string }
   | { kind: "table"; name: string }
-  | { kind: "tables" };
+  | { kind: "tables" }
+  | { kind: "reg"; tab: RegTab };
 
 function parseRoute(path: string): Route {
   if (path.startsWith("/p/")) return { kind: "program", id: path.slice(3) };
   if (path.startsWith("/t/")) return { kind: "table", name: decodeURIComponent(path.slice(3)) };
   if (path === "/tables") return { kind: "tables" };
+  if (path.startsWith("/reg")) {
+    const tab = path.slice(5) as RegTab;
+    return { kind: "reg", tab: REG_TABS.includes(tab) ? tab : "assess" };
+  }
   return { kind: "home" };
 }
 
@@ -252,6 +258,14 @@ export default function App() {
             >
               {t("sourceLink")}
             </button>
+            {/* 규제 그래프는 프로젝트 단위가 아니라 조직 전체에 하나뿐이다.
+                좌측 트리(소스 분석)와 성격이 달라 링크로만 갈라 둔다. */}
+            <button
+              className={`tables-link reg-link ${route.kind === "reg" ? "active" : ""}`}
+              onClick={() => navigate("/reg")}
+            >
+              {t("regLink")}
+            </button>
           </div>
         </aside>
 
@@ -274,6 +288,12 @@ export default function App() {
               onNavigate={navigate}
               onOpenSource={openSource}
               onGenerated={() => setRefresh((n) => n + 1)}
+            />
+          )}
+          {route.kind === "reg" && (
+            <Compliance
+              tab={route.tab}
+              onTab={(tab) => navigate(tab === "assess" ? "/reg" : `/reg/${tab}`)}
             />
           )}
           {route.kind === "tables" && <TablesView onPick={navigate} />}
