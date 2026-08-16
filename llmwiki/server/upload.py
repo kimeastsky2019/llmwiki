@@ -12,6 +12,8 @@ sanitize 를 거치고, 마지막에 실제 해석된 경로가 목적지 안인
 from __future__ import annotations
 
 import shutil
+import threading
+import uuid
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
@@ -118,16 +120,25 @@ class Incoming:
     size: int | None = None
 
 
-def store_files(dest: Path, items: Iterable[Incoming]) -> UploadStats:
-    """폴더 업로드를 디스크에 쓴다."""
-    stats = UploadStats()
+def store_files(
+    dest: Path, items: Iterable[Incoming], *, strip_root: bool = True, base: UploadStats | None = None
+) -> UploadStats:
+    """폴더 업로드를 디스크에 쓴다.
+
+    strip_root: 공통 최상위를 벗길지. 나눠 보내는(배치) 업로드는 한 번에 전체
+    경로를 볼 수 없으므로 클라이언트가 이미 벗겨서 보낸다 — 그때는 False.
+    base: 누적 통계. 배치마다 한도(총량)를 이어서 세기 위한 것이다.
+    """
+    stats = base if base is not None else UploadStats()
     pending = [(i, safe_relpath(i.rel)) for i in items]
     usable = [(i, r) for i, r in pending if r]
     stats.skipped += len(pending) - len(usable)
     if len(pending) != len(usable):
         stats.reasons.add("숨김·빌드 폴더 제외")
 
-    rels = strip_common_root([r for _, r in usable])
+    rels = [r for _, r in usable]
+    if strip_root:
+        rels = strip_common_root(rels)
     dest.mkdir(parents=True, exist_ok=True)
 
     for (item, _), rel in zip(usable, rels):
@@ -149,12 +160,18 @@ def store_files(dest: Path, items: Iterable[Incoming]) -> UploadStats:
         stats.files += 1
         stats.bytes += written
 
-    if stats.files == 0:
-        raise UploadError(
-            "저장할 소스 파일이 없습니다. "
-            f"허용 확장자: {', '.join(sorted(ALLOWED_SUFFIXES)[:12])} …"
-        )
+    # 배치(base 전달)에서는 이 묶음이 통째로 걸러질 수 있다 — 정상이다.
+    # 전체가 비었는지는 세션을 마칠 때 본다.
+    if stats.files == 0 and base is None:
+        raise UploadError(no_files_message())
     return stats
+
+
+def no_files_message() -> str:
+    return (
+        "저장할 소스 파일이 없습니다. "
+        f"허용 확장자: {', '.join(sorted(ALLOWED_SUFFIXES)[:12])} …"
+    )
 
 
 def extract_zip(dest: Path, stream: IO[bytes]) -> UploadStats:
@@ -205,6 +222,75 @@ def extract_zip(dest: Path, stream: IO[bytes]) -> UploadStats:
     if stats.files == 0:
         raise UploadError("ZIP 안에서 저장할 소스 파일을 찾지 못했습니다.")
     return stats
+
+
+# --------------------------------------------------------------------------- #
+# 나눠 보내는 업로드 (세션)
+#
+# 폴더 하나를 한 요청에 담으면, 브라우저가 파일 수백 개를 디스크에서 읽어
+# multipart 본문을 다 만들 때까지 첫 바이트가 나가지 않는다. 그 사이 nginx 의
+# client_body_timeout 이 먼저 끝나 408 로 끊긴다. 작게 나눠 보내면 각 요청이
+# 짧게 끝나고, 실패한 묶음만 다시 보낼 수 있다.
+# --------------------------------------------------------------------------- #
+SESSION_TTL_SEC = 3600
+
+
+@dataclass
+class Session:
+    id: str
+    name: str
+    dest: Path
+    stats: UploadStats
+    touched: float
+
+
+class Sessions:
+    """진행 중인 업로드들. 워커가 하나이므로 메모리에 둔다 (jobs 와 같은 방식)."""
+
+    def __init__(self) -> None:
+        self._items: dict[str, Session] = {}
+        self._lock = threading.Lock()
+
+    def start(self, root: Path, name: str, *, now: float) -> Session:
+        self._sweep(root, now)
+        with self._lock:
+            sid = uuid.uuid4().hex[:12]
+            session = Session(
+                id=sid,
+                name=name,
+                dest=unique_dir(root, name),
+                stats=UploadStats(),
+                touched=now,
+            )
+            session.dest.mkdir(parents=True, exist_ok=True)
+            self._items[sid] = session
+            return session
+
+    def get(self, sid: str, *, now: float) -> Session:
+        with self._lock:
+            session = self._items.get(sid)
+            if session is None:
+                raise UploadError(
+                    "업로드 세션을 찾을 수 없습니다. 오래 방치됐거나 서버가 재시작됐습니다. "
+                    "다시 시도하십시오."
+                )
+            session.touched = now
+            return session
+
+    def pop(self, sid: str, *, now: float) -> Session:
+        session = self.get(sid, now=now)
+        with self._lock:
+            self._items.pop(sid, None)
+        return session
+
+    def _sweep(self, root: Path, now: float) -> None:
+        """버려진 세션의 임시 폴더를 치운다. 안 그러면 디스크에 쌓이기만 한다."""
+        with self._lock:
+            stale = [s for s in self._items.values() if now - s.touched > SESSION_TTL_SEC]
+            for s in stale:
+                self._items.pop(s.id, None)
+        for s in stale:
+            discard(s.dest, root)
 
 
 def _copy_capped(src: IO[bytes], target: Path, stats: UploadStats) -> int | None:

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   api,
   uploadProject,
+  uploadZip,
   waitForJob,
   type DirEntry,
   type DirListing,
@@ -85,6 +86,17 @@ async function fromDataTransfer(items: DataTransferItemList): Promise<Picked[]> 
 
   for (const root of roots) await walk(root, "");
   return out;
+}
+
+/** 모든 경로가 같은 최상위 폴더를 공유하면 그 한 겹을 벗긴다.
+ *  나눠 보내면 서버는 전체 목록을 볼 수 없으므로 여기서 처리한다. */
+export function stripCommonRoot(entries: Picked[]): Picked[] {
+  if (entries.length === 0) return entries;
+  const tops = new Set(entries.map((e) => e.path.split("/")[0]));
+  if (tops.size !== 1) return entries;
+  // 최상위에 파일만 있는 경우(벗기면 이름이 사라진다)는 그대로 둔다
+  if (entries.some((e) => !e.path.includes("/"))) return entries;
+  return entries.map((e) => ({ ...e, path: e.path.slice(e.path.indexOf("/") + 1) }));
 }
 
 function formatBytes(n: number): string {
@@ -294,7 +306,9 @@ function Uploader({
     setErr(null);
     setSent(0);
     try {
-      const { promise, abort: cancel } = uploadProject(picked, name, (s) => setSent(s));
+      const { promise, abort: cancel } = isZip
+        ? uploadZip(picked[0].file, name, (s) => setSent(s))
+        : uploadProject(stripCommonRoot(picked), name, (s) => setSent(s));
       abort.current = cancel;
       const res = await promise;
       setSent(null);

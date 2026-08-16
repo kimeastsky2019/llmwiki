@@ -270,23 +270,16 @@ export const api = {
 
 /** 업로드는 fetch 대신 XHR 을 쓴다 — fetch 는 업로드 진행률을 주지 않는다.
  *  레거시 소스는 수천 개 파일이라 진행 표시 없이는 멈춘 것처럼 보인다. */
-export function uploadProject(
-  entries: { file: File; path: string }[],
-  name: string,
-  onProgress?: (sent: number, total: number) => void
-): { promise: Promise<UploadResult>; abort: () => void } {
-  const form = new FormData();
-  // files 와 paths 는 같은 순서로 나가야 짝이 맞는다.
-  for (const e of entries) {
-    form.append("files", e.file);
-    form.append("paths", e.path);
-  }
-  if (name) form.append("name", name);
-
+function xhrPost<T>(
+  url: string,
+  form: FormData,
+  onProgress?: (sent: number) => void,
+  register?: (abort: () => void) => void
+): Promise<T> {
   const xhr = new XMLHttpRequest();
-  const promise = new Promise<UploadResult>((resolve, reject) => {
-    xhr.upload.onprogress = (ev) =>
-      ev.lengthComputable && onProgress?.(ev.loaded, ev.total);
+  register?.(() => xhr.abort());
+  return new Promise<T>((resolve, reject) => {
+    xhr.upload.onprogress = (ev) => ev.lengthComputable && onProgress?.(ev.loaded);
     xhr.onload = () => {
       let body: unknown = null;
       try {
@@ -294,19 +287,143 @@ export function uploadProject(
       } catch {
         /* 파싱 실패하면 아래에서 상태코드로 처리 */
       }
-      if (xhr.status >= 200 && xhr.status < 300) resolve(body as UploadResult);
+      if (xhr.status >= 200 && xhr.status < 300) resolve(body as T);
       else {
         const detail = (body as { detail?: string } | null)?.detail;
-        reject(new Error(detail ?? `HTTP ${xhr.status}`));
+        const err = new Error(detail ?? `HTTP ${xhr.status}`);
+        // 4xx 는 다시 보내도 같은 답이다 — 재시도 대상에서 뺀다.
+        (err as Error & { permanent?: boolean }).permanent =
+          xhr.status >= 400 && xhr.status < 500;
+        reject(err);
       }
     };
-    xhr.onerror = () => reject(new Error("업로드 중 연결이 끊겼습니다."));
-    xhr.onabort = () => reject(new Error("업로드를 취소했습니다."));
+    xhr.onerror = () => reject(new Error("연결이 끊겼습니다."));
+    xhr.onabort = () => {
+      const err = new Error("업로드를 취소했습니다.");
+      (err as Error & { permanent?: boolean }).permanent = true;
+      reject(err);
+    };
+    xhr.open("POST", tag(url));
+    xhr.send(form);
+  });
+}
+
+/** 한 묶음의 상한. 요청 하나가 짧게 끝나야 중간에 안 끊긴다. */
+const BATCH_FILES = 40;
+const BATCH_BYTES = 4 * 1024 * 1024;
+const RETRIES = 3;
+
+function makeBatches(entries: { file: File; path: string }[]) {
+  const out: { file: File; path: string }[][] = [];
+  let cur: { file: File; path: string }[] = [];
+  let bytes = 0;
+  for (const e of entries) {
+    // 한 파일이 상한보다 커도 혼자서는 보낸다 (그래야 빠지지 않는다)
+    if (cur.length > 0 && (cur.length >= BATCH_FILES || bytes + e.file.size > BATCH_BYTES)) {
+      out.push(cur);
+      cur = [];
+      bytes = 0;
+    }
+    cur.push(e);
+    bytes += e.file.size;
+  }
+  if (cur.length > 0) out.push(cur);
+  return out;
+}
+
+/** 폴더 업로드 — 작게 나눠 보내고, 끊긴 묶음만 다시 보낸다.
+ *
+ *  한 요청에 다 담으면 브라우저가 파일 수백 개를 읽어 본문을 만드는 동안
+ *  첫 바이트가 나가지 않아 nginx 가 408 로 끊는다(실제로 겪은 증상).
+ */
+export function uploadProject(
+  entries: { file: File; path: string }[],
+  name: string,
+  onProgress?: (sent: number, total: number) => void
+): { promise: Promise<UploadResult>; abort: () => void } {
+  let cancelled = false;
+  let abortCurrent: (() => void) | null = null;
+  let uploadId: string | null = null;
+
+  const total = entries.reduce((sum, e) => sum + e.file.size, 0);
+
+  const run = async (): Promise<UploadResult> => {
+    const started = await request<{ upload_id: string }>("/api/uploads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    uploadId = started.upload_id;
+
+    let done = 0;
+    for (const batch of makeBatches(entries)) {
+      if (cancelled) throw new Error("업로드를 취소했습니다.");
+      const form = new FormData();
+      for (const e of batch) {
+        form.append("files", e.file);
+        form.append("paths", e.path);
+      }
+      const size = batch.reduce((s, e) => s + e.file.size, 0);
+
+      for (let attempt = 1; ; attempt++) {
+        try {
+          await xhrPost(
+            `/api/uploads/${uploadId}/files`,
+            form,
+            (sent) => onProgress?.(done + Math.min(sent, size), total),
+            (a) => (abortCurrent = a)
+          );
+          break;
+        } catch (e) {
+          const err = e as Error & { permanent?: boolean };
+          if (err.permanent || attempt > RETRIES || cancelled) throw err;
+          // 잠깐 쉬었다 같은 묶음을 다시 보낸다 (같은 파일을 덮어쓰므로 안전)
+          await new Promise((r) => setTimeout(r, 500 * attempt));
+        }
+      }
+      done += size;
+      onProgress?.(done, total);
+    }
+
+    return request<UploadResult>(`/api/uploads/${uploadId}/finish`, { method: "POST" });
+  };
+
+  const promise = run().catch(async (e) => {
+    // 실패·취소하면 서버에 받다 만 폴더를 남기지 않는다
+    if (uploadId) {
+      await request(`/api/uploads/${uploadId}`, { method: "DELETE" }).catch(
+        () => undefined
+      );
+    }
+    throw e;
   });
 
-  xhr.open("POST", tag("/api/projects/upload"));
-  xhr.send(form);
-  return { promise, abort: () => xhr.abort() };
+  return {
+    promise,
+    abort: () => {
+      cancelled = true;
+      abortCurrent?.();
+    },
+  };
+}
+
+/** ZIP 은 파일 하나라 나눌 것이 없다 — 기존 단발 엔드포인트를 그대로 쓴다. */
+export function uploadZip(
+  file: File,
+  name: string,
+  onProgress?: (sent: number, total: number) => void
+): { promise: Promise<UploadResult>; abort: () => void } {
+  const form = new FormData();
+  form.append("files", file);
+  if (name) form.append("name", name);
+  let abortCurrent: (() => void) | null = null;
+  const promise = xhrPost<UploadResult>(
+    "/api/projects/upload",
+    form,
+    (sent) => onProgress?.(sent, file.size),
+    (a) => (abortCurrent = a)
+  );
+  return { promise, abort: () => abortCurrent?.() };
 }
 
 /** 작업이 끝날 때까지 폴링. onTick 으로 진행 메시지를 흘려 준다. */

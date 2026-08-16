@@ -6,6 +6,7 @@ import fnmatch
 import os
 import shutil
 import threading
+import time
 import urllib.parse
 from collections import defaultdict
 from datetime import datetime
@@ -36,9 +37,11 @@ from .excel import build_workbook, safe_filename
 from .search import DocStore, search as run_search
 from .upload import (
     Incoming,
+    Sessions,
     UploadError,
     discard,
     extract_zip,
+    no_files_message,
     store_files,
     unique_dir,
 )
@@ -146,6 +149,81 @@ def add_project(payload: dict = Body(...)):
     project = registry.add(path, payload.get("name") or None)
     registry.set_active(project.id)
     return {"project": project.to_dict(), "job": _start_parse(project)}
+
+
+uploads = Sessions()
+
+
+@app.post("/api/uploads")
+def upload_start(payload: dict = Body(default={})):
+    """나눠 보내는 업로드를 시작한다.
+
+    폴더 하나를 한 요청에 담으면 브라우저가 본문을 다 만들 때까지 첫 바이트가
+    나가지 않아, 파일이 수백 개면 nginx 가 먼저 408 로 끊는다. 작게 나눠
+    보내면 각 요청이 짧게 끝나고 실패한 묶음만 다시 보낼 수 있다.
+    """
+    root = cfg.upload_dir
+    root.mkdir(parents=True, exist_ok=True)
+    name = (payload.get("name") or "").strip() or "upload"
+    try:
+        session = uploads.start(root, name, now=time.time())
+    except UploadError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"upload_id": session.id, "name": session.name}
+
+
+@app.post("/api/uploads/{upload_id}/files")
+def upload_chunk(
+    upload_id: str,
+    files: list[UploadFile] = File(...),
+    paths: list[str] = Form(default=[]),
+):
+    """묶음 하나를 받아 쓴다. 경로는 클라이언트가 이미 공통 최상위를 벗겨서 보낸다."""
+    try:
+        session = uploads.get(upload_id, now=time.time())
+        items = [
+            Incoming(
+                rel=(paths[i] if i < len(paths) and paths[i] else (f.filename or "")),
+                stream=f.file,
+            )
+            for i, f in enumerate(files)
+        ]
+        store_files(session.dest, items, strip_root=False, base=session.stats)
+    except UploadError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"upload": session.stats.as_dict()}
+
+
+@app.post("/api/uploads/{upload_id}/finish")
+def upload_finish(upload_id: str):
+    """다 받았으면 프로젝트로 등록하고 파싱을 시작한다."""
+    try:
+        session = uploads.pop(upload_id, now=time.time())
+    except UploadError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    if session.stats.files == 0:
+        discard(session.dest, cfg.upload_dir)
+        raise HTTPException(400, no_files_message())
+
+    project = registry.add(session.dest, session.name)
+    registry.set_active(project.id)
+    return {
+        "project": project.to_dict(),
+        "upload": session.stats.as_dict(),
+        "job": _start_parse(project),
+    }
+
+
+@app.delete("/api/uploads/{upload_id}")
+def upload_abort(upload_id: str):
+    """중간에 취소 — 받아 둔 것을 지운다."""
+    try:
+        session = uploads.pop(upload_id, now=time.time())
+    except UploadError:
+        return {"removed": False}
+    discard(session.dest, cfg.upload_dir)
+    return {"removed": True}
 
 
 @app.post("/api/projects/upload")

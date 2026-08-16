@@ -305,6 +305,138 @@ def test_upload_traversal_stays_inside(client):
     assert not (root.parent / "evil.java").exists()
 
 
+# --------------------------------------------------------------------------- #
+# 나눠 보내는 업로드 (세션)
+# --------------------------------------------------------------------------- #
+def test_chunked_upload_assembles_and_parses(client):
+    c, root = client
+    sid = c.post("/api/uploads", json={"name": "chunked"}).json()["upload_id"]
+
+    # 두 묶음으로 나눠 보낸다 (클라이언트가 공통 최상위를 이미 벗긴 상태)
+    r1 = c.post(
+        f"/api/uploads/{sid}/files",
+        files=[("files", ("A.java", b"package p; public class A {}", "text/plain"))],
+        data={"paths": ["src/A.java"]},
+    )
+    assert r1.status_code == 200, r1.text
+    assert r1.json()["upload"]["files"] == 1
+
+    r2 = c.post(
+        f"/api/uploads/{sid}/files",
+        files=[("files", ("m.xml", b"<mapper/>", "text/xml"))],
+        data={"paths": ["src/m.xml"]},
+    )
+    # 통계는 누적이어야 한다
+    assert r2.json()["upload"]["files"] == 2
+
+    body = c.post(f"/api/uploads/{sid}/finish").json()
+    dest = Path(body["project"]["roots"][0])
+    assert dest.is_relative_to(root / "uploads")
+    assert (dest / "src" / "A.java").exists()
+    assert (dest / "src" / "m.xml").exists()
+    assert _wait(c, body["job"])["state"] == "done"
+
+
+def test_chunk_retry_overwrites_same_file(client):
+    """끊긴 묶음을 다시 보내도 중복이 아니라 덮어쓰기여야 한다."""
+    c, _ = client
+    sid = c.post("/api/uploads", json={"name": "retry"}).json()["upload_id"]
+    for _ in range(2):
+        c.post(
+            f"/api/uploads/{sid}/files",
+            files=[("files", ("A.java", b"package p; public class A {}", "text/plain"))],
+            data={"paths": ["src/A.java"]},
+        )
+    body = c.post(f"/api/uploads/{sid}/finish").json()
+    dest = Path(body["project"]["roots"][0])
+    assert [p.name for p in (dest / "src").iterdir()] == ["A.java"]
+
+
+def test_chunked_upload_keeps_paths_verbatim(client):
+    """배치는 서버가 최상위를 벗기면 안 된다 — 묶음마다 최상위가 달라 보인다."""
+    c, _ = client
+    sid = c.post("/api/uploads", json={"name": "verbatim"}).json()["upload_id"]
+    c.post(
+        f"/api/uploads/{sid}/files",
+        files=[("files", ("A.java", b"package p; public class A {}", "text/plain"))],
+        data={"paths": ["only/A.java"]},
+    )
+    dest = Path(c.post(f"/api/uploads/{sid}/finish").json()["project"]["roots"][0])
+    assert (dest / "only" / "A.java").exists()
+
+
+def test_chunk_blocks_traversal(client):
+    c, root = client
+    sid = c.post("/api/uploads", json={"name": "sec"}).json()["upload_id"]
+    r = c.post(
+        f"/api/uploads/{sid}/files",
+        files=[
+            ("files", ("A.java", b"ok", "text/plain")),
+            ("files", ("evil.java", b"pwned", "text/plain")),
+        ],
+        data={"paths": ["A.java", "../../../evil.java"]},
+    )
+    assert r.json()["upload"]["files"] == 1
+    assert not (root / "evil.java").exists()
+    c.delete(f"/api/uploads/{sid}")
+
+
+def test_finish_rejects_empty_session_and_cleans_up(client):
+    c, root = client
+    sid = c.post("/api/uploads", json={"name": "empty"}).json()["upload_id"]
+    c.post(
+        f"/api/uploads/{sid}/files",
+        files=[("files", ("a.jar", b"\x00", "application/java-archive"))],
+        data={"paths": ["a.jar"]},
+    )
+    res = c.post(f"/api/uploads/{sid}/finish")
+    assert res.status_code == 400
+    assert "소스 파일이 없습니다" in res.json()["detail"]
+    assert not (root / "uploads" / "empty").exists()
+
+
+def test_abort_removes_partial_upload(client):
+    c, root = client
+    sid = c.post("/api/uploads", json={"name": "aborted"}).json()["upload_id"]
+    c.post(
+        f"/api/uploads/{sid}/files",
+        files=[("files", ("A.java", b"package p; public class A {}", "text/plain"))],
+        data={"paths": ["A.java"]},
+    )
+    assert (root / "uploads" / "aborted").exists()
+    assert c.delete(f"/api/uploads/{sid}").json()["removed"] is True
+    assert not (root / "uploads" / "aborted").exists()
+
+
+def test_unknown_session_is_reported_clearly(client):
+    c, _ = client
+    res = c.post(
+        "/api/uploads/nope/files",
+        files=[("files", ("A.java", b"x", "text/plain"))],
+        data={"paths": ["A.java"]},
+    )
+    assert res.status_code == 400
+    assert "업로드 세션을 찾을 수 없습니다" in res.json()["detail"]
+
+
+def test_concurrent_sessions_do_not_collide(client):
+    c, _ = client
+    a = c.post("/api/uploads", json={"name": "same"}).json()["upload_id"]
+    b = c.post("/api/uploads", json={"name": "same"}).json()["upload_id"]
+    assert a != b
+    for sid, body in ((a, b"class A {}"), (b, b"class B {}")):
+        c.post(
+            f"/api/uploads/{sid}/files",
+            files=[("files", ("X.java", body, "text/plain"))],
+            data={"paths": ["X.java"]},
+        )
+    da = Path(c.post(f"/api/uploads/{a}/finish").json()["project"]["roots"][0])
+    db = Path(c.post(f"/api/uploads/{b}/finish").json()["project"]["roots"][0])
+    assert da != db
+    assert (da / "X.java").read_bytes() == b"class A {}"
+    assert (db / "X.java").read_bytes() == b"class B {}"
+
+
 def test_providers_lists_configured_ones(client):
     c, _ = client
     body = c.get("/api/providers").json()
