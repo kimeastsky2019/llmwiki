@@ -40,6 +40,7 @@ from .ontology import (
     VERDICT_LABELS,
     node_id,
 )
+from . import i18n
 from .spans import check_citation_force, parse_spans
 from .store import (
     Graph,
@@ -75,6 +76,8 @@ class Assessment:
     decision_status: str = PROVISIONAL
     confirmed_by: str = ""
     confirmed_at: str = ""
+    #: 표시 언어. 그래프에 저장하지 않는다 — 같은 판정을 두 언어로 보는 것뿐이다.
+    lang: str = i18n.DEFAULT_LANG
 
     @property
     def uuid(self) -> str:
@@ -83,7 +86,7 @@ class Assessment:
 
     @property
     def label(self) -> str:
-        return VERDICT_LABELS[self.verdict]
+        return i18n.t(i18n.VERDICT, self.lang, self.verdict)
 
     @property
     def deferred(self) -> bool:
@@ -127,6 +130,7 @@ def adjudicate(
     conflicts: dict[str, list[str]] | None = None,
     today: str | None = None,
     prior: dict[str, str] | None = None,
+    lang: str = i18n.DEFAULT_LANG,
 ) -> Assessment:
     """서비스 × 통제 한 칸을 판정한다.
 
@@ -147,16 +151,16 @@ def adjudicate(
     if control is None or control["status"] != "active":
         return Assessment(
             service_uuid, control_code, NOT_APPLICABLE, NOT_APPLICABLE,
-            reason=f"Control {control_code} is absent from the approved graph or retired",
-            versions=versions, assessed_at=now_iso(), as_of=today_str,
+            reason=i18n.t(i18n.REASON, lang, "no_control", code=control_code),
+            versions=versions, assessed_at=now_iso(), as_of=today_str, lang=lang,
         )
 
     applies = [e for e in graph.out_edges(ctrl_id, "APPLIES_TO") if e["target"] == svc_id]
     if not applies:
         return Assessment(
             service_uuid, control_code, NOT_APPLICABLE, NOT_APPLICABLE,
-            reason="Control does not apply to this service",
-            versions=versions, assessed_at=now_iso(), as_of=today_str,
+            reason=i18n.t(i18n.REASON, lang, "not_applied"),
+            versions=versions, assessed_at=now_iso(), as_of=today_str, lang=lang,
         )
 
     # --- 증적: 있는가 · 서명되었는가 · 유효기간 내인가 --- #
@@ -181,14 +185,14 @@ def adjudicate(
             continue
         props = evd["props"]
         if props.get("sign_yn") is not True:
-            rejected.append(f"{props.get('title', evd_id)}: unsigned")
+            rejected.append(f"{props.get('title', evd_id)}: " + i18n.t(i18n.REASON, lang, "unsigned"))
             continue
         valid_from, valid_to = parse_date(props.get("valid_from")), parse_date(props.get("valid_to"))
         if today_date and valid_from and today_date < valid_from:
-            rejected.append(f"{props.get('title', evd_id)}: not yet valid")
+            rejected.append(f"{props.get('title', evd_id)}: " + i18n.t(i18n.REASON, lang, "not_yet_valid"))
             continue
         if today_date and valid_to and today_date > valid_to:
-            rejected.append(f"{props.get('title', evd_id)}: expired")
+            rejected.append(f"{props.get('title', evd_id)}: " + i18n.t(i18n.REASON, lang, "expired"))
             continue
         if today_date and valid_to and 0 <= days_between(today_date, valid_to) <= EXPIRY_WINDOW_DAYS:
             expiring.append(props.get("title", evd_id))
@@ -229,11 +233,14 @@ def adjudicate(
             unfilled.extend(left)
             if not gap:
                 metric_passed += 1
-                metric_notes.append(
-                    f"section check passed ({len(props.get('sections') or [])} sections)"
-                )
+                metric_notes.append(i18n.t(
+                    i18n.REASON, lang, "section_ok",
+                    n=len(props.get("sections") or []),
+                ))
             else:
-                metric_notes.append(f"{len(gap)} sections missing: " + ", ".join(gap[:3]))
+                metric_notes.append(i18n.t(
+                    i18n.REASON, lang, "section_gap", n=len(gap), items=", ".join(gap[:3]),
+                ))
             continue
         if kind != "metric":
             continue
@@ -249,13 +256,15 @@ def adjudicate(
         value = readings[metric]
         if compare(value, str(operator), float(threshold)):
             metric_passed += 1
-            metric_notes.append(
-                f"{metric} {value}{props.get('unit', '')} {operator} {threshold} met"
-            )
+            metric_notes.append(i18n.t(
+                i18n.REASON, lang, "metric_met", metric=metric, value=value,
+                unit=props.get("unit", ""), op=operator, threshold=threshold,
+            ))
         else:
-            metric_notes.append(
-                f"{metric} {value}{props.get('unit', '')} {operator} {threshold} not met"
-            )
+            metric_notes.append(i18n.t(
+                i18n.REASON, lang, "metric_not_met", metric=metric, value=value,
+                unit=props.get("unit", ""), op=operator, threshold=threshold,
+            ))
 
     # 이 판정이 쓴 문서들 사이에 불일치가 보고돼 있는가
     conflict_notes: list[str] = []
@@ -316,7 +325,7 @@ def adjudicate(
         missing_sections=missing_sections, unfilled=unfilled,
         conflict_notes=conflict_notes,
         threshold_undefined=threshold_undefined, metric_missing=metric_missing,
-        triggers=triggers,
+        triggers=triggers, lang=lang,
     )
 
     return Assessment(
@@ -332,6 +341,7 @@ def adjudicate(
         versions=versions,
         assessed_at=now_iso(),
         as_of=today_str,
+        lang=lang,
     )
 
 
@@ -345,6 +355,7 @@ def adjudicate_all(
     conflicts: dict[str, list[str]] | None = None,
     today: str | None = None,
     prior: dict[str, dict[str, str]] | None = None,
+    lang: str = i18n.DEFAULT_LANG,
 ) -> list[Assessment]:
     """적용된 모든 (서비스 × 통제) 를 판정한다. 판정 대상은 APPLIES_TO 가 정의한다."""
     out: list[Assessment] = []
@@ -364,7 +375,7 @@ def adjudicate_all(
             graph, svc, code,
             ruleset_version=ruleset_version, standard_version=standard_version,
             metrics=metrics, conflicts=conflicts, today=today,
-            prior=(prior or {}).get(svc),
+            prior=(prior or {}).get(svc), lang=lang,
         ))
     return out
 
@@ -547,36 +558,38 @@ def _reason(
     metric_notes: list[str], qualitative: bool, rejected: list[str],
     expiring: list[str], threshold_undefined: list[str], metric_missing: list[str],
     missing_sections: list[str], unfilled: list[str], conflict_notes: list[str],
-    triggers: list[str],
+    triggers: list[str], lang: str = i18n.DEFAULT_LANG,
 ) -> str:
+    def R(key: str, **kw: object) -> str:
+        return i18n.t(i18n.REASON, lang, key, **kw)
     parts: list[str] = []
     if need:
-        parts.append(f"required evidence {have}/{need}")
+        parts.append(R("evidence", have=have, need=need))
     if metric_total:
-        parts.append(f"metric/section checks {metric_passed}/{metric_total}")
+        parts.append(R("metric", passed=metric_passed, total=metric_total))
     if missing_sections:
-        parts.append("missing sections: " + ", ".join(missing_sections[:4]))
+        parts.append(R("missing_sections", items=", ".join(missing_sections[:4])))
     if unfilled:
-        parts.append("possibly unfilled: " + ", ".join(unfilled[:3]))
+        parts.append(R("unfilled", items=", ".join(unfilled[:3])))
     if conflict_notes:
-        parts.append("documents disagree: " + "; ".join(conflict_notes[:2]))
+        parts.append(R("conflict", items="; ".join(conflict_notes[:2])))
     if qualitative:
-        parts.append("qualitative control — rules do not decide it")
+        parts.append(R("qualitative"))
     if not parts:
-        parts.append("no evidence or metric required")
+        parts.append(R("nothing_required"))
     if rejected:
-        parts.append("rejected: " + "; ".join(rejected))
+        parts.append(R("rejected", items="; ".join(rejected)))
     if expiring:
-        parts.append("expiring soon: " + ", ".join(expiring))
+        parts.append(R("expiring", items=", ".join(expiring)))
     if threshold_undefined:
-        parts.append("threshold undefined: " + ", ".join(threshold_undefined))
+        parts.append(R("threshold_undefined", items=", ".join(threshold_undefined)))
     if metric_missing:
-        parts.append("measurement missing: " + ", ".join(metric_missing))
+        parts.append(R("metric_missing", items=", ".join(metric_missing)))
     if metric_notes:
         parts.append(" / ".join(metric_notes))
-    head = f"Rule verdict: {VERDICT_LABELS[raw]}"
+    head = R("head", verdict=i18n.t(i18n.VERDICT, lang, raw))
     # 룰이 이미 DEFERRED 를 냈으면 화살표를 붙이지 않는다 —
     # "Deferred to reviewer → deferred to reviewer" 가 되어 읽는 사람을 헷갈리게 한다.
     if triggers and raw != DEFERRED:
-        head += " → deferred to reviewer"
+        head += R("deferred_arrow")
     return head + " — " + " · ".join(parts)

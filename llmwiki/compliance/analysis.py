@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
+from . import i18n
 from .ontology import CONFIRMED, node_id
 from .store import Graph
 
@@ -70,7 +71,7 @@ def assessments_of(graph: Graph, control_idents: Iterable[str]) -> list[dict[str
 # --------------------------------------------------------------------------- #
 # 커버리지 갭
 # --------------------------------------------------------------------------- #
-def coverage_gap(graph: Graph) -> dict[str, Any]:
+def coverage_gap(graph: Graph, *, lang: str = i18n.DEFAULT_LANG) -> dict[str, Any]:
     """통제되지 않는 의무, 증적 없는 통제, 절차 없는 통제, 수기 의존 통제."""
     uncovered: list[dict[str, Any]] = []
     for obl in graph.of_type("Obligation"):
@@ -97,7 +98,7 @@ def coverage_gap(graph: Graph) -> dict[str, Any]:
                 "title": graph.props(edge["source"]).get("title"),
                 "control": graph.props(edge["target"]).get("code"),
                 "mapping_type": mapping,
-                "note": "control covers the obligation only in part",
+                "note": i18n.t(i18n.COVERAGE, lang, "partial"),
             })
 
     no_evidence: list[dict[str, Any]] = []
@@ -116,7 +117,7 @@ def coverage_gap(graph: Graph) -> dict[str, Any]:
         if required and not any(graph.targets(e, "COLLECTED_FROM") for e in required):
             manual.append({
                 "control": code, "title": ctrl["props"].get("title"),
-                "note": "no system function produces this evidence — manual today, candidate for automation",
+                "note": i18n.t(i18n.COVERAGE, lang, "manual"),
             })
 
     return {

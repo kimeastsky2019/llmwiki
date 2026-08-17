@@ -15,7 +15,8 @@ from typing import Any
 from fastapi import APIRouter, Body, HTTPException, Query
 
 from ..compliance import analysis, changeset as cs, rules, verify
-from ..compliance.ontology import VERDICT_LABELS, node_id, schema_dict
+from ..compliance import i18n
+from ..compliance.ontology import node_id, schema_dict
 from ..compliance.store import Store
 from ..config import Config
 
@@ -44,8 +45,16 @@ def _versions() -> tuple[str, str]:
 # 스키마 · 그래프
 # --------------------------------------------------------------------------- #
 @router.get("/schema")
-def schema() -> dict[str, Any]:
-    return schema_dict()
+def schema(lang: str | None = Query(None)) -> dict[str, Any]:
+    lg = i18n.normalize(lang)
+    # 유보 사유 설명과 판정 라벨은 화면이 그대로 찍는다 — 요청 언어로 내려 준다.
+    return {
+        **schema_dict(),
+        "deferral_triggers": dict(i18n.TRIGGER[lg]),
+        "verdict_labels": i18n.verdict_labels(lg),
+        "level_labels": dict(i18n.LEVEL[lg]),
+        "decision_labels": dict(i18n.DECISION[lg]),
+    }
 
 
 @router.get("/graph")
@@ -99,7 +108,8 @@ def validate() -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 @router.get("/assess")
 def assess(service: str | None = Query(None), today: str | None = Query(None),
-           as_of: str | None = Query(None)) -> dict[str, Any]:
+           as_of: str | None = Query(None),
+           lang: str | None = Query(None)) -> dict[str, Any]:
     """판정한다. LLM 을 호출하지 않는다 — 같은 그래프면 항상 같은 답이 나온다."""
     store = _store()
     g = store.approved(as_of=as_of)
@@ -107,16 +117,18 @@ def assess(service: str | None = Query(None), today: str | None = Query(None),
     results = rules.adjudicate_all(
         g, service_uuid=service, ruleset_version=ruleset,
         standard_version=standard, metrics=store.metrics, today=today,
-        prior=_prior(g),
+        prior=_prior(g), lang=i18n.normalize(lang),
     )
     return {
         "graph_seq": g.seq,
         "metrics": verify.audit_metrics(results),
-        "verdict_labels": VERDICT_LABELS,
+        "verdict_labels": i18n.verdict_labels(i18n.normalize(lang)),
         "assessments": [
             {**a.to_dict(),
-             "service_name": g.props(node_id("Service", uuid=a.service_uuid)).get("name", ""),
-             "control_title": g.props(node_id("Control", code=a.control_code)).get("title", "")}
+             "service_name": _pick(
+                 g.props(node_id("Service", uuid=a.service_uuid)), "name", lang),
+             "control_title": _pick(
+                 g.props(node_id("Control", code=a.control_code)), "title", lang)}
             for a in results
         ],
     }
@@ -170,8 +182,8 @@ def goldset(today: str | None = Query(None)) -> dict[str, Any]:
 # 분석
 # --------------------------------------------------------------------------- #
 @router.get("/coverage")
-def coverage() -> dict[str, Any]:
-    return analysis.coverage_gap(_store().approved())
+def coverage(lang: str | None = Query(None)) -> dict[str, Any]:
+    return analysis.coverage_gap(_store().approved(), lang=i18n.normalize(lang))
 
 
 @router.get("/impact/{provision_uuid}")
@@ -238,6 +250,19 @@ def change_reject(changeset_id: str, payload: dict[str, Any] = Body(...)) -> dic
     except KeyError as exc:
         raise HTTPException(404, str(exc)) from exc
     return change.to_dict()
+
+
+def _pick(props: dict[str, Any], key: str, lang: str | None) -> str:
+    """표시 이름을 언어에 맞춰 고른다.
+
+    데이터는 한국어를 원본으로 두고 `<key>_en` 을 별칭으로 갖는다. 별칭이 없으면
+    원본을 그대로 쓴다 — 번역이 없다고 화면이 비면 안 된다.
+    """
+    if i18n.normalize(lang) == "en":
+        alias = props.get(f"{key}_en")
+        if alias:
+            return str(alias)
+    return str(props.get(key, ""))
 
 
 def _prior(g: Any) -> dict[str, dict[str, str]]:

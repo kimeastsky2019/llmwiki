@@ -205,7 +205,10 @@ NODE_TYPES: dict[str, NodeType] = {
             name="Control", prefix="ctrl", ko="통제",
             id_parts=("code",),
             required=("code", "title", "auto_level"),
-            optional=("category", "owner", "status", "replaced_by", "note"),
+            # title_en: 화면 언어 전환용 영문 제목. 사실이 아니라 표시라서
+            # 없어도 되고, 없으면 화면은 title 을 그대로 쓴다.
+            optional=("category", "owner", "status", "replaced_by", "note",
+                      "title_en"),
             derivation="human",
             note=f"auto_level 은 {AUTO_LEVELS}. 내부 설계 산출물이라 코드가 곧 ID 다.",
         ),
@@ -242,7 +245,8 @@ NODE_TYPES: dict[str, NodeType] = {
             name="Service", prefix="svc", ko="AI 서비스·과제",
             id_parts=("uuid",),
             required=("uuid", "name"),
-            optional=("dept", "high_impact_yn", "status", "replaced_by", "note"),
+            optional=("dept", "high_impact_yn", "status", "replaced_by", "note",
+                      "name_en"),
             derivation="human", anchor=True, llm_proposable=False,
             note="고영향 해당 여부는 사람이 확정한다. 모델이 제안할 수 없다.",
         ),

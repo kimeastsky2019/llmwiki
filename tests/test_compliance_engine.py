@@ -185,13 +185,12 @@ def test_hallucinated_citation_is_blocked(store, graph):
 
 def test_overclaiming_a_recommendation_as_mandatory_is_blocked(store, graph):
     text = store.document("ai-risk-guideline-2026")
-    quote = ("A financial institution should disclose to users the basis on which "
-             "performance\nindicators are calculated.")
+    quote = "금융회사는 성능지표의 산출 근거를 이용자에게 공개하도록 노력하여야 한다."
     start = text.find(quote)
     assert start >= 0
     span = Span.of("ai-risk-guideline-2026", text, start, start + len(quote))
     ops = [cs.create_node("Obligation", {
-        "uuid": "obl-overclaim", "title": "Disclose calculation basis", "level": "mandatory"},
+        "uuid": "obl-overclaim", "title": "산출 근거 공개 의무", "level": "mandatory"},
         spans=[span.to_dict()])]
     change = cs.stage(store, ops, proposer={"type": "SoftwareAgent", "id": "slm"})
     assert change.status == cs.BLOCKED
@@ -277,7 +276,7 @@ def test_expiring_evidence_defers(store):
 def test_metric_is_compared_deterministically(store):
     a = verdicts(store)[("svc-credit-scoring", "PRF-02")]
     assert a.verdict == SATISFIED
-    assert "model_auc 0.82 >= 0.75 met" in a.reason
+    assert "model_auc 0.82 >= 0.75 충족" in a.reason
 
 
 def test_metric_below_threshold_is_unsatisfied(store, graph):
@@ -299,7 +298,7 @@ def test_unsigned_evidence_does_not_count(store, graph):
     g.nodes[node_id("Evidence", uuid="evd-acc-credit")]["props"]["sign_yn"] = False
     a = rules.adjudicate(g, "svc-credit-scoring", "ACC-01", ruleset_version=RULESET_VERSION)
     assert a.verdict == UNSATISFIED
-    assert "unsigned" in a.reason
+    assert "서명 없음" in a.reason
 
 
 def test_expired_evidence_does_not_count(store, graph):
@@ -307,15 +306,13 @@ def test_expired_evidence_does_not_count(store, graph):
     g.nodes[node_id("Evidence", uuid="evd-acc-credit")]["props"]["valid_to"] = "2020-01-01"
     a = rules.adjudicate(g, "svc-credit-scoring", "ACC-01", ruleset_version=RULESET_VERSION)
     assert a.verdict == UNSATISFIED
-    assert "expired" in a.reason
+    assert "유효기간 만료" in a.reason
 
 
 def test_amending_provision_defers_everything_downstream(store, graph):
     g = graph.copy()
     for node in g.of_type("Provision"):
-        if "stakeholders and their responsibilities" in str(
-            node["props"].get("text", "")
-        ).lower():
+        if "책임관계" in str(node["props"].get("text", "")):
             node["props"]["status"] = "amending"
     a = rules.adjudicate(g, "svc-credit-scoring", "ACC-01", ruleset_version=RULESET_VERSION)
     assert a.verdict == DEFERRED
@@ -417,7 +414,7 @@ def test_coverage_gap_finds_uncontrolled_obligations(graph):
     assert gap["summary"]["uncovered"] >= 1
     # 제10조(인적 감독)에는 대응 통제를 두지 않았다 — 갭 분석이 이걸 잡아야 한다
     assert any(
-        "Human oversight" in row["title"] for row in gap["uncovered_obligations"]
+        "인적 감독" in row["title"] for row in gap["uncovered_obligations"]
     )
 
 
@@ -429,12 +426,11 @@ def test_manual_controls_are_flagged_as_automation_candidates(graph):
 def test_provision_impact_reaches_services(graph):
     provision = next(
         n for n in graph.of_type("Provision")
-        if "stakeholders and their responsibilities"
-        in str(n["props"].get("text", "")).lower()
+        if "책임관계" in str(n["props"].get("text", ""))
     )
     impact = analysis.provision_impact(graph, provision["props"]["uuid"])
     assert impact["controls"] == ["ACC-01"]
-    assert "Credit Scoring" in impact["services"]
+    assert "여신심사 스코어링" in impact["services"]
 
 
 # --------------------------------------------------------------------------- #

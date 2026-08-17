@@ -66,7 +66,10 @@ def test_schema_and_graph(client):
     assert client.get("/api/reg/schema").json()["ontology"] == "1.0.0"
     graph = client.get("/api/reg/graph").json()
     assert graph["counts"]["Control"] == len(seed_mod.CONTROLS)
-    assert graph["pending_changes"] == 0
+    # 시드는 결재 대기 1건을 일부러 남긴다 (승인 화면이 보여 줄 것이 있어야 한다).
+    # 중요한 것은 개수가 아니라 **승인 전 제안이 승인 그래프에 없다**는 것이다.
+    assert graph["pending_changes"] == 1
+    assert "HUM-09" not in client.get("/api/reg/nodes?type=Control").text
 
 
 def test_validate_is_clean(client):
@@ -144,3 +147,56 @@ def test_approval_requires_an_approver(client):
 
 def test_confirm_requires_a_signer(client):
     assert client.post("/api/reg/assess/x/confirm", json={}).status_code == 400
+
+
+# --------------------------------------------------------------------------- #
+# 언어 전환
+#
+# 이 화면이 어색했던 원인이 정확히 여기였다 — API 가 lang 을 무시해서, 화면을
+# 영어로 바꿔도 판정 라벨과 사유는 한국어로 나왔다. 한 행에 두 언어가 섞였다.
+# --------------------------------------------------------------------------- #
+def test_assess_follows_the_requested_language(client):
+    ko = client.get("/api/reg/assess?lang=ko").json()
+    en = client.get("/api/reg/assess?lang=en").json()
+
+    assert ko["verdict_labels"]["SATISFIED"] == "충족"
+    assert en["verdict_labels"]["SATISFIED"] == "Satisfied"
+
+    def row(payload, code):
+        return next(a for a in payload["assessments"] if a["control_code"] == code)
+
+    ko_row, en_row = row(ko, "ACC-01"), row(en, "ACC-01")
+    # 판정 자체는 언어와 무관하다 — 바뀌는 것은 표시뿐이다.
+    assert ko_row["verdict"] == en_row["verdict"]
+    assert ko_row["label"] != en_row["label"]
+    assert "룰 판정" in ko_row["reason"]
+    assert "Rule verdict" in en_row["reason"]
+    # 서비스·통제 이름도 따라간다 (한국어가 원본, _en 이 별칭)
+    assert ko_row["service_name"] != en_row["service_name"]
+
+
+def test_language_does_not_change_the_verdict(client):
+    ko = {(a["service_uuid"], a["control_code"]): a["verdict"]
+          for a in client.get("/api/reg/assess?lang=ko").json()["assessments"]}
+    en = {(a["service_uuid"], a["control_code"]): a["verdict"]
+          for a in client.get("/api/reg/assess?lang=en").json()["assessments"]}
+    assert ko == en
+
+
+def test_schema_and_coverage_follow_the_language(client):
+    ko = client.get("/api/reg/schema?lang=ko").json()["deferral_triggers"]
+    en = client.get("/api/reg/schema?lang=en").json()["deferral_triggers"]
+    assert "정성 판단" in ko["QUALITATIVE"]
+    assert "human judgement" in en["QUALITATIVE"]
+
+    ko_gap = client.get("/api/reg/coverage?lang=ko").json()
+    en_gap = client.get("/api/reg/coverage?lang=en").json()
+    assert ko_gap["summary"] == en_gap["summary"]
+    if ko_gap["manual_controls"]:
+        assert "수기 의존" in ko_gap["manual_controls"][0]["note"]
+        assert "manual today" in en_gap["manual_controls"][0]["note"]
+
+
+def test_unknown_language_falls_back_instead_of_blanking(client):
+    payload = client.get("/api/reg/assess?lang=zz").json()
+    assert payload["verdict_labels"]["SATISFIED"] == "충족"
