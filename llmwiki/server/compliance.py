@@ -14,10 +14,12 @@ from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException, Query
 
-from ..compliance import analysis, changeset as cs, rules, verify
+from ..compliance import advise as advisor
+from ..compliance import analysis, changeset as cs, riskassess, rules, verify
 from ..compliance import i18n
 from ..compliance.ontology import node_id, schema_dict
-from ..compliance.store import Store
+from ..compliance.store import Store, now_iso
+from ..llm import check as check_provider
 from ..config import Config
 
 router = APIRouter(prefix="/api/reg", tags=["compliance"])
@@ -250,6 +252,218 @@ def change_reject(changeset_id: str, payload: dict[str, Any] = Body(...)) -> dic
     except KeyError as exc:
         raise HTTPException(404, str(exc)) from exc
     return change.to_dict()
+
+
+# --------------------------------------------------------------------------- #
+# AI 위험등급 산정 (STEP 1~5)
+#
+# 증적 기반 통제 판정(/assess)과는 다른 파이프라인이다. 저쪽은 "이 통제가
+# 충족됐나", 여기는 "이 서비스가 몇 등급인가" 를 32항목 배점으로 답한다.
+# 계산은 riskassess 가 하고 여기서는 저장·조회만 한다.
+# --------------------------------------------------------------------------- #
+RISK_FILE = "risk_assessments.json"
+
+
+@router.get("/risk/master")
+def risk_master() -> dict[str, Any]:
+    """배점·판정 기준. 화면이 체크리스트와 32항목 표를 이걸로 그린다."""
+    m = riskassess.master()
+    return {
+        "version": m["version"],
+        "standard": m["standard"],
+        "high_impact": m["high_impact"],
+        "safety": m["safety"],
+        "profile_axes": m["profile_axes"],
+        "evaluation_set": m["evaluation_set"],
+        "mitigation_weights": m["mitigation_weights"],
+        "not_mitigated_weight": m["not_mitigated_weight"],
+        "grades": m["grades"],
+        "high_impact_override": m["high_impact_override"],
+        "rounding": m["rounding"],
+        "items": m["items"],
+        "technical_thresholds": m["technical_thresholds"],
+        # 마스터가 손상되면 화면이 먼저 알아야 한다
+        "invariant_problems": riskassess.check_master(),
+    }
+
+
+@router.post("/risk/assess")
+def risk_assess(payload: dict[str, Any] = Body(default={})) -> dict[str, Any]:
+    """STEP 1~5 를 돌린다. 저장하지 않는다 — 화면이 입력할 때마다 부르는 경로다."""
+    try:
+        return riskassess.assess(payload, assessed_at=now_iso())
+    except (KeyError, ValueError, TypeError) as exc:
+        raise HTTPException(400, f"입력을 해석할 수 없다: {exc}") from exc
+
+
+@router.get("/risk/drafts")
+def risk_drafts() -> dict[str, Any]:
+    """저장된 평가 목록. 서비스별로 한 건씩 둔다."""
+    saved = _store().read_json(RISK_FILE, default={}) or {}
+    out = []
+    for key, row in sorted(saved.items()):
+        result = row.get("result") or {}
+        out.append({
+            "service_uuid": key,
+            "service_name": row.get("input", {}).get("service_name", ""),
+            "saved_at": row.get("saved_at", ""),
+            "saved_by": row.get("saved_by", ""),
+            "residual_score": result.get("step4_residual_score"),
+            "grade": (result.get("final_grade") or {}).get("label", ""),
+            "high_impact": (result.get("step1_high_impact") or {}).get("high_impact"),
+        })
+    return {"drafts": out}
+
+
+@router.get("/risk/draft/{service_uuid}")
+def risk_draft(service_uuid: str) -> dict[str, Any]:
+    saved = _store().read_json(RISK_FILE, default={}) or {}
+    row = saved.get(service_uuid)
+    if not row:
+        raise HTTPException(404, f"저장된 평가가 없다: {service_uuid}")
+    return row
+
+
+@router.post("/risk/draft/{service_uuid}")
+def risk_save(service_uuid: str, payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """평가를 저장한다. 결과는 저장 시점에 다시 계산해 입력과 함께 남긴다.
+
+    입력만 저장하면 나중에 룰이 바뀌었을 때 그때의 판정을 재현할 수 없고,
+    결과만 저장하면 무엇을 눌러서 나온 값인지 알 수 없다. 둘 다 남긴다.
+    """
+    data = dict(payload.get("input") or payload)
+    data["service_uuid"] = service_uuid
+    by = str(payload.get("by", "")).strip()
+    if not by:
+        raise HTTPException(400, "저장자(by)가 필요하다")
+    result = riskassess.assess(data, assessed_at=now_iso())
+
+    store = _store()
+    saved = store.read_json(RISK_FILE, default={}) or {}
+    saved[service_uuid] = {
+        "input": data,
+        "result": result,
+        "saved_at": now_iso(),
+        "saved_by": by,
+    }
+    store.write_json(RISK_FILE, saved)
+    return saved[service_uuid]
+
+
+@router.delete("/risk/draft/{service_uuid}")
+def risk_delete(service_uuid: str) -> dict[str, Any]:
+    store = _store()
+    saved = store.read_json(RISK_FILE, default={}) or {}
+    removed = saved.pop(service_uuid, None) is not None
+    if removed:
+        store.write_json(RISK_FILE, saved)
+    return {"removed": removed}
+
+
+@router.get("/risk/advisors")
+def risk_advisors() -> dict[str, Any]:
+    """조언을 줄 수 있는 공급자와 그 위치(사내/외부).
+
+    화면이 "지금 누가 답할 수 있는가" 와 "외부로 나가는가" 를 먼저 보여 줘야
+    사용자가 외부 허용을 켤지 판단할 수 있다.
+    """
+    if _cfg is None:
+        raise HTTPException(503, "설정이 없다")
+    out = []
+    for name in _cfg.providers:
+        if name == "template":
+            continue
+        pcfg = _cfg.with_provider(name)
+        opts = pcfg.llm_options
+        out.append({
+            "id": name,
+            "model": opts.get("model", ""),
+            "local": name in advisor.LOCAL_PROVIDERS,
+            "ready": check_provider(name, opts).to_dict(),
+        })
+    return {
+        "advisors": out,
+        "local_first": [n for n in _cfg.providers if n in advisor.LOCAL_PROVIDERS],
+    }
+
+
+@router.post("/risk/advise")
+def risk_advise(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """위험 항목 하나에 대한 sLM 조언. **판정하지 않는다.**
+
+    코드 분석 사실(program_ids 로 지정)을 함께 넣어 준다. 모델이 지어내지
+    못하도록 프롬프트에 "여기 없는 것은 지어내지 마라" 를 박아 두었다.
+    """
+    try:
+        item_no = int(payload.get("item_no"))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(400, "item_no 가 필요하다") from exc
+
+    stage = str(payload.get("stage", "identify"))
+    if stage not in ("identify", "mitigate"):
+        raise HTTPException(400, "stage 는 identify 또는 mitigate 여야 한다")
+
+    facts = _code_facts(
+        [str(x) for x in (payload.get("program_ids") or [])],
+        project=payload.get("project"),
+    )
+    result = advisor.advise(
+        _cfg,
+        item_no=item_no,
+        stage=stage,
+        service=str(payload.get("service", "")),
+        profile=dict(payload.get("profile") or {}),
+        facts=facts,
+        identified_note=str(payload.get("note", "")),
+        allow_external=bool(payload.get("allow_external")),
+    )
+    return {**result.to_dict(), "facts": facts}
+
+
+def _code_facts(program_ids: list[str], *, project: str | None = None) -> dict[str, Any]:
+    """정적 분석이 확인한 사실만 모은다 (derivation=collected).
+
+    조언 프롬프트의 근거가 된다. 여기 없는 것을 모델이 말하면 그건 지어낸 것이다.
+    """
+    if not program_ids:
+        return {}
+    try:
+        from ..indexer import load_index
+        from ..server.app import registry  # 지연 import — 순환을 피한다
+
+        proj = registry.get(project)
+        idx = load_index(registry.config_for(proj), with_source=False)
+    except Exception:  # noqa: BLE001 — 인덱스가 없으면 코드 근거 없이 간다
+        return {}
+
+    wanted = set(program_ids)
+    programs = [p for p in idx.programs if p.id in wanted]
+    if not programs:
+        return {}
+
+    tables: set[str] = set()
+    urls: list[str] = []
+    layers: set[str] = set()
+    crud: dict[str, set[str]] = {}
+    for p in programs:
+        tables.update(p.tables)
+        urls.extend(p.urls)
+        if p.layer:
+            layers.add(p.layer)
+        for sid in p.sql_ids:
+            st = idx.statements.get(sid)
+            if not st:
+                continue
+            for table, op in st.crud:
+                crud.setdefault(table, set()).add(op)
+    return {
+        "programs": [p.name for p in programs],
+        "program_ids": [p.id for p in programs],
+        "urls": sorted(set(urls)),
+        "tables": sorted(tables),
+        "layers": sorted(layers),
+        "crud": {t: sorted(ops) for t, ops in sorted(crud.items())},
+    }
 
 
 def _pick(props: dict[str, Any], key: str, lang: str | None) -> str:
