@@ -1,6 +1,6 @@
 """LLM 공급자 추상화.
 
-개발/데모는 Claude API, 고객사 망분리 환경은 사내 Ollama 로 전환한다.
+개발/데모는 Claude·Grok API, 고객사 망분리 환경은 사내 Ollama 로 전환한다.
 config.yaml 의 llm.provider 한 줄만 바꾸면 된다.
 """
 
@@ -22,6 +22,10 @@ def get_provider(provider: str, options: dict[str, Any]) -> LLMProvider:
         from .claude import ClaudeProvider
 
         return ClaudeProvider(options)
+    if provider == "grok":
+        from .grok import GrokProvider
+
+        return GrokProvider(options)
     if provider == "ollama":
         from .ollama import OllamaProvider
 
@@ -31,5 +35,5 @@ def get_provider(provider: str, options: dict[str, Any]) -> LLMProvider:
 
         return TemplateProvider(options)
     raise ValueError(
-        f"알 수 없는 LLM provider: {provider} (claude | ollama | template)"
+        f"알 수 없는 LLM provider: {provider} (claude | grok | ollama | template)"
     )

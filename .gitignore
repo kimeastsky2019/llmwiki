@@ -15,4 +15,13 @@ web/dist/
 docs/*.md
 docs/index.json
 
+# 뷰어에서 불러온 로컬 프로젝트들 (사용자 머신마다 다름)
+projects/
+
+# 규제 지식그래프의 승인 저널·변경 제안·원문.
+# 재생성 가능한 산출물이 아니라 감사 추적이라, 운영에서는 이 디렉터리를
+# 백업 대상으로 두고 저장소에는 넣지 않는다 (`llmwiki reg seed` 로 데모 재생성).
+# 앞의 / 가 없으면 소스인 llmwiki/compliance/ 까지 같이 무시된다.
+/compliance/
+
 .DS_Store
