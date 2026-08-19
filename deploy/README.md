@@ -1,5 +1,10 @@
 # 배포
 
+> **이 서버에는 RAG-AI_Gov 도 함께 올라가 있다.** GPU·Ollama·nginx 를 공유하므로
+> 서버를 처음 세우거나 통째로 옮길 때는 RAG-AI_Gov 저장소의
+> `deploy/SERVER-INSTALL.md` (통합 설치 가이드)를 먼저 본다.
+> 이 문서는 LLMWiki 하나만 다룬다.
+
 운영 서버에 올라가 있는 구성 그대로다. 여기 파일들은 서버에 있는 것을 그대로
 가져온 것이므로, 서버를 고쳤으면 여기도 같이 고쳐야 한다.
 
@@ -143,6 +148,49 @@ $L link 작업물.docx --service svc-001   # 사내 sLM 이 증적 연결 제안
   판정·커버리지 갭·커밋 결재·그래프 네 탭이며, 화면에서 승인과 확정 서명을 할 수 있다.
   **프론트를 고쳤으면 `VITE_BASE=/wiki/` 로 다시 빌드해 올려야 한다** — 이 값이
   nginx 의 경로 접두어와 어긋나면 자산을 404 로 받아 화면이 하얗게 뜬다.
+
+## 에너지 진단 위키 (`/wiki` · `/admin` · `/api/wiki/…`)
+
+같은 서비스·같은 basic auth 안에서 돈다. 별도 포트도 별도 유닛도 없다.
+
+```bash
+sudo -u llmwiki mkdir -p /opt/llmwiki/wiki /opt/llmwiki/knowledge   # 최초 1회
+
+# 진단 보고서 → 위키 (파싱·검산·페이지 생성까지 LLM 을 부르지 않는다)
+sudo install -o llmwiki -g llmwiki -m 640 보고서.pdf /opt/llmwiki/uploads/report.pdf
+sudo -u llmwiki HOME=/opt/llmwiki /opt/llmwiki/.venv/bin/llmwiki wiki ingest \
+     /opt/llmwiki/uploads/report.pdf --site <사업장키> -c /opt/llmwiki/config.yaml
+sudo rm -f /opt/llmwiki/uploads/report.pdf     # 원본은 남기지 않는다
+
+sudo -u llmwiki HOME=/opt/llmwiki /opt/llmwiki/.venv/bin/llmwiki wiki lint \
+     -c /opt/llmwiki/config.yaml               # 주 1회 배치 (차단 위반 시 exit 1)
+```
+
+- **`/opt/llmwiki/wiki` 는 산출물이 아니라 검토 이력이 붙은 지식이다.**
+  `review.jsonl`(서명)과 `log.jsonl`(변경 이력)이 여기 있어 지우면 누가 무엇을
+  확정했는지가 사라진다. `compliance/` 와 함께 **백업 대상**이다.
+- **`/opt/llmwiki/knowledge` 도 같다** — 어떤 문서가 언제 어떤 게이트 판정으로
+  들어왔는지가 `ledger.jsonl` 에 남는다.
+- **원본 PDF 는 서버에 두지 않는다.** 위키에는 비식별을 거친 페이지만 남는다
+  (진단서에는 담당자 성명·연락처가 거의 항상 있다).
+- **`pdfplumber` 가 필요하다.** 없으면 `/api/wiki/health` 의 `parser_ready` 가
+  false 로 뜬다 — 업로드하고 나서 알면 늦으므로 화면이 먼저 알린다.
+- 업로드는 `location /` 를 탄다. 이미 `client_max_body_size 512M` 이라 nginx 는
+  손댈 것이 없다.
+
+### 서술 초안 제안 (`POST /api/wiki/assist`) — Grok 을 쓰는 유일한 자리
+
+위키 생성·검산·판정은 LLM 을 부르지 않는다. Grok 은 개선안 카드의 **서술**
+초안에만 쓰이고, 세 겹으로 막혀 있다.
+
+| 페이지 등급 | 외부 허용 안 함 | 외부 허용 |
+|---|---|---|
+| `public` · `internal` | 거부 | **grok** (`XAI_API_KEY`) |
+| `confidential` · `restricted` | 사내 `ollama` | **사내 `ollama`** — 등급이 이긴다 |
+
+답변에 원문에 없는 수가 있으면 그 수를 함께 돌려준다(`invented_numbers`).
+실제로 두 모델 모두 임계값을 지어냈다 — 그래서 문장만 쓰게 하고 숫자는 검사한다.
+제안은 페이지에 저장되지 않는다.
 
 ## 운영
 

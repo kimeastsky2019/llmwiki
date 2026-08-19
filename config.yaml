@@ -57,6 +57,27 @@ compliance:
   ruleset: "1.0.0"
   standard: "2026.08"
 
+# 문서 지식베이스 (llmwiki kb …)
+kb:
+  # 4채널로 분해해 적재한 문서와 적재 이력(ledger.jsonl)이 쌓이는 곳.
+  # append-only 라 지우면 무엇이 언제 어떤 판정으로 들어왔는지가 사라진다.
+  dir: "./knowledge"
+  # 문서 내용이 실제로 도달하는 곳. 국외 이전 해당성(개인정보보호법 제28조의8)이
+  # 여기서 갈린다. 비워 두면 llm.provider 를 따른다.
+  #   ollama·template = 국내  |  claude·grok = 국외  |  그 밖 = 국외로 간주
+  destination: ""
+
+# 에너지 진단 위키 (llmwiki wiki …)
+wiki:
+  # 마크다운 위키가 사는 곳. 여기가 Single Source of Truth 다 (P1).
+  # 인덱스·검색·그래프는 전부 여기서 재생성하고, 반대 방향으로는 쓰지 않는다.
+  dir: "./wiki"
+  # front-matter 의 provenance.pipeline_version 에 박히는 값.
+  # 생성 규칙을 고치면 함께 올린다 — 안 올리면 어떤 페이지가 어느 규칙 산물인지 모른다.
+  pipeline_version: "v0.1.0"
+  # 페이지 기본 소유 조직 (front-matter 의 owner)
+  owner: "energy-team"
+
 server:
   host: "127.0.0.1"
   port: 8722

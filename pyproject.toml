@@ -12,6 +12,8 @@ dependencies = [
     "pyyaml>=6.0",
     "openpyxl>=3.1",
     "pypdf>=5.0",
+    # 표 격자 인식용. pypdf 는 통짜 텍스트만 줘서 표의 행-열 관계가 깨진다.
+    "pdfplumber>=0.11",
     "python-frontmatter>=1.1",
     "typer>=0.15",
     "rich>=13.9",

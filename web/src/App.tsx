@@ -29,13 +29,24 @@ import {
 import Markdown from "./Markdown";
 import SourceBrowser, { type SourceTarget } from "./SourceBrowser";
 import Compliance, { REG_TABS, type RegTab } from "./Compliance";
+import KnowledgeBase, { KB_TABS, type KbTab } from "./KnowledgeBase";
+import Wiki, { WIKI_TABS, type WikiTab } from "./Wiki";
+import WikiAdmin, { ADMIN_TABS, type AdminTab } from "./WikiAdmin";
+import EngineBar, { EngineLayer } from "./EngineBar";
+import WikiStatusBoard from "./WikiStatusBoard";
+import LlmPicker from "./LlmPicker";
+import { SOLUTIONS, solution, solutionOf, type SolutionCode } from "./solutions";
 
 type Route =
   | { kind: "home" }
   | { kind: "program"; id: string }
   | { kind: "table"; name: string }
   | { kind: "tables" }
-  | { kind: "reg"; tab: RegTab };
+  | { kind: "reg"; tab: RegTab }
+  | { kind: "kb"; tab: KbTab }
+  | { kind: "wiki"; tab: WikiTab }
+  | { kind: "admin"; tab: AdminTab }
+  | { kind: "engines" };
 
 function parseRoute(path: string): Route {
   if (path.startsWith("/p/")) return { kind: "program", id: path.slice(3) };
@@ -45,6 +56,22 @@ function parseRoute(path: string): Route {
     const tab = path.slice(5) as RegTab;
     return { kind: "reg", tab: REG_TABS.includes(tab) ? tab : "assess" };
   }
+  if (path.startsWith("/kb")) {
+    const tab = path.slice(4) as KbTab;
+    return { kind: "kb", tab: KB_TABS.includes(tab) ? tab : "analyze" };
+  }
+  // 위키 열람과 관리자는 경로를 나눈다. 열람만 필요한 사람에게 업로드·검증 화면을
+  // 보여 주지 않는 것이 접근 통제의 첫 단계다.
+  if (path.startsWith("/wiki")) {
+    const tab = path.slice(6) as WikiTab;
+    return { kind: "wiki", tab: WIKI_TABS.includes(tab) ? tab : "browse" };
+  }
+  if (path.startsWith("/admin")) {
+    const tab = path.slice(7) as AdminTab;
+    return { kind: "admin", tab: ADMIN_TABS.includes(tab) ? tab : "upload" };
+  }
+  // 엔진 레이어는 어느 솔루션에도 속하지 않는다 — 둘이 공유하는 바닥이다.
+  if (path === "/engines") return { kind: "engines" };
   return { kind: "home" };
 }
 
@@ -79,6 +106,12 @@ export default function App() {
   // effect 안에서 바꾸면 첫 요청이 이전 언어/프로젝트로 나갈 수 있다.
   setApiLang(lang);
   setApiProject(activeProject);
+
+  // 솔루션은 별도 상태로 들지 않는다 — 주소창으로 바로 들어온 사람과 메뉴로
+  // 들어온 사람이 다른 화면을 보면 안 된다.
+  const activeSolution: SolutionCode = solutionOf(
+    route.kind === "engines" ? "/engines" : location.pathname
+  );
 
   const langValue = useMemo(
     () => ({
@@ -222,51 +255,101 @@ export default function App() {
             <LangToggle lang={lang} onChange={setLang} />
           </div>
 
-          <ProjectBar
-            projects={projects}
-            activeId={activeProject ?? ""}
-            busy={parsing}
-            onSwitch={switchProject}
-            onOpenPicker={() => setPickerOpen(true)}
-            onReparse={runParse}
-            onRemove={removeProject}
-          />
+          {/* 솔루션 전환 — 대상과 사용자가 다른 두 작업 공간을 가른다.
+              한 사이드바에 여섯 개를 늘어놓으면 '테이블 목록' 옆에 '위키 관리자'가
+              붙어, 처음 보는 사람은 이게 한 흐름인 줄 안다. */}
+          <div className="solution-switch">
+            {SOLUTIONS.map((sol) => (
+              <button
+                key={sol.code}
+                className={`solution-tab ${activeSolution === sol.code ? "active" : ""}`}
+                onClick={() => navigate(sol.home)}
+              >
+                <span className="solution-name">{t(sol.labelKey)}</span>
+                <span className="solution-tagline">{t(sol.taglineKey)}</span>
+              </button>
+            ))}
+          </div>
 
-          <input
-            className="search"
-            placeholder={t("searchPlaceholder")}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+          {activeSolution === "code" ? (
+            <>
+              <ProjectBar
+                projects={projects}
+                activeId={activeProject ?? ""}
+                busy={parsing}
+                onSwitch={switchProject}
+                onOpenPicker={() => setPickerOpen(true)}
+                onReparse={runParse}
+                onRemove={removeProject}
+              />
 
-          {hits ? (
-            <SearchResults hits={hits} onPick={(id) => navigate(`/p/${id}`)} />
+              <input
+                className="search"
+                placeholder={t("searchPlaceholder")}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+
+              {hits ? (
+                <SearchResults hits={hits} onPick={(id) => navigate(`/p/${id}`)} />
+              ) : (
+                <Tree tree={tree} route={route} onPick={navigate} />
+              )}
+
+              <div className="side-actions">
+                <button
+                  className={`tables-link ${route.kind === "tables" || route.kind === "table" ? "active" : ""}`}
+                  onClick={() => navigate("/tables")}
+                >
+                  {t("tablesLink")}
+                </button>
+                <button
+                  className="tables-link"
+                  onClick={() => {
+                    setSource(null);
+                    setBrowserOpen(true);
+                  }}
+                >
+                  {t("sourceLink")}
+                </button>
+                {/* 규제 그래프는 프로젝트 단위가 아니라 조직 전체에 하나뿐이다. */}
+                <button
+                  className={`tables-link reg-link ${route.kind === "reg" ? "active" : ""}`}
+                  onClick={() => navigate("/reg")}
+                >
+                  {t("regLink")}
+                </button>
+              </div>
+            </>
           ) : (
-            <Tree tree={tree} route={route} onPick={navigate} />
+            <>
+              {/* 보고서 지식화는 프로젝트 단위가 아니다 — 업종과 사업장이 분리 축이라
+                  좌측 트리(소스 분석)와 성격이 다르다. */}
+              <nav className="solution-menu">
+                {solution("report").menus.map((m) => (
+                  <button
+                    key={m.path}
+                    className={`solution-item ${route.kind === m.match.slice(1) ? "active" : ""}`}
+                    onClick={() => navigate(m.path)}
+                  >
+                    <span className="solution-item-label">{t(m.labelKey)}</span>
+                    <span className="solution-item-desc">{t(m.descKey)}</span>
+                  </button>
+                ))}
+              </nav>
+
+              {/* 사내/외부 LLM 선택은 화면 하나가 아니라 **솔루션 전체**에 걸린다.
+                  적재와 초안 제안이 각자 공급자를 들고 있으면 한쪽은 사내로 다른
+                  쪽은 사외로 나가는데, 사용자는 한 번 골랐다고 믿는다. */}
+              <LlmPicker />
+
+              {/* 생성·검산·배포를 **따로** 보여 준다. 하나로 합치면 '위키는 잘
+                  만들어졌는데 원문 수치가 어긋난' 상태를 표현할 수 없다. */}
+              <WikiStatusBoard onNavigate={navigate} compact />
+            </>
           )}
 
-          <div className="side-actions">
-            <button className="tables-link" onClick={() => navigate("/tables")}>
-              {t("tablesLink")}
-            </button>
-            <button
-              className="tables-link"
-              onClick={() => {
-                setSource(null);
-                setBrowserOpen(true);
-              }}
-            >
-              {t("sourceLink")}
-            </button>
-            {/* 규제 그래프는 프로젝트 단위가 아니라 조직 전체에 하나뿐이다.
-                좌측 트리(소스 분석)와 성격이 달라 링크로만 갈라 둔다. */}
-            <button
-              className={`tables-link reg-link ${route.kind === "reg" ? "active" : ""}`}
-              onClick={() => navigate("/reg")}
-            >
-              {t("regLink")}
-            </button>
-          </div>
+          <EngineBar onOpen={() => navigate("/engines")} />
         </aside>
 
         <main className="content">
@@ -296,6 +379,25 @@ export default function App() {
               onTab={(tab) => navigate(tab === "assess" ? "/reg" : `/reg/${tab}`)}
             />
           )}
+          {route.kind === "kb" && (
+            <KnowledgeBase
+              tab={route.tab}
+              onTab={(tab) => navigate(tab === "analyze" ? "/kb" : `/kb/${tab}`)}
+            />
+          )}
+          {route.kind === "wiki" && (
+            <Wiki
+              tab={route.tab}
+              onTab={(tab) => navigate(tab === "browse" ? "/wiki" : `/wiki/${tab}`)}
+            />
+          )}
+          {route.kind === "admin" && (
+            <WikiAdmin
+              tab={route.tab}
+              onTab={(tab) => navigate(tab === "upload" ? "/admin" : `/admin/${tab}`)}
+            />
+          )}
+          {route.kind === "engines" && <EngineLayer onNavigate={navigate} />}
           {route.kind === "tables" && <TablesView onPick={navigate} />}
           {route.kind === "table" && (
             <TableView name={route.name} onPick={navigate} onOpenSource={openSource} />

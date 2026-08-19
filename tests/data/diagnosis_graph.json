@@ -1,0 +1,2215 @@
+{
+  "ontology": "0.1.0",
+  "diagnosis": {
+    "id": "sample2026",
+    "document": "e6176435-__________________________________compressed.pdf",
+    "doc_hash": "ad471b5baaf86f52",
+    "sector": "waste",
+    "sector_name": "폐기물처리·자원순환"
+  },
+  "stats": {
+    "nodes": 101,
+    "edges": 167,
+    "quantities": 67,
+    "findings": 7,
+    "by_type": {
+      "Diagnosis": 1,
+      "Sector": 1,
+      "EvidenceSpan": 18,
+      "Quantity": 67,
+      "Equipment": 4,
+      "Finding": 7,
+      "Channel": 3
+    },
+    "by_derivation": {
+      "documented": 91,
+      "computed": 10
+    }
+  },
+  "nodes": [
+    {
+      "id": "dgn:sample2026",
+      "type": "Diagnosis",
+      "derivation": "documented",
+      "name": "e6176435-__________________________________compressed.pdf",
+      "doc_hash": "ad471b5baaf86f52",
+      "pages": 32,
+      "sector": "waste",
+      "sector_name": "폐기물처리·자원순환",
+      "unit_basis": "처리량 1톤당",
+      "sector_confidence": 0.572,
+      "sector_needs_review": false
+    },
+    {
+      "id": "sec:waste",
+      "type": "Sector",
+      "derivation": "documented",
+      "name": "폐기물처리·자원순환",
+      "ksic": "E38",
+      "unit_basis": "처리량 1톤당"
+    },
+    {
+      "id": "span:sample2026/p4/tbl0",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 4,
+      "table_idx": 0,
+      "caption": "모델",
+      "shape": [
+        6,
+        4
+      ]
+    },
+    {
+      "id": "qty:sample2026/4_0/설_립_년_도.표본사업장_41",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 2015.0,
+      "unit": "년",
+      "dimension": "year",
+      "label": "설 립 년 도",
+      "raw": "2015년 9월",
+      "page": 4,
+      "cell": "r4c1"
+    },
+    {
+      "id": "qty:sample2026/4_0/설_립_년_도.3_43",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 3000.0,
+      "unit": "h/y",
+      "dimension": "time",
+      "label": "설 립 년 도",
+      "raw": "약 3,000(h/y)",
+      "page": 4,
+      "cell": "r4c3"
+    },
+    {
+      "id": "span:sample2026/p4/tbl1",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 4,
+      "table_idx": 1,
+      "caption": "모델",
+      "shape": [
+        3,
+        4
+      ]
+    },
+    {
+      "id": "span:sample2026/p4/tbl2",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 4,
+      "table_idx": 2,
+      "caption": "모델",
+      "shape": [
+        3,
+        4
+      ]
+    },
+    {
+      "id": "span:sample2026/p6/tbl0",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 6,
+      "table_idx": 0,
+      "caption": "cite: 1",
+      "shape": [
+        4,
+        4
+      ]
+    },
+    {
+      "id": "qty:sample2026/6_0/음식물류폐기물_처리잔재물액상.허가_물량_1일_22",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 8.0,
+      "unit": "톤/일",
+      "dimension": "capacity",
+      "label": "음식물류폐기물 처리잔재물(액상)",
+      "raw": "8톤/일",
+      "page": 6,
+      "cell": "r2c2"
+    },
+    {
+      "id": "span:sample2026/p7/tbl0",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 7,
+      "table_idx": 0,
+      "caption": "t/h",
+      "shape": [
+        1,
+        8
+      ]
+    },
+    {
+      "id": "qty:sample2026/7_0/관류보일러.대수_01",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 1.0,
+      "unit": "대",
+      "dimension": "count",
+      "label": "관류보일러",
+      "raw": "1대",
+      "page": 7,
+      "cell": "r0c1"
+    },
+    {
+      "id": "qty:sample2026/7_0/관류보일러.용량_th_03",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 0.5,
+      "unit": "t/h",
+      "dimension": "steam_flow",
+      "label": "관류보일러",
+      "raw": "0.5",
+      "page": 7,
+      "cell": "r0c3"
+    },
+    {
+      "id": "qty:sample2026/7_0/관류보일러.제작_년도_06",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 2017.0,
+      "unit": "년",
+      "dimension": "year",
+      "label": "관류보일러",
+      "raw": "2017년",
+      "page": 7,
+      "cell": "r0c6"
+    },
+    {
+      "id": "span:sample2026/p7/tbl1",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 7,
+      "table_idx": 1,
+      "caption": "t/h",
+      "shape": [
+        2,
+        8
+      ]
+    },
+    {
+      "id": "qty:sample2026/7_1/한국유체기계.수량_01",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 18.0,
+      "unit": "대",
+      "dimension": "count",
+      "label": "한국유체기계",
+      "raw": "18대",
+      "page": 7,
+      "cell": "r0c1"
+    },
+    {
+      "id": "qty:sample2026/7_1/한국유체기계.용량_kW_02",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 22.0,
+      "unit": "kW",
+      "dimension": "power",
+      "label": "한국유체기계",
+      "raw": "22",
+      "page": 7,
+      "cell": "r0c2"
+    },
+    {
+      "id": "qty:sample2026/7_1/한국유체기계.토출유량_min_03",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 8.0,
+      "unit": "㎥/min",
+      "dimension": "flow",
+      "label": "한국유체기계",
+      "raw": "8.0",
+      "page": 7,
+      "cell": "r0c3"
+    },
+    {
+      "id": "qty:sample2026/7_1/한국유체기계.사용압력_mmAq_04",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": -4500.0,
+      "unit": "mmAq",
+      "dimension": "pressure",
+      "label": "한국유체기계",
+      "raw": "-4500",
+      "page": 7,
+      "cell": "r0c4"
+    },
+    {
+      "id": "qty:sample2026/7_1/한국유체기계.제작년도_05",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 2002.0,
+      "unit": "년",
+      "dimension": "year",
+      "label": "한국유체기계",
+      "raw": "2002년",
+      "page": 7,
+      "cell": "r0c5"
+    },
+    {
+      "id": "qty:sample2026/7_1/건조실.수량_11",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 10.0,
+      "unit": "대",
+      "dimension": "count",
+      "label": "건조실",
+      "raw": "10대",
+      "page": 7,
+      "cell": "r1c1"
+    },
+    {
+      "id": "qty:sample2026/7_1/건조실.용량_kW_12",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 22.0,
+      "unit": "kW",
+      "dimension": "power",
+      "label": "건조실",
+      "raw": "22",
+      "page": 7,
+      "cell": "r1c2"
+    },
+    {
+      "id": "qty:sample2026/7_1/건조실.토출유량_min_13",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 8.0,
+      "unit": "㎥/min",
+      "dimension": "flow",
+      "label": "건조실",
+      "raw": "8.0",
+      "page": 7,
+      "cell": "r1c3"
+    },
+    {
+      "id": "qty:sample2026/7_1/건조실.사용압력_mmAq_14",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": -4500.0,
+      "unit": "mmAq",
+      "dimension": "pressure",
+      "label": "건조실",
+      "raw": "-4500",
+      "page": 7,
+      "cell": "r1c4"
+    },
+    {
+      "id": "qty:sample2026/7_1/건조실.제작년도_15",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 2002.0,
+      "unit": "년",
+      "dimension": "year",
+      "label": "건조실",
+      "raw": "2002년",
+      "page": 7,
+      "cell": "r1c5"
+    },
+    {
+      "id": "span:sample2026/p8/tbl0",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 8,
+      "table_idx": 0,
+      "caption": "에너지원별 단가",
+      "shape": [
+        3,
+        4
+      ]
+    },
+    {
+      "id": "qty:sample2026/8_0/LPG_탱크로리_공급.평균_단가_부가세_별도_01",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 1897.0,
+      "unit": "원",
+      "dimension": "cost",
+      "label": "LPG [탱크로리 공급]",
+      "raw": "1,897(원/㎏)",
+      "page": 8,
+      "cell": "r0c1"
+    },
+    {
+      "id": "qty:sample2026/8_0/LPG_탱크로리_공급.적용_기준_03",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 2025.0,
+      "unit": "년",
+      "dimension": "year",
+      "label": "LPG [탱크로리 공급]",
+      "raw": "2025년 10월 구입단가 적용",
+      "page": 8,
+      "cell": "r0c3"
+    },
+    {
+      "id": "qty:sample2026/8_0/전력_산업용_을.평균_단가_부가세_별도_11",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 195.0,
+      "unit": "원/kWh",
+      "dimension": "price",
+      "label": "전력] [(산업)용 을",
+      "raw": "195(원/kWh)",
+      "page": 8,
+      "cell": "r1c1"
+    },
+    {
+      "id": "qty:sample2026/8_0/전력_산업용_을.적용_기준_13",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 2025.0,
+      "unit": "년",
+      "dimension": "year",
+      "label": "전력] [(산업)용 을",
+      "raw": "2025년 12월 한전고지서적용",
+      "page": 8,
+      "cell": "r1c3"
+    },
+    {
+      "id": "qty:sample2026/8_0/.구_분_20",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 3720.0,
+      "unit": "원",
+      "dimension": "cost",
+      "label": null,
+      "raw": "3,720(원/N㎡)×0.51=1,897(원/㎏)적용",
+      "page": 8,
+      "cell": "r2c0"
+    },
+    {
+      "id": "qty:sample2026/8_0/.2_22",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 25.0,
+      "unit": "년",
+      "dimension": "year",
+      "label": null,
+      "raw": "25년 12월 사용요금 단가적용",
+      "page": 8,
+      "cell": "r2c2"
+    },
+    {
+      "id": "span:sample2026/p10/tbl0",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 10,
+      "table_idx": 0,
+      "caption": "루츠블로워 설치현황",
+      "shape": [
+        2,
+        8
+      ]
+    },
+    {
+      "id": "qty:sample2026/10_0/한국유체기계.수량_01",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 18.0,
+      "unit": "대",
+      "dimension": "count",
+      "label": "한국유체기계",
+      "raw": "18대",
+      "page": 10,
+      "cell": "r0c1"
+    },
+    {
+      "id": "qty:sample2026/10_0/한국유체기계.용량_kW_02",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 22.0,
+      "unit": "kW",
+      "dimension": "power",
+      "label": "한국유체기계",
+      "raw": "22",
+      "page": 10,
+      "cell": "r0c2"
+    },
+    {
+      "id": "qty:sample2026/10_0/한국유체기계.토출유량_min_03",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 8.0,
+      "unit": "㎥/min",
+      "dimension": "flow",
+      "label": "한국유체기계",
+      "raw": "8.0",
+      "page": 10,
+      "cell": "r0c3"
+    },
+    {
+      "id": "qty:sample2026/10_0/한국유체기계.사용압력_mmAq_04",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": -4500.0,
+      "unit": "mmAq",
+      "dimension": "pressure",
+      "label": "한국유체기계",
+      "raw": "-4500",
+      "page": 10,
+      "cell": "r0c4"
+    },
+    {
+      "id": "qty:sample2026/10_0/한국유체기계.제작년도_05",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 2002.0,
+      "unit": "년",
+      "dimension": "year",
+      "label": "한국유체기계",
+      "raw": "2002년",
+      "page": 10,
+      "cell": "r0c5"
+    },
+    {
+      "id": "qty:sample2026/10_0/건조실.수량_11",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 10.0,
+      "unit": "대",
+      "dimension": "count",
+      "label": "건조실",
+      "raw": "10대",
+      "page": 10,
+      "cell": "r1c1"
+    },
+    {
+      "id": "qty:sample2026/10_0/건조실.용량_kW_12",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 22.0,
+      "unit": "kW",
+      "dimension": "power",
+      "label": "건조실",
+      "raw": "22",
+      "page": 10,
+      "cell": "r1c2"
+    },
+    {
+      "id": "qty:sample2026/10_0/건조실.토출유량_min_13",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 8.0,
+      "unit": "㎥/min",
+      "dimension": "flow",
+      "label": "건조실",
+      "raw": "8.0",
+      "page": 10,
+      "cell": "r1c3"
+    },
+    {
+      "id": "qty:sample2026/10_0/건조실.사용압력_mmAq_14",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": -4500.0,
+      "unit": "mmAq",
+      "dimension": "pressure",
+      "label": "건조실",
+      "raw": "-4500",
+      "page": 10,
+      "cell": "r1c4"
+    },
+    {
+      "id": "qty:sample2026/10_0/건조실.제작년도_15",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 2002.0,
+      "unit": "년",
+      "dimension": "year",
+      "label": "건조실",
+      "raw": "2002년",
+      "page": 10,
+      "cell": "r1c5"
+    },
+    {
+      "id": "span:sample2026/p11/tbl0",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 11,
+      "table_idx": 0,
+      "caption": "현장진단 사진",
+      "shape": [
+        3,
+        7
+      ]
+    },
+    {
+      "id": "qty:sample2026/11_0/.부하율__15",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 117.0,
+      "unit": "%",
+      "dimension": "ratio",
+      "label": null,
+      "raw": "117",
+      "page": 11,
+      "cell": "r1c5"
+    },
+    {
+      "id": "qty:sample2026/11_0/.부하율__25",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 105.0,
+      "unit": "%",
+      "dimension": "ratio",
+      "label": null,
+      "raw": "105",
+      "page": 11,
+      "cell": "r2c5"
+    },
+    {
+      "id": "span:sample2026/p12/tbl0",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 12,
+      "table_idx": 0,
+      "caption": "#1(22kW) 루츠블로워 운전전력 측정 차트",
+      "shape": [
+        3,
+        8
+      ]
+    },
+    {
+      "id": "qty:sample2026/12_0/.수량_01",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 18.0,
+      "unit": "대",
+      "dimension": "count",
+      "label": null,
+      "raw": "18대",
+      "page": 12,
+      "cell": "r0c1"
+    },
+    {
+      "id": "qty:sample2026/12_0/.정격전력_kW_02",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 22.0,
+      "unit": "kW",
+      "dimension": "power",
+      "label": null,
+      "raw": "22",
+      "page": 12,
+      "cell": "r0c2"
+    },
+    {
+      "id": "qty:sample2026/12_0/.운전전력_kW_03",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 25.7,
+      "unit": "kW",
+      "dimension": "power",
+      "label": null,
+      "raw": "25.7",
+      "page": 12,
+      "cell": "r0c3"
+    },
+    {
+      "id": "qty:sample2026/12_0/.연간가동_시간hy_04",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 7200.0,
+      "unit": "h/y",
+      "dimension": "time",
+      "label": null,
+      "raw": "7,200",
+      "page": 12,
+      "cell": "r0c4"
+    },
+    {
+      "id": "qty:sample2026/12_0/.안전률__05",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 80.0,
+      "unit": "%",
+      "dimension": "ratio",
+      "label": null,
+      "raw": "80",
+      "page": 12,
+      "cell": "r0c5"
+    },
+    {
+      "id": "qty:sample2026/12_0/.연간_전력량_kWhy_06",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 2664576.0,
+      "unit": "kWh/y",
+      "dimension": "energy",
+      "label": null,
+      "raw": "2,664,576",
+      "page": 12,
+      "cell": "r0c6"
+    },
+    {
+      "id": "qty:sample2026/12_0/건조실.수량_11",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 10.0,
+      "unit": "대",
+      "dimension": "count",
+      "label": "건조실",
+      "raw": "10대",
+      "page": 12,
+      "cell": "r1c1"
+    },
+    {
+      "id": "qty:sample2026/12_0/건조실.정격전력_kW_12",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 22.0,
+      "unit": "kW",
+      "dimension": "power",
+      "label": "건조실",
+      "raw": "22",
+      "page": 12,
+      "cell": "r1c2"
+    },
+    {
+      "id": "qty:sample2026/12_0/건조실.운전전력_kW_13",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 23.0,
+      "unit": "kW",
+      "dimension": "power",
+      "label": "건조실",
+      "raw": "23.0",
+      "page": 12,
+      "cell": "r1c3"
+    },
+    {
+      "id": "qty:sample2026/12_0/건조실.연간가동_시간hy_14",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 7200.0,
+      "unit": "h/y",
+      "dimension": "time",
+      "label": "건조실",
+      "raw": "7,200",
+      "page": 12,
+      "cell": "r1c4"
+    },
+    {
+      "id": "qty:sample2026/12_0/건조실.안전률__15",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 80.0,
+      "unit": "%",
+      "dimension": "ratio",
+      "label": "건조실",
+      "raw": "80",
+      "page": 12,
+      "cell": "r1c5"
+    },
+    {
+      "id": "qty:sample2026/12_0/건조실.연간_전력량_kWhy_16",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 1324800.0,
+      "unit": "kWh/y",
+      "dimension": "energy",
+      "label": "건조실",
+      "raw": "1,324,800",
+      "page": 12,
+      "cell": "r1c6"
+    },
+    {
+      "id": "qty:sample2026/12_0/계.수량_21",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 28.0,
+      "unit": "대",
+      "dimension": "count",
+      "label": "계",
+      "raw": "28대",
+      "page": 12,
+      "cell": "r2c1"
+    },
+    {
+      "id": "qty:sample2026/12_0/계.연간가동_시간hy_24",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 7200.0,
+      "unit": "h/y",
+      "dimension": "time",
+      "label": "계",
+      "raw": "7,200",
+      "page": 12,
+      "cell": "r2c4"
+    },
+    {
+      "id": "qty:sample2026/12_0/계.안전률__25",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 80.0,
+      "unit": "%",
+      "dimension": "ratio",
+      "label": "계",
+      "raw": "80",
+      "page": 12,
+      "cell": "r2c5"
+    },
+    {
+      "id": "qty:sample2026/12_0/계.연간_전력량_kWhy_26",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 3989376.0,
+      "unit": "kWh/y",
+      "dimension": "energy",
+      "label": "계",
+      "raw": "3,989,376",
+      "page": 12,
+      "cell": "r2c6"
+    },
+    {
+      "id": "span:sample2026/p14/tbl0",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 14,
+      "table_idx": 0,
+      "caption": "보일러 설치현황",
+      "shape": [
+        1,
+        8
+      ]
+    },
+    {
+      "id": "qty:sample2026/14_0/강철제_관류보일러.대수_01",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 1.0,
+      "unit": "대",
+      "dimension": "count",
+      "label": "강철제 관류보일러",
+      "raw": "1대",
+      "page": 14,
+      "cell": "r0c1"
+    },
+    {
+      "id": "qty:sample2026/14_0/강철제_관류보일러.용량_th_03",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 0.5,
+      "unit": "t/h",
+      "dimension": "steam_flow",
+      "label": "강철제 관류보일러",
+      "raw": "0.5",
+      "page": 14,
+      "cell": "r0c3"
+    },
+    {
+      "id": "qty:sample2026/14_0/강철제_관류보일러.제작_년도_06",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 2017.0,
+      "unit": "년",
+      "dimension": "year",
+      "label": "강철제 관류보일러",
+      "raw": "2017년",
+      "page": 14,
+      "cell": "r0c6"
+    },
+    {
+      "id": "span:sample2026/p15/tbl0",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 15,
+      "table_idx": 0,
+      "caption": "현장진단 사진",
+      "shape": [
+        1,
+        8
+      ]
+    },
+    {
+      "id": "qty:sample2026/15_0/증기보일러.용량_th_01",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 0.5,
+      "unit": "t/h",
+      "dimension": "steam_flow",
+      "label": "증기보일러",
+      "raw": "0.5",
+      "page": 15,
+      "cell": "r0c1"
+    },
+    {
+      "id": "qty:sample2026/15_0/증기보일러.운전시간_hd_04",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 10.0,
+      "unit": "h/d",
+      "dimension": "time",
+      "label": "증기보일러",
+      "raw": "10",
+      "page": 15,
+      "cell": "r0c4"
+    },
+    {
+      "id": "qty:sample2026/15_0/증기보일러.부하율__06",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 70.0,
+      "unit": "%",
+      "dimension": "ratio",
+      "label": "증기보일러",
+      "raw": "70",
+      "page": 15,
+      "cell": "r0c6"
+    },
+    {
+      "id": "span:sample2026/p16/tbl0",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 16,
+      "table_idx": 0,
+      "caption": "",
+      "shape": [
+        4,
+        3
+      ]
+    },
+    {
+      "id": "qty:sample2026/16_0/국물수분이_대부분을_차지하는_상태..평균_함수율_01",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 80.0,
+      "unit": "%",
+      "dimension": "ratio",
+      "label": "국물,수분이 대부분을 차지하는 상태.",
+      "raw": "80% ~ 85%",
+      "page": 16,
+      "cell": "r0c1"
+    },
+    {
+      "id": "qty:sample2026/16_0/.평균_함수율_11",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 60.0,
+      "unit": "%",
+      "dimension": "ratio",
+      "label": null,
+      "raw": "60% ~ 70%",
+      "page": 16,
+      "cell": "r1c1"
+    },
+    {
+      "id": "qty:sample2026/16_0/호기성_발효_미생물이_활발히_활동하거나_건조기_디스크_건조기_등를_통해_수분을_날려_보_21",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 40.0,
+      "unit": "%",
+      "dimension": "ratio",
+      "label": "호기성 발효 미생물이 활발히 활동하거나, 건조기 (디스크 건조기 등)를 통해 수분을 날려 보내는 중 간 단계.",
+      "raw": "40% ~ 50%",
+      "page": 16,
+      "cell": "r2c1"
+    },
+    {
+      "id": "span:sample2026/p25/tbl0",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 25,
+      "table_idx": 0,
+      "caption": "",
+      "shape": [
+        3,
+        4
+      ]
+    },
+    {
+      "id": "span:sample2026/p30/tbl0",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 30,
+      "table_idx": 0,
+      "caption": "",
+      "shape": [
+        10,
+        8
+      ]
+    },
+    {
+      "id": "span:sample2026/p31/tbl0",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 31,
+      "table_idx": 0,
+      "caption": "",
+      "shape": [
+        11,
+        7
+      ]
+    },
+    {
+      "id": "qty:sample2026/31_0/계.증감률_86",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": -51.1,
+      "unit": "%",
+      "dimension": "ratio",
+      "label": "계",
+      "raw": "- 51.1",
+      "page": 31,
+      "cell": "r8c6"
+    },
+    {
+      "id": "qty:sample2026/31_0/에너지량.증감률_96",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": -68.0,
+      "unit": "%",
+      "dimension": "ratio",
+      "label": "에너지량",
+      "raw": "- 68.0",
+      "page": 31,
+      "cell": "r9c6"
+    },
+    {
+      "id": "qty:sample2026/31_0/온실가스량.증감률_106",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": -63.3,
+      "unit": "%",
+      "dimension": "ratio",
+      "label": "온실가스량",
+      "raw": "- 63.3",
+      "page": 31,
+      "cell": "r10c6"
+    },
+    {
+      "id": "span:sample2026/p32/tbl0",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 32,
+      "table_idx": 0,
+      "caption": "",
+      "shape": [
+        5,
+        6
+      ]
+    },
+    {
+      "id": "qty:sample2026/32_0/재료비.금_액천원_05",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 1664246.0,
+      "unit": "천원",
+      "dimension": "cost",
+      "label": "재료비",
+      "raw": "1,664,246",
+      "page": 32,
+      "cell": "r0c5"
+    },
+    {
+      "id": "qty:sample2026/32_0/노무비.금_액천원_15",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 271980.0,
+      "unit": "천원",
+      "dimension": "cost",
+      "label": "노무비",
+      "raw": "271,980",
+      "page": 32,
+      "cell": "r1c5"
+    },
+    {
+      "id": "qty:sample2026/32_0/경_비.금_액천원_25",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 186940.0,
+      "unit": "천원",
+      "dimension": "cost",
+      "label": "경 비",
+      "raw": "186940",
+      "page": 32,
+      "cell": "r2c5"
+    },
+    {
+      "id": "qty:sample2026/32_0/기_타.금_액천원_35",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 145397.0,
+      "unit": "천원",
+      "dimension": "cost",
+      "label": "기 타",
+      "raw": "145397",
+      "page": 32,
+      "cell": "r3c5"
+    },
+    {
+      "id": "qty:sample2026/32_0/합_계.금_액천원_45",
+      "type": "Quantity",
+      "derivation": "documented",
+      "value": 2269000.0,
+      "unit": "천원",
+      "dimension": "cost",
+      "label": "합 계",
+      "raw": "2,269,000",
+      "page": 32,
+      "cell": "r4c5"
+    },
+    {
+      "id": "span:sample2026/p32/tbl1",
+      "type": "EvidenceSpan",
+      "derivation": "documented",
+      "page": 32,
+      "table_idx": 1,
+      "caption": "",
+      "shape": [
+        8,
+        6
+      ]
+    },
+    {
+      "id": "eq:sample2026/건조기",
+      "type": "Equipment",
+      "derivation": "documented",
+      "name": "건조기",
+      "mentions": 37,
+      "sector": "waste"
+    },
+    {
+      "id": "eq:sample2026/보일러",
+      "type": "Equipment",
+      "derivation": "documented",
+      "name": "보일러",
+      "mentions": 72,
+      "sector": "waste"
+    },
+    {
+      "id": "eq:sample2026/송풍기",
+      "type": "Equipment",
+      "derivation": "documented",
+      "name": "송풍기",
+      "mentions": 1,
+      "sector": "waste"
+    },
+    {
+      "id": "eq:sample2026/탈수기",
+      "type": "Equipment",
+      "derivation": "documented",
+      "name": "탈수기",
+      "mentions": 5,
+      "sector": "waste"
+    },
+    {
+      "id": "fnd:sample2026/privacy.cross_border#0",
+      "type": "Finding",
+      "derivation": "computed",
+      "rule": "privacy.cross_border",
+      "severity": "blocker",
+      "law": "개인정보보호법",
+      "article": "제28조의8",
+      "title": "개인정보를 포함한 문서를 xAI (미국) 로 업로드 — 국외 이전에 해당",
+      "detail": "문서에서 개인정보 11건(사업자등록번호, 이메일 주소, 전화번호, 상세주소, 성명(대표자), 성명(담당자), 성명(진단수행자))이 탐지되었습니다. 이를 xAI (미국) 의 서버로 업로드하면 개인정보의 국외 이전에 해당합니다. 제28조의8은 ① 정보주체의 별도 동의, ② 법률·조약의 특별 규정, ③ 계약의 체결·이행에 필요한 위탁·보관으로서 처리방침 공개 등 고지 요건 충족, ④ 보호위원회가 인정한 인증, ⑤ 인정 국가·기관 중 하나를 충족할 것을 요구합니다. 어느 것도 없이 이전하면 제28조의9에 따른 국외 이전 중지 명령의 대상이 될 수 있습니다.",
+      "resolution": null
+    },
+    {
+      "id": "fnd:sample2026/privacy.minimization#1",
+      "type": "Finding",
+      "derivation": "computed",
+      "rule": "privacy.minimization",
+      "severity": "error",
+      "law": "개인정보보호법",
+      "article": "제3조제1항·제16조",
+      "title": "에너지진단 목적에 불필요한 개인정보가 문서에 포함됨",
+      "detail": "에너지 사용량 분석과 투자경제성 판단이라는 처리 목적에 비추어 성명·연락처·이메일 등은 필요 최소한을 넘습니다. 탐지 항목: 사업자등록번호, 이메일 주소, 전화번호, 상세주소, 성명(대표자), 성명(담당자), 성명(진단수행자). 지식베이스는 원문을 장기 보관하므로 목적 달성 후에도 계속 남습니다.",
+      "resolution": null
+    },
+    {
+      "id": "fnd:sample2026/ai.transparency.labeling#2",
+      "type": "Finding",
+      "derivation": "computed",
+      "rule": "ai.transparency.labeling",
+      "severity": "error",
+      "law": "인공지능 발전과 신뢰 기반 조성 등에 관한 기본법",
+      "article": "제31조제2항",
+      "title": "생성형 AI 산출물에 표시가 없음",
+      "detail": "생성형 인공지능으로 만든 결과물에는 그 사실을 표시해야 합니다. 본 시스템은 검색 결과를 근거로 분석 서술을 생성하므로 대상에 해당합니다. 생성된 분석 보고서·요약·답변 모두에 표시가 필요합니다.",
+      "resolution": null
+    },
+    {
+      "id": "fnd:sample2026/ai.transparency.notice#3",
+      "type": "Finding",
+      "derivation": "computed",
+      "rule": "ai.transparency.notice",
+      "severity": "error",
+      "law": "인공지능 발전과 신뢰 기반 조성 등에 관한 기본법",
+      "article": "제31조제1항",
+      "title": "생성형 AI 기반 서비스라는 사전 고지가 없음",
+      "detail": "이용자에게 해당 서비스가 인공지능 기반이라는 사실을 미리 알려야 합니다. 위반 시 과태료 부과 대상입니다(제43조).",
+      "resolution": null
+    },
+    {
+      "id": "fnd:sample2026/privacy.safeguards#4",
+      "type": "Finding",
+      "derivation": "computed",
+      "rule": "privacy.safeguards",
+      "severity": "info",
+      "law": "개인정보보호법",
+      "article": "제29조",
+      "title": "안전성 확보조치 점검 필요",
+      "detail": "개인정보가 포함된 문서를 처리하는 시스템은 접근권한 관리, 접근통제, 암호화, 접속기록 보관(1년 이상), 악성프로그램 방지 조치를 갖춰야 합니다.",
+      "resolution": null
+    },
+    {
+      "id": "fnd:sample2026/ai.high_impact.review#5",
+      "type": "Finding",
+      "derivation": "computed",
+      "rule": "ai.high_impact.review",
+      "severity": "info",
+      "law": "인공지능 발전과 신뢰 기반 조성 등에 관한 기본법",
+      "article": "제2조제4호·제34조",
+      "title": "고영향 인공지능 해당 여부 — 판단 유보 (사람 확인 필요)",
+      "detail": "법이 열거한 고영향 영역: 보건의료, 에너지 공급, 수도 공급, 원자력, 생체인식, 채용·평가, 대출 심사, 교통수단 운영, 공공서비스 결정, 수사·기소. 본 시스템은 에너지 사용 분석과 투자 판단 근거를 제공하지만, 산출물은 권고·참고 성격이고 최종 판단은 자격자가 합니다. '에너지 공급' 영역 해당성은 정성 판단이므로 룰이 확정하지 않습니다.",
+      "resolution": null
+    },
+    {
+      "id": "fnd:sample2026/ai.safety.threshold#6",
+      "type": "Finding",
+      "derivation": "computed",
+      "rule": "ai.safety.threshold",
+      "severity": "info",
+      "law": "인공지능 발전과 신뢰 기반 조성 등에 관한 기본법",
+      "article": "제32조",
+      "title": "안전성 확보 의무 — 비해당 추정",
+      "detail": "제32조의 안전성 확보 의무는 누적 연산량 임계값 등 요건을 모두 충족하는 대규모 시스템에 적용됩니다. 본 시스템은 외부 모델을 호출하는 응용 서비스라 직접 대상은 아닌 것으로 보입니다. 다만 모델 제공자의 준수 여부는 별개입니다.",
+      "resolution": null
+    },
+    {
+      "id": "chan:sample2026/text",
+      "type": "Channel",
+      "derivation": "computed",
+      "channel": "text",
+      "count": 32
+    },
+    {
+      "id": "chan:sample2026/table",
+      "type": "Channel",
+      "derivation": "computed",
+      "channel": "table",
+      "count": 18
+    },
+    {
+      "id": "chan:sample2026/image",
+      "type": "Channel",
+      "derivation": "computed",
+      "channel": "image",
+      "count": 61
+    }
+  ],
+  "edges": [
+    {
+      "type": "classifiedAs",
+      "source": "dgn:sample2026",
+      "target": "sec:waste",
+      "derivation": "computed",
+      "method": "rule",
+      "confidence": 0.572
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p4/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/4_0/설_립_년_도.표본사업장_41",
+      "target": "span:sample2026/p4/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/4_0/설_립_년_도.표본사업장_41",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/4_0/설_립_년_도.3_43",
+      "target": "span:sample2026/p4/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/4_0/설_립_년_도.3_43",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p4/tbl1",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p4/tbl2",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p6/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/6_0/음식물류폐기물_처리잔재물액상.허가_물량_1일_22",
+      "target": "span:sample2026/p6/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/6_0/음식물류폐기물_처리잔재물액상.허가_물량_1일_22",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p7/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/7_0/관류보일러.대수_01",
+      "target": "span:sample2026/p7/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/7_0/관류보일러.대수_01",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/7_0/관류보일러.용량_th_03",
+      "target": "span:sample2026/p7/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/7_0/관류보일러.용량_th_03",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/7_0/관류보일러.제작_년도_06",
+      "target": "span:sample2026/p7/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/7_0/관류보일러.제작_년도_06",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p7/tbl1",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/7_1/한국유체기계.수량_01",
+      "target": "span:sample2026/p7/tbl1",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/7_1/한국유체기계.수량_01",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/7_1/한국유체기계.용량_kW_02",
+      "target": "span:sample2026/p7/tbl1",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/7_1/한국유체기계.용량_kW_02",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/7_1/한국유체기계.토출유량_min_03",
+      "target": "span:sample2026/p7/tbl1",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/7_1/한국유체기계.토출유량_min_03",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/7_1/한국유체기계.사용압력_mmAq_04",
+      "target": "span:sample2026/p7/tbl1",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/7_1/한국유체기계.사용압력_mmAq_04",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/7_1/한국유체기계.제작년도_05",
+      "target": "span:sample2026/p7/tbl1",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/7_1/한국유체기계.제작년도_05",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/7_1/건조실.수량_11",
+      "target": "span:sample2026/p7/tbl1",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/7_1/건조실.수량_11",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/7_1/건조실.용량_kW_12",
+      "target": "span:sample2026/p7/tbl1",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/7_1/건조실.용량_kW_12",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/7_1/건조실.토출유량_min_13",
+      "target": "span:sample2026/p7/tbl1",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/7_1/건조실.토출유량_min_13",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/7_1/건조실.사용압력_mmAq_14",
+      "target": "span:sample2026/p7/tbl1",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/7_1/건조실.사용압력_mmAq_14",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/7_1/건조실.제작년도_15",
+      "target": "span:sample2026/p7/tbl1",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/7_1/건조실.제작년도_15",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p8/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/8_0/LPG_탱크로리_공급.평균_단가_부가세_별도_01",
+      "target": "span:sample2026/p8/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/8_0/LPG_탱크로리_공급.평균_단가_부가세_별도_01",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/8_0/LPG_탱크로리_공급.적용_기준_03",
+      "target": "span:sample2026/p8/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/8_0/LPG_탱크로리_공급.적용_기준_03",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/8_0/전력_산업용_을.평균_단가_부가세_별도_11",
+      "target": "span:sample2026/p8/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/8_0/전력_산업용_을.평균_단가_부가세_별도_11",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/8_0/전력_산업용_을.적용_기준_13",
+      "target": "span:sample2026/p8/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/8_0/전력_산업용_을.적용_기준_13",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/8_0/.구_분_20",
+      "target": "span:sample2026/p8/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/8_0/.구_분_20",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/8_0/.2_22",
+      "target": "span:sample2026/p8/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/8_0/.2_22",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p10/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/10_0/한국유체기계.수량_01",
+      "target": "span:sample2026/p10/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/10_0/한국유체기계.수량_01",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/10_0/한국유체기계.용량_kW_02",
+      "target": "span:sample2026/p10/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/10_0/한국유체기계.용량_kW_02",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/10_0/한국유체기계.토출유량_min_03",
+      "target": "span:sample2026/p10/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/10_0/한국유체기계.토출유량_min_03",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/10_0/한국유체기계.사용압력_mmAq_04",
+      "target": "span:sample2026/p10/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/10_0/한국유체기계.사용압력_mmAq_04",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/10_0/한국유체기계.제작년도_05",
+      "target": "span:sample2026/p10/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/10_0/한국유체기계.제작년도_05",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/10_0/건조실.수량_11",
+      "target": "span:sample2026/p10/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/10_0/건조실.수량_11",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/10_0/건조실.용량_kW_12",
+      "target": "span:sample2026/p10/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/10_0/건조실.용량_kW_12",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/10_0/건조실.토출유량_min_13",
+      "target": "span:sample2026/p10/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/10_0/건조실.토출유량_min_13",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/10_0/건조실.사용압력_mmAq_14",
+      "target": "span:sample2026/p10/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/10_0/건조실.사용압력_mmAq_14",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/10_0/건조실.제작년도_15",
+      "target": "span:sample2026/p10/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/10_0/건조실.제작년도_15",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p11/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/11_0/.부하율__15",
+      "target": "span:sample2026/p11/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/11_0/.부하율__15",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/11_0/.부하율__25",
+      "target": "span:sample2026/p11/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/11_0/.부하율__25",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/.수량_01",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/.수량_01",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/.정격전력_kW_02",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/.정격전력_kW_02",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/.운전전력_kW_03",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/.운전전력_kW_03",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/.연간가동_시간hy_04",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/.연간가동_시간hy_04",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/.안전률__05",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/.안전률__05",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/.연간_전력량_kWhy_06",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/.연간_전력량_kWhy_06",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/건조실.수량_11",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/건조실.수량_11",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/건조실.정격전력_kW_12",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/건조실.정격전력_kW_12",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/건조실.운전전력_kW_13",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/건조실.운전전력_kW_13",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/건조실.연간가동_시간hy_14",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/건조실.연간가동_시간hy_14",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/건조실.안전률__15",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/건조실.안전률__15",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/건조실.연간_전력량_kWhy_16",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/건조실.연간_전력량_kWhy_16",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/계.수량_21",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/계.수량_21",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/계.연간가동_시간hy_24",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/계.연간가동_시간hy_24",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/계.안전률__25",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/계.안전률__25",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/12_0/계.연간_전력량_kWhy_26",
+      "target": "span:sample2026/p12/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/12_0/계.연간_전력량_kWhy_26",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p14/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/14_0/강철제_관류보일러.대수_01",
+      "target": "span:sample2026/p14/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/14_0/강철제_관류보일러.대수_01",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/14_0/강철제_관류보일러.용량_th_03",
+      "target": "span:sample2026/p14/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/14_0/강철제_관류보일러.용량_th_03",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/14_0/강철제_관류보일러.제작_년도_06",
+      "target": "span:sample2026/p14/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/14_0/강철제_관류보일러.제작_년도_06",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p15/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/15_0/증기보일러.용량_th_01",
+      "target": "span:sample2026/p15/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/15_0/증기보일러.용량_th_01",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/15_0/증기보일러.운전시간_hd_04",
+      "target": "span:sample2026/p15/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/15_0/증기보일러.운전시간_hd_04",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/15_0/증기보일러.부하율__06",
+      "target": "span:sample2026/p15/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/15_0/증기보일러.부하율__06",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p16/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/16_0/국물수분이_대부분을_차지하는_상태..평균_함수율_01",
+      "target": "span:sample2026/p16/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/16_0/국물수분이_대부분을_차지하는_상태..평균_함수율_01",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/16_0/.평균_함수율_11",
+      "target": "span:sample2026/p16/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/16_0/.평균_함수율_11",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/16_0/호기성_발효_미생물이_활발히_활동하거나_건조기_디스크_건조기_등를_통해_수분을_날려_보_21",
+      "target": "span:sample2026/p16/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/16_0/호기성_발효_미생물이_활발히_활동하거나_건조기_디스크_건조기_등를_통해_수분을_날려_보_21",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p25/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p30/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p31/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/31_0/계.증감률_86",
+      "target": "span:sample2026/p31/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/31_0/계.증감률_86",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/31_0/에너지량.증감률_96",
+      "target": "span:sample2026/p31/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/31_0/에너지량.증감률_96",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/31_0/온실가스량.증감률_106",
+      "target": "span:sample2026/p31/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/31_0/온실가스량.증감률_106",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p32/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/32_0/재료비.금_액천원_05",
+      "target": "span:sample2026/p32/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/32_0/재료비.금_액천원_05",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/32_0/노무비.금_액천원_15",
+      "target": "span:sample2026/p32/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/32_0/노무비.금_액천원_15",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/32_0/경_비.금_액천원_25",
+      "target": "span:sample2026/p32/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/32_0/경_비.금_액천원_25",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/32_0/기_타.금_액천원_35",
+      "target": "span:sample2026/p32/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/32_0/기_타.금_액천원_35",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "qty:sample2026/32_0/합_계.금_액천원_45",
+      "target": "span:sample2026/p32/tbl0",
+      "derivation": "documented"
+    },
+    {
+      "type": "belongsTo",
+      "source": "qty:sample2026/32_0/합_계.금_액천원_45",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "evidencedBy",
+      "source": "dgn:sample2026",
+      "target": "span:sample2026/p32/tbl1",
+      "derivation": "documented"
+    },
+    {
+      "type": "installedAt",
+      "source": "eq:sample2026/건조기",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "installedAt",
+      "source": "eq:sample2026/보일러",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "installedAt",
+      "source": "eq:sample2026/송풍기",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "installedAt",
+      "source": "eq:sample2026/탈수기",
+      "target": "dgn:sample2026",
+      "derivation": "documented"
+    },
+    {
+      "type": "flags",
+      "source": "fnd:sample2026/privacy.cross_border#0",
+      "target": "dgn:sample2026",
+      "derivation": "computed"
+    },
+    {
+      "type": "flags",
+      "source": "fnd:sample2026/privacy.minimization#1",
+      "target": "dgn:sample2026",
+      "derivation": "computed"
+    },
+    {
+      "type": "flags",
+      "source": "fnd:sample2026/ai.transparency.labeling#2",
+      "target": "dgn:sample2026",
+      "derivation": "computed"
+    },
+    {
+      "type": "flags",
+      "source": "fnd:sample2026/ai.transparency.notice#3",
+      "target": "dgn:sample2026",
+      "derivation": "computed"
+    },
+    {
+      "type": "flags",
+      "source": "fnd:sample2026/privacy.safeguards#4",
+      "target": "dgn:sample2026",
+      "derivation": "computed"
+    },
+    {
+      "type": "flags",
+      "source": "fnd:sample2026/ai.high_impact.review#5",
+      "target": "dgn:sample2026",
+      "derivation": "computed"
+    },
+    {
+      "type": "flags",
+      "source": "fnd:sample2026/ai.safety.threshold#6",
+      "target": "dgn:sample2026",
+      "derivation": "computed"
+    },
+    {
+      "type": "hasChannel",
+      "source": "dgn:sample2026",
+      "target": "chan:sample2026/text",
+      "derivation": "computed"
+    },
+    {
+      "type": "hasChannel",
+      "source": "dgn:sample2026",
+      "target": "chan:sample2026/table",
+      "derivation": "computed"
+    },
+    {
+      "type": "hasChannel",
+      "source": "dgn:sample2026",
+      "target": "chan:sample2026/image",
+      "derivation": "computed"
+    }
+  ]
+}

@@ -835,6 +835,29 @@ app.state.compliance_root = str(cfg.compliance_dir)
 
 
 # --------------------------------------------------------------------------- #
+# 문서 지식베이스 · 4채널 분해 (/api/kb/…)
+#
+# 같은 이유로 SPA 폴백보다 먼저 등록한다.
+# --------------------------------------------------------------------------- #
+from .kb import bind as bind_kb  # noqa: E402
+
+app.include_router(bind_kb(cfg))
+
+# 에너지 진단 위키(`/api/wiki/…`). 데이터 컨트랙트·검산·검증 저널을 담당한다.
+# 같은 이유로 SPA 폴백보다 먼저 등록한다.
+from .ediag import bind as bind_ediag  # noqa: E402
+
+app.include_router(bind_ediag(cfg))
+
+# 엔진 레이어(`/api/engines`). 두 솔루션이 같은 엔진을 쓴다는 사실을 한 곳에서 알린다.
+# 이 줄이 빠지면 사이드바의 엔진 표시줄이 영원히 '불러오는 중' 으로 남는다.
+from .engines import bind as bind_engines  # noqa: E402
+
+app.include_router(bind_engines(cfg))
+app.state.kb_root = str(cfg.kb_dir)
+
+
+# --------------------------------------------------------------------------- #
 # 정적 파일 (빌드된 뷰어)
 # --------------------------------------------------------------------------- #
 WEB_DIST = Path(__file__).resolve().parents[2] / "web" / "dist"
@@ -843,12 +866,19 @@ if WEB_DIST.exists():
 
     app.mount("/assets", StaticFiles(directory=WEB_DIST / "assets"), name="assets")
 
+    #: 자산 파일명에는 내용 해시가 들어 있어 내용이 바뀌면 이름도 바뀐다. 그래서
+    #: 오래 캐시해도 안전하다. 반대로 `index.html` 은 이름이 고정이라, 캐시되면
+    #: **배포해도 사용자가 옛 화면을 계속 본다** — 실제로 그 일이 있었다.
+    NO_CACHE = {"Cache-Control": "no-store, must-revalidate"}
+
     @app.get("/{full_path:path}")
     def spa(full_path: str):
         candidate = (WEB_DIST / full_path).resolve()
         if full_path and candidate.is_relative_to(WEB_DIST) and candidate.is_file():
-            return FileResponse(candidate)
-        return FileResponse(WEB_DIST / "index.html")
+            # index.html 이 아닌 실제 파일(파비콘 등)은 그대로 준다.
+            headers = NO_CACHE if candidate.name == "index.html" else None
+            return FileResponse(candidate, headers=headers)
+        return FileResponse(WEB_DIST / "index.html", headers=NO_CACHE)
 
 else:
 

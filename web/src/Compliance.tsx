@@ -12,10 +12,11 @@ import {
   type RegValidation,
 } from "./api";
 import { useLang } from "./i18n";
+import RiskWizard from "./RiskWizard";
 
-export type RegTab = "assess" | "coverage" | "changes" | "graph";
+export type RegTab = "risk" | "assess" | "coverage" | "changes" | "graph";
 
-export const REG_TABS: RegTab[] = ["assess", "coverage", "changes", "graph"];
+export const REG_TABS: RegTab[] = ["risk", "assess", "coverage", "changes", "graph"];
 
 /** 판정값 → CSS 클래스. 색은 화면에서만 쓰고 판정 자체는 서버가 정한다. */
 const VERDICT_CLASS: Record<string, string> = {
@@ -91,19 +92,25 @@ export default function Compliance({
             onClick={() => onTab(key)}
           >
             {t(
-              key === "assess"
-                ? "regTabAssess"
-                : key === "coverage"
-                  ? "regTabCoverage"
-                  : key === "changes"
-                    ? "regTabChanges"
-                    : "regTabGraph"
+              key === "risk"
+                ? "riskTabRisk"
+                : key === "assess"
+                  ? "regTabAssess"
+                  : key === "coverage"
+                    ? "regTabCoverage"
+                    : key === "changes"
+                      ? "regTabChanges"
+                      : "regTabGraph"
             )}
           </button>
         ))}
       </div>
 
       {err && <div className="banner error">{err}</div>}
+
+      {/* 위험등급 산정은 그래프가 아니라 32항목 배점으로 답한다 —
+          같은 화면에 있지만 파이프라인이 다르다. */}
+      {tab === "risk" && <RiskWizard key={`r${refresh}`} />}
 
       {tab === "assess" && (
         <AssessTab

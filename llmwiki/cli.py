@@ -20,6 +20,16 @@ from .compliance.cli import app as reg_app  # noqa: E402
 
 app.add_typer(reg_app, name="reg")
 
+# 문서 지식베이스 · 4채널 분해 (llmwiki kb …)
+from .kb.cli import app as kb_app  # noqa: E402
+
+app.add_typer(kb_app, name="kb")
+
+# 에너지 진단 위키 · 데이터 컨트랙트 (llmwiki wiki …)
+from .ediag.cli import app as wiki_app  # noqa: E402
+
+app.add_typer(wiki_app, name="wiki")
+
 ConfigOpt = typer.Option("config.yaml", "--config", "-c", help="설정 파일 경로")
 
 

@@ -145,6 +145,50 @@ class Config:
     def ruleset_version(self) -> str:
         return str(self.raw.get("compliance", {}).get("ruleset", "1.0.0"))
 
+    # --- kb (문서 지식베이스) ---
+    @property
+    def kb_dir(self) -> Path:
+        """4채널로 분해해 적재한 문서와 적재 이력이 쌓이는 곳.
+
+        docs/ 와 섞지 않는다 — 여기 있는 것은 다시 만들 수 있는 산출물이 아니라
+        규제 게이트를 통과한 적재본과 그 이력이다. 지우면 무엇이 언제 어떤 판정으로
+        들어왔는지가 사라진다.
+        """
+        return (self.root / self.raw.get("kb", {}).get("dir", "./knowledge")).resolve()
+
+    @property
+    def kb_destination(self) -> str:
+        """문서 내용이 실제로 도달하는 곳을 판단할 기준 공급자.
+
+        국외 이전 해당성(개인정보보호법 제28조의8)이 여기서 갈린다. 기본값은 지금
+        쓰는 LLM 공급자다 — 사내 모델로 돌리는데 국외 이전 차단이 뜨거나, 더 나쁘게는
+        외부로 보내면서 통과가 뜨는 것을 막는다.
+        """
+        return str(self.raw.get("kb", {}).get("destination", "") or self.provider)
+
+    # --- wiki (에너지 진단 위키) ---
+    @property
+    def wiki_dir(self) -> Path:
+        """마크다운 위키가 사는 곳. **이 저장소가 진실이다** (P1).
+
+        docs/ 와 섞지 않는다 — docs/ 는 소스에서 매번 다시 만드는 산출물이고, 여기는
+        사람이 검토하고 서명한 지식이다. 재생성하면 검토 이력이 사라진다.
+        """
+        return (self.root / self.raw.get("wiki", {}).get("dir", "./wiki")).resolve()
+
+    @property
+    def wiki_pipeline_version(self) -> str:
+        """front-matter 의 provenance.pipeline_version 에 박히는 값.
+
+        파이프라인을 고쳤는데 이 값을 안 올리면, 어떤 페이지가 어느 규칙으로 만들어졌는지
+        구분할 수 없다.
+        """
+        return str(self.raw.get("wiki", {}).get("pipeline_version", "v0.1.0"))
+
+    @property
+    def wiki_owner(self) -> str:
+        return str(self.raw.get("wiki", {}).get("owner", "energy-team"))
+
     @property
     def standard_version(self) -> str:
         return str(self.raw.get("compliance", {}).get("standard", ""))
