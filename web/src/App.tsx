@@ -32,6 +32,8 @@ import Compliance, { REG_TABS, type RegTab } from "./Compliance";
 import KnowledgeBase, { KB_TABS, type KbTab } from "./KnowledgeBase";
 import Wiki, { WIKI_TABS, type WikiTab } from "./Wiki";
 import WikiAdmin, { ADMIN_TABS, type AdminTab } from "./WikiAdmin";
+import ChecklistView from "./Checklist";
+import TimelineView from "./Timeline";
 import EngineBar, { EngineLayer } from "./EngineBar";
 import WikiStatusBoard from "./WikiStatusBoard";
 import LlmPicker from "./LlmPicker";
@@ -46,6 +48,8 @@ type Route =
   | { kind: "kb"; tab: KbTab }
   | { kind: "wiki"; tab: WikiTab }
   | { kind: "admin"; tab: AdminTab }
+  | { kind: "checklist" }
+  | { kind: "timeline" }
   | { kind: "engines" };
 
 function parseRoute(path: string): Route {
@@ -70,6 +74,8 @@ function parseRoute(path: string): Route {
     const tab = path.slice(7) as AdminTab;
     return { kind: "admin", tab: ADMIN_TABS.includes(tab) ? tab : "upload" };
   }
+  if (path.startsWith("/checklist")) return { kind: "checklist" };
+  if (path.startsWith("/timeline")) return { kind: "timeline" };
   // 엔진 레이어는 어느 솔루션에도 속하지 않는다 — 둘이 공유하는 바닥이다.
   if (path === "/engines") return { kind: "engines" };
   return { kind: "home" };
@@ -242,7 +248,9 @@ export default function App() {
             <div className="brand" onClick={() => navigate("/")}>
               <span className="brand-mark">LW</span>
               <div>
-                <div className="brand-title">{meta?.project ?? "LLMWiki"}</div>
+                <div className="brand-title" title={meta?.project ?? ""}>
+                  {t("brandName")}
+                </div>
                 <div className="brand-sub">
                   {t("brandSub", {
                     programs: meta?.counts.programs ?? 0,
@@ -381,6 +389,7 @@ export default function App() {
           )}
           {route.kind === "kb" && (
             <KnowledgeBase
+              onNavigate={navigate}
               tab={route.tab}
               onTab={(tab) => navigate(tab === "analyze" ? "/kb" : `/kb/${tab}`)}
             />
@@ -393,10 +402,13 @@ export default function App() {
           )}
           {route.kind === "admin" && (
             <WikiAdmin
+              onNavigate={navigate}
               tab={route.tab}
               onTab={(tab) => navigate(tab === "upload" ? "/admin" : `/admin/${tab}`)}
             />
           )}
+          {route.kind === "checklist" && <ChecklistView />}
+          {route.kind === "timeline" && <TimelineView onNavigate={navigate} />}
           {route.kind === "engines" && <EngineLayer onNavigate={navigate} />}
           {route.kind === "tables" && <TablesView onPick={navigate} />}
           {route.kind === "table" && (

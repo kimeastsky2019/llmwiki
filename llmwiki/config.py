@@ -186,6 +186,15 @@ class Config:
         return str(self.raw.get("wiki", {}).get("pipeline_version", "v0.1.0"))
 
     @property
+    def checklist_dir(self) -> Path:
+        """현장 체크리스트가 사는 곳.
+
+        팀이 함께 보는 표준 서식이라 개인 파일이 아니다. wiki/ 와 섞지 않는다 —
+        위키는 검토·서명이 붙은 지식이고, 여기는 현장에서 고쳐 쓰는 작업 서식이다.
+        """
+        return (self.root / self.raw.get("audit", {}).get("dir", "./checklists")).resolve()
+
+    @property
     def wiki_owner(self) -> str:
         return str(self.raw.get("wiki", {}).get("owner", "energy-team"))
 

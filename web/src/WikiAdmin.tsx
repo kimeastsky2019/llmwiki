@@ -56,9 +56,11 @@ function readReviewer(): string {
 export default function WikiAdmin({
   tab,
   onTab,
+  onNavigate,
 }: {
   tab: AdminTab;
   onTab: (t: AdminTab) => void;
+  onNavigate: (path: string) => void;
 }) {
   const { t } = useLang();
   const [health, setHealth] = useState<WikiHealth | null>(null);
@@ -145,6 +147,7 @@ export default function WikiAdmin({
           accept={(health?.parser_ready.formats?.suffixes ?? [".pdf"]).join(",")}
           onError={setErr}
           onStored={() => setRefresh((n) => n + 1)}
+          onNavigate={onNavigate}
         />
       )}
       {tab === "queue" && (
@@ -169,11 +172,13 @@ function UploadTab({
   accept,
   onError,
   onStored,
+  onNavigate,
 }: {
   owner: string;
   accept: string;
   onError: (m: string | null) => void;
   onStored: () => void;
+  onNavigate: (path: string) => void;
 }) {
   const { t } = useLang();
   const [file, setFile] = useState<File | null>(null);
@@ -272,13 +277,14 @@ function UploadTab({
         </label>
 
         <button
-          className="primary"
+          className={result && !result.stored ? "" : "primary"}
           disabled={!file || busy !== ""}
           onClick={() => run("preview")}
         >
           {busy === "preview" ? t("adminPreviewing") : t("adminPreview")}
         </button>
         <button
+          className={result && !result.stored ? "primary" : ""}
           disabled={!file || busy !== ""}
           onClick={() => run("ingest")}
           title={t("kbIngestHint")}
@@ -289,6 +295,30 @@ function UploadTab({
 
       <p className="muted small">{t("adminSiteKeyHint")}</p>
       <p className="muted small">{t("adminUploadNote")}</p>
+
+      {/* 미리보기만 하고 자리를 뜨는 사고가 반복돼, 저장 전에는 화면이 계속 말한다. */}
+      {result && result.gate_allowed && !result.stored && (
+        <div className="banner warn next-step">
+          <div>
+            <strong>{t("adminUnsaved")}</strong>
+            <p className="muted small">{t("adminUnsavedDesc")}</p>
+          </div>
+          <button className="primary" disabled={busy !== ""} onClick={() => run("ingest")}>
+            {busy === "ingest" ? t("adminIngesting") : t("adminSaveNow")}
+          </button>
+        </div>
+      )}
+
+      {result?.stored && (
+        <div className="banner ok next-step">
+          <div>
+            <strong>{t("adminSavedNext")}</strong>
+          </div>
+          <button className="primary" onClick={() => onNavigate("/wiki")}>
+            {t("adminGoWiki")}
+          </button>
+        </div>
+      )}
 
       {result && <BuildResultView result={result} />}
     </div>

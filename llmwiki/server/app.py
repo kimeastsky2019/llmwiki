@@ -849,6 +849,11 @@ from .ediag import bind as bind_ediag  # noqa: E402
 
 app.include_router(bind_ediag(cfg))
 
+# 진단 준비(체크리스트·시계열). 위키를 읽어 만들 뿐 위키를 바꾸지 않는다.
+from .audit import bind as bind_audit  # noqa: E402
+
+app.include_router(bind_audit(cfg))
+
 # 엔진 레이어(`/api/engines`). 두 솔루션이 같은 엔진을 쓴다는 사실을 한 곳에서 알린다.
 # 이 줄이 빠지면 사이드바의 엔진 표시줄이 영원히 '불러오는 중' 으로 남는다.
 from .engines import bind as bind_engines  # noqa: E402

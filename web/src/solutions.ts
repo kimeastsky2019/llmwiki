@@ -53,6 +53,8 @@ export const SOLUTIONS: Solution[] = [
       { path: "/kb", labelKey: "kbLink", descKey: "solReportMenuKbDesc", match: "/kb" },
       { path: "/wiki", labelKey: "wikiLink", descKey: "solReportMenuWikiDesc", match: "/wiki" },
       { path: "/admin", labelKey: "adminLink", descKey: "solReportMenuAdminDesc", match: "/admin" },
+      { path: "/checklist", labelKey: "checklistLink", descKey: "solReportMenuChecklistDesc", match: "/checklist" },
+      { path: "/timeline", labelKey: "timelineLink", descKey: "solReportMenuTimelineDesc", match: "/timeline" },
     ],
     engines: ["sllm", "grok", "rag", "aigov"],
   },
@@ -61,7 +63,13 @@ export const SOLUTIONS: Solution[] = [
 /** 경로가 어느 솔루션에 속하는가. 솔루션을 별도 상태로 들지 않는 이유는,
  *  주소창으로 바로 들어온 사람과 메뉴로 들어온 사람이 다른 화면을 보면 안 되기 때문이다. */
 export function solutionOf(path: string): SolutionCode {
-  if (path.startsWith("/kb") || path.startsWith("/wiki") || path.startsWith("/admin")) {
+  if (
+    path.startsWith("/kb") ||
+    path.startsWith("/wiki") ||
+    path.startsWith("/admin") ||
+    path.startsWith("/checklist") ||
+    path.startsWith("/timeline")
+  ) {
     return "report";
   }
   return "code";

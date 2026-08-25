@@ -69,9 +69,11 @@ const IMAGE_KIND_KEY: Record<string, StringKey> = {
 export default function KnowledgeBase({
   tab,
   onTab,
+  onNavigate,
 }: {
   tab: KbTab;
   onTab: (t: KbTab) => void;
+  onNavigate: (path: string) => void;
 }) {
   const { t } = useLang();
   const [health, setHealth] = useState<KbHealth | null>(null);
@@ -184,6 +186,7 @@ export default function KnowledgeBase({
           accept={(health?.parser_ready.formats?.suffixes ?? [".pdf"]).join(",")}
           onError={setErr}
           onIngested={() => setRefresh((n) => n + 1)}
+          onNavigate={onNavigate}
         />
       )}
       {tab === "documents" && (
@@ -206,6 +209,7 @@ function AnalyzeTab({
   ready,
   onError,
   onIngested,
+  onNavigate,
 }: {
   sectors: KbSector[];
   destinations: KbDestination[];
@@ -215,6 +219,7 @@ function AnalyzeTab({
   ready: boolean;
   onError: (e: string | null) => void;
   onIngested: () => void;
+  onNavigate: (path: string) => void;
 }) {
   const { t } = useLang();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -349,6 +354,19 @@ function AnalyzeTab({
           <Summary result={result} />
           <GateBanner result={result} />
           {result.stored && <StoredBanner result={result} />}
+          {/* 적재만 하고 끝내는 사람이 많다 — KB 에 들어간 것과 위키 페이지가 선
+              것은 다르다. 그래서 다음 걸음을 화면이 먼저 말한다. */}
+          {result.stored?.stored && (
+            <div className="banner next-step">
+              <div>
+                <strong>{t("kbNextTitle")}</strong>
+                <p className="muted small">{t("kbNextDesc")}</p>
+              </div>
+              <button className="primary" onClick={() => onNavigate("/admin")}>
+                {t("kbGoAdmin")}
+              </button>
+            </div>
+          )}
 
           <div className="reg-tabs kb-detail-tabs" role="tablist">
             {DETAIL_TABS.map((key) => (

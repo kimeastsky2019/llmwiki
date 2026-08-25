@@ -1078,6 +1078,87 @@ function post<T>(url: string, payload?: unknown): Promise<T> {
   });
 }
 
+
+/* ── 진단 준비 (체크리스트 · 시계열) ─────────────────────────────────── */
+
+export interface ChecklistItem {
+  id: string;
+  name: string;
+  source: string;
+  checked: string;
+  note: string;
+}
+
+export interface ChecklistGroup {
+  equipment: string;
+  fields: string[];
+  items: ChecklistItem[];
+}
+
+export interface ChecklistDraft {
+  sector: string;
+  sector_name: string;
+  unit_basis: string;
+  energy_sources: string[];
+  groups: ChecklistGroup[];
+  item_count: number;
+  from_wiki: boolean;
+  wiki_measures: number;
+}
+
+export interface Checklist {
+  id: string;
+  title: string;
+  sector: string;
+  subsector: string;
+  site: string;
+  homepage: string;
+  owner: string;
+  note: string;
+  groups: ChecklistGroup[];
+  updated_at: string;
+}
+
+export interface ChecklistSummary {
+  id: string;
+  title: string;
+  sector: string;
+  subsector: string;
+  site: string;
+  owner: string;
+  item_count: number;
+  updated_at: string;
+}
+
+export interface TimeseriesRow {
+  stable_id: string;
+  title: string;
+  type: string;
+  sector: string;
+  sector_name: string;
+  domain: string;
+  year: string;
+  status: string;
+  numeric_verified: boolean;
+  tags: string[];
+}
+
+export interface TimeseriesYear {
+  year: string;
+  pages: number;
+  verified: number;
+  by_type: Record<string, number>;
+}
+
+export interface Timeseries {
+  rows: TimeseriesRow[];
+  years: string[];
+  by_year: TimeseriesYear[];
+  undated: number;
+  ledger_by_year: { year: string; documents: number }[];
+  sectors: KbSector[];
+}
+
 export const api = {
   meta: () => get<Meta>("/api/meta"),
   tree: () => get<TreeLayer[]>("/api/tree"),
@@ -1305,6 +1386,23 @@ export const api = {
       ),
     log: () => get<{ log: WikiLogRow[] }>("/api/wiki/log"),
     catalogUrl: () => tag("/api/wiki/index.md"),
+  },
+
+  /** 진단 준비. 위키를 읽어 만들 뿐 위키를 바꾸지 않는다. */
+  audit: {
+    draft: (sector: string) =>
+      get<ChecklistDraft>(`/api/audit/checklist/draft?sector=${encodeURIComponent(sector)}`),
+    list: () => get<{ checklists: ChecklistSummary[] }>("/api/audit/checklists"),
+    get: (id: string) => get<Checklist>(`/api/audit/checklists/${encodeURIComponent(id)}`),
+    save: (payload: Partial<Checklist>) => post<Checklist>("/api/audit/checklists", payload),
+    remove: (id: string) =>
+      request<{ deleted: string }>(`/api/audit/checklists/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      }),
+    timeseries: (sector: string, type: string) =>
+      get<Timeseries>(
+        `/api/audit/timeseries?sector=${encodeURIComponent(sector)}&type=${encodeURIComponent(type)}`
+      ),
   },
 };
 
