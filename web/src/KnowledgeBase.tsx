@@ -345,6 +345,17 @@ function AnalyzeTab({
           >
             {busy === "ingest" ? t("kbIngesting") : t("kbIngest")}
           </button>
+
+          {/* 적재는 지식 데이터베이스까지다. 위키 페이지는 관리자 화면에서 선다 —
+              두 단계인 줄 모르고 여기서 끝내는 사고가 반복돼 길을 상시 열어 둔다.
+              적재를 마친 직후에는 강조해 다음 걸음이 눈에 띄게 한다. */}
+          <button
+            className={`btn link-step ${result?.stored?.stored ? "ready" : ""}`}
+            onClick={() => onNavigate("/admin")}
+            title={t("kbGoAdminHint")}
+          >
+            {t("kbGoAdmin")}
+          </button>
         </div>
       </div>
       <p className="muted small">{t("kbAnalyzeNote")}</p>

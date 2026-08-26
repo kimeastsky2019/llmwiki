@@ -1830,3 +1830,19 @@ th { background: #f1f3f7; font-weight: 650; white-space: nowrap; }
 .tl-table th { text-align: left; padding: 8px 10px; background: var(--panel); font-size: 11px; color: var(--muted); }
 .tl-table td { padding: 8px 10px; border-top: 1px solid var(--line); }
 .linkish { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; text-align: left; }
+
+/* 적재 다음 걸음 — 위키 관리자로 가는 길. 적재를 마치면 강조로 바뀐다. */
+.btn.link-step {
+  border: 1px dashed var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.btn.link-step:hover { color: var(--ink, var(--fg)); border-color: var(--accent); }
+.btn.link-step.ready {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
