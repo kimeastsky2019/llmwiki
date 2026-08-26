@@ -9,7 +9,7 @@
  */
 import type { StringKey } from "./i18n";
 
-export type SolutionCode = "code" | "report";
+export type SolutionCode = "code" | "report" | "nanogrid";
 
 export interface SolutionMenu {
   /** 이동할 경로 */
@@ -56,11 +56,24 @@ export const SOLUTIONS: Solution[] = [
     ],
     engines: ["sllm", "grok", "rag", "aigov"],
   },
+  {
+    // 나노그리드 데이터 지식화 — 실시간·예측 데이터를 지식DB로 쌓고 AI 인사이트를
+    // 위키로 서비스한다. 메뉴는 그룹·세부메뉴가 있어 NgSection 컴포넌트가 그린다.
+    code: "nanogrid",
+    labelKey: "solNgName",
+    taglineKey: "solNgTagline",
+    home: "/ng/monitor",
+    menus: [],
+    engines: ["sllm", "grok", "aigov"],
+  },
 ];
 
 /** 경로가 어느 솔루션에 속하는가. 솔루션을 별도 상태로 들지 않는 이유는,
  *  주소창으로 바로 들어온 사람과 메뉴로 들어온 사람이 다른 화면을 보면 안 되기 때문이다. */
 export function solutionOf(path: string): SolutionCode {
+  if (path.startsWith("/ng")) {
+    return "nanogrid";
+  }
   if (path.startsWith("/kb") || path.startsWith("/wiki") || path.startsWith("/admin")) {
     return "report";
   }

@@ -52,6 +52,10 @@ registry = Registry(cfg)
 
 app = FastAPI(title=f"{cfg.project_name} — LLMWiki")
 
+# 나노그리드 Knowledge Wiki (/api/ng/*) — ngwiki wiki-server 프록시
+from .ng_proxy import router as ng_router  # noqa: E402
+
+app.include_router(ng_router, prefix="/api/ng", tags=["nanogrid"])
 # 소스 열람 한도 — 뷰어가 브라우저를 멈추게 하지 않도록 자른다
 MAX_SOURCE_BYTES = 2_000_000
 MAX_TREE_FILES = 20_000

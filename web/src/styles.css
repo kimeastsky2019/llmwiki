@@ -1730,3 +1730,101 @@ th { background: #f1f3f7; font-weight: 650; white-space: nowrap; }
 /* 목차 이동은 **즉시** 한다.
    `scroll-behavior: smooth` 를 걸어 봤더니 애니메이션을 완주하지 않는 환경에서
    목차를 눌러도 화면이 그대로였다. 부드러움보다 '눌렀으면 간다'가 먼저다. */
+
+/* ---------------------------------------------------------------- 나노그리드 */
+.ng-section { border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px; margin-bottom: 8px; }
+.ng-icon { width: 16px; display: inline-block; text-align: center; margin-right: 4px; font-size: 12px; }
+.ng-doc { padding-left: 26px; }
+.ng-page { max-width: 1100px; }
+.ng-title { margin: 0 0 4px; font-size: 22px; }
+.ng-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 16px 0; }
+.ng-kpi { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+.ng-kpi-label { font-size: 12px; color: #64748b; }
+.ng-kpi-value { font-size: 24px; font-weight: 700; color: #0f172a; }
+.ng-kpi-sub { font-size: 12px; color: #94a3b8; }
+.ng-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
+.ng-panel-title { font-weight: 600; margin-bottom: 10px; color: #0f172a; }
+.ng-cols { display: flex; gap: 12px; flex-wrap: wrap; }
+.ng-cols > .ng-panel { flex: 1; min-width: 280px; }
+.ng-doc-link { display: block; width: 100%; text-align: left; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; }
+.ng-doc-link:hover { background: #f1f5f9; }
+.ng-doc-link-title { font-size: 13px; font-weight: 600; color: #0f172a; }
+.ng-doc-link-meta { font-size: 11px; color: #94a3b8; }
+.ng-event { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 6px; }
+.ng-sev { font-size: 11px; border-radius: 6px; padding: 1px 8px; border: 1px solid; }
+.ng-sev-critical { color: #b91c1c; border-color: #fca5a5; background: #fef2f2; }
+.ng-sev-warning { color: #b45309; border-color: #fcd34d; background: #fffbeb; }
+.ng-sev-info { color: #0369a1; border-color: #7dd3fc; background: #f0f9ff; }
+.ng-form { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.ng-form label { display: flex; flex-direction: column; font-size: 12px; color: #64748b; gap: 4px; }
+.ng-form select, .ng-form input { border: 1px solid #cbd5e1; border-radius: 8px; padding: 7px 10px; font-size: 13px; min-width: 120px; background: #fff; }
+.ng-btn { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+.ng-btn.primary { background: #0f172a; color: #fff; border-color: #0f172a; }
+.ng-btn:disabled { opacity: 0.5; cursor: default; }
+.ng-mape { border-radius: 10px; padding: 12px; margin-bottom: 10px; border: 1px solid; }
+.ng-mape.ok { background: #ecfdf5; border-color: #6ee7b7; }
+.ng-mape.warn { background: #fffbeb; border-color: #fcd34d; }
+.ng-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ng-table th, .ng-table td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #f1f5f9; }
+.ng-table th { color: #64748b; font-size: 12px; }
+.ng-table tr.best { background: #ecfdf5; font-weight: 600; }
+.ng-doc-meta { font-size: 12px; color: #94a3b8; margin-bottom: 10px; }
+
+/* 나노그리드 — 메뉴 개편/신규 페이지 */
+.ng-children { margin-left: 10px; border-left: 1px solid rgba(255,255,255,0.1); }
+.ng-doc2 { padding-left: 30px; font-size: 12px; }
+.ng-subtabs { display: flex; gap: 8px; margin: 4px 0 12px; }
+.ng-subtab { border: 1px solid #cbd5e1; background: #fff; border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: #475569; }
+.ng-subtab.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+.ng-ev-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.ng-ev-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; background: #fff; }
+.ng-ev-card.ng-ev-charging { border-color: #6ee7b7; background: #f0fdf9; }
+.ng-ev-card.ng-ev-fault { border-color: #fca5a5; background: #fef2f2; }
+.ng-ev-card.ng-ev-finishing { border-color: #93c5fd; background: #eff6ff; }
+.ng-ev-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.ng-ev-name { font-weight: 600; font-size: 14px; color: #0f172a; }
+.ng-ev-status { font-size: 12px; color: #475569; }
+.ng-ev-power { font-size: 20px; font-weight: 700; color: #0f172a; }
+.ng-ev-bar { height: 6px; border-radius: 3px; background: #e2e8f0; margin: 6px 0; overflow: hidden; }
+.ng-ev-bar-fill { height: 100%; background: linear-gradient(90deg, #10b981, #059669); transition: width 0.6s; }
+.ng-textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font-size: 13px; font-family: inherit; margin: 10px 0; resize: vertical; }
+.ng-link { background: none; border: none; color: #4338ca; cursor: pointer; font-size: 13px; padding: 0; text-decoration: underline; }
+.ng-gov-group { margin-bottom: 14px; }
+.ng-gov-cat { font-weight: 700; font-size: 13px; color: #4338ca; margin: 8px 0 6px; }
+.ng-gov-item { display: flex; gap: 10px; align-items: flex-start; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 6px; background: #fff; }
+.ng-gov-item.done { background: #f0fdf4; border-color: #bbf7d0; }
+.ng-gov-item.na { opacity: 0.55; }
+.ng-gov-item input[type="checkbox"] { margin-top: 3px; }
+.ng-gov-item select { border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; padding: 3px 6px; }
+.ng-gov-title { font-size: 13px; font-weight: 600; color: #0f172a; }
+.ng-gov-quote { font-size: 12px; color: #64748b; background: #f8fafc; border-left: 3px solid #c7d2fe; padding: 4px 8px; margin-top: 4px; }
+.banner { background: #eef2ff; border: 1px solid #c7d2fe; color: #3730a3; border-radius: 8px; padding: 8px 12px; margin: 8px 0; font-size: 13px; }
+.banner.error { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+
+/* 사이드바 모드 탭 (소스 분석 / 데이터 지식화) */
+.ng-mode-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 12px; }
+.ng-mode-tab { text-align: left; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); border-radius: 10px; padding: 10px 12px; cursor: pointer; color: #cbd5e1; transition: background 0.15s; }
+.ng-mode-tab:hover { background: rgba(255,255,255,0.08); }
+.ng-mode-tab.active { background: #5b5bd6; border-color: #6e6ade; color: #fff; }
+.ng-mode-title { font-weight: 700; font-size: 14px; }
+.ng-mode-sub { font-size: 11px; opacity: 0.75; margin-top: 3px; line-height: 1.4; }
+.ng-project { display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; }
+.ng-project-label { font-size: 12px; color: #94a3b8; flex-shrink: 0; }
+.ng-project select { flex: 1; min-width: 0; background: transparent; border: none; color: #e2e8f0; font-size: 13px; outline: none; }
+.ng-project select option { color: #0f172a; }
+
+/* GnG 로고 (다크 사이드바 위 흰색 칩) */
+.brand-logo { height: 34px; width: auto; background: #fff; border-radius: 8px; padding: 4px 8px; display: block; }
+
+/* 인포그래픽 요소 */
+.ng-flow { width: 100%; height: auto; display: block; }
+.ng-flow-dash { stroke-dasharray: 6 12; animation: ngflow 1.2s linear infinite; }
+@keyframes ngflow { to { stroke-dashoffset: -18; } }
+.ng-kpi-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ng-donut { text-align: center; flex-shrink: 0; }
+.ng-donut-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+.ng-cat-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.ng-cat-bar-label { width: 130px; font-size: 12px; color: #475569; flex-shrink: 0; }
+.ng-cat-bar-track { flex: 1; height: 10px; border-radius: 5px; background: #eef2f7; overflow: hidden; }
+.ng-cat-bar-fill { height: 100%; border-radius: 5px; transition: width 0.5s; }
+.ng-cat-bar-value { width: 70px; font-size: 12px; font-weight: 600; color: #0f172a; text-align: right; flex-shrink: 0; }

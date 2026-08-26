@@ -1,6 +1,6 @@
 # LLMWiki 설정
 project:
-  name: "샘플 금융시스템"
+  name: "NanoGrid AI System"
   # 분석 대상 소스 루트 (여러 개 지정 가능)
   source_roots:
     - "./sample"

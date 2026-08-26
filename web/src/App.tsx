@@ -36,6 +36,10 @@ import EngineBar, { EngineLayer } from "./EngineBar";
 import WikiStatusBoard from "./WikiStatusBoard";
 import LlmPicker from "./LlmPicker";
 import { SOLUTIONS, solution, solutionOf, type SolutionCode } from "./solutions";
+import {
+  NgAdmin, NgDocView, NgForecast, NgGov, NgInsights,
+  NgKnowledgeDb, NgMonitor, NgSection,
+} from "./NanoGrid";
 
 type Route =
   | { kind: "home" }
@@ -46,12 +50,44 @@ type Route =
   | { kind: "kb"; tab: KbTab }
   | { kind: "wiki"; tab: WikiTab }
   | { kind: "admin"; tab: AdminTab }
+  | { kind: "ng-monitor"; tab: "energy" | "ev" | "events" }
+  | { kind: "ng-forecast" }
+  | { kind: "ng-knowledge" }
+  | { kind: "ng-insights" }
+  | { kind: "ng-admin" }
+  | { kind: "ng-gov" }
+  | { kind: "ng-doc"; id: string }
   | { kind: "engines" };
+
+/** 나노그리드 화면의 현재 경로 (NgSection 활성 표시용). 다른 솔루션이면 "". */
+function ngRoutePath(route: Route): string {
+  switch (route.kind) {
+    case "ng-monitor":
+      return route.tab === "energy" ? "/ng/monitor" : `/ng/monitor/${route.tab}`;
+    case "ng-forecast": return "/ng/forecast";
+    case "ng-knowledge": return "/ng/knowledge";
+    case "ng-insights": return "/ng/insights";
+    case "ng-admin": return "/ng/admin";
+    case "ng-gov": return "/ng/gov";
+    case "ng-doc": return `/ng/doc/${route.id}`;
+    default: return "";
+  }
+}
 
 function parseRoute(path: string): Route {
   if (path.startsWith("/p/")) return { kind: "program", id: path.slice(3) };
   if (path.startsWith("/t/")) return { kind: "table", name: decodeURIComponent(path.slice(3)) };
   if (path === "/tables") return { kind: "tables" };
+  // 나노그리드 데이터 지식화 (/ng/*)
+  if (path === "/ng/monitor") return { kind: "ng-monitor", tab: "energy" };
+  if (path === "/ng/monitor/ev") return { kind: "ng-monitor", tab: "ev" };
+  if (path === "/ng/monitor/events") return { kind: "ng-monitor", tab: "events" };
+  if (path === "/ng/forecast") return { kind: "ng-forecast" };
+  if (path === "/ng/knowledge") return { kind: "ng-knowledge" };
+  if (path === "/ng/insights") return { kind: "ng-insights" };
+  if (path === "/ng/admin") return { kind: "ng-admin" };
+  if (path === "/ng/gov") return { kind: "ng-gov" };
+  if (path.startsWith("/ng/doc/")) return { kind: "ng-doc", id: path.slice(8) };
   if (path.startsWith("/reg")) {
     const tab = path.slice(5) as RegTab;
     return { kind: "reg", tab: REG_TABS.includes(tab) ? tab : "assess" };
@@ -240,7 +276,7 @@ export default function App() {
         <aside className="sidebar">
           <div className="brand-row">
             <div className="brand" onClick={() => navigate("/")}>
-              <span className="brand-mark">LW</span>
+              <img src="/gng-logo.png" alt="GnG" className="brand-logo" />
               <div>
                 <div className="brand-title">{meta?.project ?? "LLMWiki"}</div>
                 <div className="brand-sub">
@@ -321,6 +357,13 @@ export default function App() {
                 </button>
               </div>
             </>
+          ) : activeSolution === "nanogrid" ? (
+            <>
+              {/* 나노그리드 데이터 지식화 — 그룹형 메뉴(운영/지식DB/AI-Gov)와
+                  세부 메뉴는 NgSection 이 그린다. */}
+              <NgSection activePath={ngRoutePath(route)} onPick={navigate} mode="data" />
+              <NgSection activePath={ngRoutePath(route)} onPick={navigate} mode="source" />
+            </>
           ) : (
             <>
               {/* 보고서 지식화는 프로젝트 단위가 아니다 — 업종과 사업장이 분리 축이라
@@ -398,6 +441,13 @@ export default function App() {
             />
           )}
           {route.kind === "engines" && <EngineLayer onNavigate={navigate} />}
+          {route.kind === "ng-monitor" && <NgMonitor tab={route.tab} onNavigate={navigate} />}
+          {route.kind === "ng-forecast" && <NgForecast />}
+          {route.kind === "ng-knowledge" && <NgKnowledgeDb />}
+          {route.kind === "ng-insights" && <NgInsights onNavigate={navigate} />}
+          {route.kind === "ng-admin" && <NgAdmin onNavigate={navigate} />}
+          {route.kind === "ng-gov" && <NgGov />}
+          {route.kind === "ng-doc" && <NgDocView id={route.id} onNavigate={navigate} />}
           {route.kind === "tables" && <TablesView onPick={navigate} />}
           {route.kind === "table" && (
             <TableView name={route.name} onPick={navigate} onOpenSource={openSource} />
