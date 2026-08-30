@@ -1,0 +1,134 @@
+# 단위 환산 · 계수 SSOT (Single Source of Truth)
+#
+# 이 파일이 원본이다. 계산 코드에 계수를 적어 넣지 않는다 — 계수가 코드 여기저기에
+# 흩어지면 개정이 왔을 때 어디를 고쳐야 하는지 아무도 모른다. 계수는 여기 한 곳에만
+# 있고, `llmwiki/ediag/calc.py` 는 이 파일을 읽어서만 계산한다.
+#
+# valid_until 이 있는 이유: 단가와 배출계수는 개정된다. 만료가 가까우면 lint 가
+# 경고를 낸다(`regulation.expiring`). 만료된 계수로 조용히 계산하는 것이 이 도메인에서
+# 가장 흔한 사고다.
+#
+# source 는 이 값을 어디서 가져왔는지다. 근거 없는 계수는 이 파일에 들어올 수 없다.
+
+version: "1.0.0"
+standard: "2025.12"
+
+# --- 순수 환산. 정의라서 개정되지 않는다. --------------------------------- #
+conversions:
+  kwh_per_mwh: 1000.0
+  kcal_per_kwh: 860.0
+  kcal_per_toe: 10000000.0      # 1 toe = 10^7 kcal
+  gcal_per_toe: 10.0
+  kg_per_ton: 1000.0
+  won_per_kwon: 1000.0          # 천원
+
+# --- 계수. 개정 대상이다. -------------------------------------------------- #
+factors:
+  - code: elec.toe_per_mwh
+    label: 전력 → 석유환산톤
+    value: 0.229
+    unit: toe/MWh
+    dimension: factor
+    basis: 에너지법 시행규칙 에너지열량 환산기준 (전력 소비 기준)
+    valid_from: "2025-01-01"
+    valid_until: "2027-12-31"
+    source: "에너지진단 보고서 p.13"
+
+  - code: elec.tco2eq_per_mwh
+    label: 전력 배출계수
+    value: 0.4541
+    unit: tCO2eq/MWh
+    dimension: factor
+    basis: 국가 온실가스 배출·흡수계수 (전력 간접배출)
+    valid_from: "2025-01-01"
+    valid_until: "2026-12-31"
+    source: "에너지진단 보고서 p.13"
+
+  - code: lpg.toe_per_ton
+    label: LPG → 석유환산톤
+    value: 1.2
+    unit: toe/ton
+    dimension: factor
+    basis: 에너지법 시행규칙 에너지열량 환산기준 (프로판)
+    valid_from: "2025-01-01"
+    valid_until: "2027-12-31"
+    source: "에너지진단 보고서 p.15"
+
+  # ★ 이 계수의 분모는 toe 가 아니라 **LPG 1톤**이다.
+  #   보고서 본문은 `2.918(tCO2eq/toe)` 로 적었지만 실제 계산은 톤에 곱했다
+  #   (75,600kg × 2.918 = 220.60). 값은 맞고 라벨이 틀렸다. lint 의
+  #   `unit.label_mismatch` 가 이 표기를 잡는다 — 다음 사람이 toe 에 곱하면
+  #   배출량이 20% 부풀려진다.
+  - code: lpg.tco2eq_per_ton
+    label: LPG 배출계수
+    value: 2.918
+    unit: tCO2eq/ton
+    dimension: factor
+    basis: 국가 온실가스 배출계수 (LPG 프로판 연소)
+    valid_from: "2025-01-01"
+    valid_until: "2026-12-31"
+    source: "에너지진단 보고서 p.15, p.29"
+    mislabeled_as: tCO2eq/toe
+
+  - code: lpg.lhv_kcal_per_kg
+    label: LPG 저위발열량
+    value: 11000.0
+    unit: kcal/kg
+    dimension: heating_value
+    basis: 프로판 저위발열량(LHV)
+    valid_from: "2020-01-01"
+    valid_until: "2030-12-31"
+    source: "에너지진단 보고서 p.29"
+
+  - code: lpg.nm3_per_kg
+    label: LPG 부피/질량 환산
+    value: 0.51
+    unit: Nm3/kg
+    dimension: factor
+    basis: 프로판 기체 밀도 기준 (3,720원/N㎥ × 0.51 = 1,897원/kg)
+    valid_from: "2020-01-01"
+    valid_until: "2030-12-31"
+    source: "에너지진단 보고서 p.8"
+
+  - code: steam.kcal_per_ton
+    label: 증기 1톤당 열량
+    value: 640000.0
+    unit: kcal/ton
+    dimension: heating_value
+    basis: 국내 표준 적용 기준
+    valid_from: "2020-01-01"
+    valid_until: "2030-12-31"
+    source: "에너지진단 보고서 p.29"
+
+# --- 단가. 가장 자주 개정된다. --------------------------------------------- #
+prices:
+  - code: price.elec_won_per_kwh
+    label: 전력 단가 (산업용(을) 고압A)
+    value: 195.0
+    unit: 원/kWh
+    valid_from: "2025-12-01"
+    valid_until: "2026-11-30"
+    source: "2025년 12월 한전 고지서 (보고서 p.8)"
+
+  - code: price.lpg_won_per_kg
+    label: LPG 단가 (탱크로리)
+    value: 1897.0
+    unit: 원/kg
+    valid_from: "2025-10-01"
+    valid_until: "2026-09-30"
+    source: "2025년 10월 구입단가 (보고서 p.8)"
+
+  - code: price.lpg_won_per_nm3
+    label: LPG 단가 (부피 기준)
+    value: 3720.0
+    unit: 원/Nm3
+    valid_from: "2025-10-01"
+    valid_until: "2026-09-30"
+    source: "보고서 p.8"
+
+# --- 검산 허용오차 --------------------------------------------------------- #
+# 보고서는 중간값을 반올림해 적는다(913.57 toe 등). 0 으로 두면 전부 불일치가 되고,
+# 크게 두면 진짜 오류를 놓친다. 상대 0.5% + 절대 하한이 실측상 가장 잘 맞았다.
+tolerance:
+  relative: 0.005
+  absolute_floor: 0.01

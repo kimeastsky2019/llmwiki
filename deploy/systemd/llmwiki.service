@@ -1,0 +1,46 @@
+[Unit]
+Description=LLMWiki — 레거시 소스 분석 → 산출물 생성 → 위키 뷰어
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=llmwiki
+Group=llmwiki
+WorkingDirectory=/opt/llmwiki
+
+# 상대경로(./sample, ./docs, ./projects)는 config.yaml 위치 기준으로 풀린다.
+Environment=LLMWIKI_CONFIG=/opt/llmwiki/config.yaml
+Environment=HOME=/opt/llmwiki
+Environment=PYTHONUNBUFFERED=1
+# XAI_API_KEY / XAI_MODEL — 키를 유닛 파일에 적지 않는다 (유닛은 world-readable).
+EnvironmentFile=/etc/llmwiki/llmwiki.env
+
+# --workers 1 고정: 파싱/생성 작업 상태(jobs)가 프로세스 내 메모리에 있어
+# 워커를 늘리면 작업 폴링이 엉뚱한 워커로 가 진행률을 잃는다.
+ExecStart=/opt/llmwiki/.venv/bin/uvicorn llmwiki.server.app:app \
+    --host 127.0.0.1 \
+    --port 8722 \
+    --workers 1 \
+    --timeout-keep-alive 75 \
+    --proxy-headers \
+    --forwarded-allow-ips '*'
+
+Restart=always
+RestartSec=5
+TimeoutStartSec=60
+TimeoutStopSec=30
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=llmwiki
+
+# ── 보안 강화 ──
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/llmwiki
+
+[Install]
+WantedBy=multi-user.target

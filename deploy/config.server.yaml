@@ -1,0 +1,82 @@
+# LLMWiki 설정 — sllm 서버 배포본 (/opt/llmwiki/config.yaml)
+project:
+  name: "LLMWiki 데모"
+  source_roots:
+    - "./sample"
+  layers:
+    - { name: "기관계", match: "**/inst/**" }
+    - { name: "채널계", match: "**/channel/**" }
+    - { name: "공통", match: "**/common/**" }
+
+parse:
+  include: ["**/*.java", "**/*.xml", "**/*.py"]
+  exclude: ["**/target/**", "**/build/**", "**/test/**", "**/generated/**", "**/.venv/**", "**/node_modules/**"]
+  max_class_chars: 12000
+
+llm:
+  # 이 서버는 사내 GPU(ollama)와 xAI Grok 둘 다 쓸 수 있다.
+  # 기본은 grok — A30 한 장을 rag-api 가 이미 쓰고 있어 동시 부하를 피한다.
+  provider: grok
+
+  grok:
+    # 키·모델은 /etc/llmwiki/llmwiki.env 의 XAI_API_KEY / XAI_MODEL 에서 온다.
+    # 여기에 키를 적지 말 것.
+    model: grok-4.20-0309-non-reasoning
+    max_tokens: 16000
+    temperature: 0.2
+    concurrency: 4
+
+  ollama:
+    base_url: "http://127.0.0.1:11434"
+    # rag-api 와 같은 모델을 공유한다 — 이미 VRAM 에 올라와 있어 재적재가 없다.
+    model: "hf.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF:Q4_K_M"
+    num_ctx: 32768
+    concurrency: 1
+    keep_alive: "30m"
+
+output:
+  docs_dir: "./docs"
+  index_file: "./docs/index.json"
+  workspace_dir: "./projects"
+  language: ko
+
+# 규제 지식그래프 · 근거기반 자동평가 (/wiki/api/reg/…)
+compliance:
+  # ⚠ 이 디렉터리는 재생성 가능한 산출물이 아니라 **감사 추적**이다.
+  #   append-only 저널이라 지우면 과거 판정의 근거가 사라진다. 백업 대상.
+  #   systemd 의 ReadWritePaths=/opt/llmwiki 안에 있어야 서비스가 쓸 수 있다.
+  dir: "/opt/llmwiki/compliance"
+  # 판정 결과에 함께 기록되어 재현의 근거가 된다.
+  ruleset: "1.0.0"
+  standard: "2026.08"
+
+# 문서 지식베이스 (/wiki 화면의 "지식 데이터베이스 구축", /api/kb/…)
+kb:
+  # 4채널 청크·그래프·적재 이력. append-only 라 백업 대상이다.
+  # systemd 의 ReadWritePaths=/opt/llmwiki 안에 있어야 서비스가 쓸 수 있다.
+  dir: "/opt/llmwiki/knowledge"
+  # 비워 두면 llm.provider 를 따른다. 이 서버는 grok 이므로 **국외 이전 해당**이고,
+  # 개인정보가 있는 진단서는 비식별을 거쳐야만 적재된다. 사내 모델로만 처리하려면
+  # 여기를 ollama 로 못박는다 (provider 를 바꿔도 판정이 흔들리지 않는다).
+  destination: ""
+
+# 에너지 진단 위키 (/api/wiki/…, 화면 /wiki 와 /admin)
+wiki:
+  # ⚠ 산출물이 아니라 **검토 이력이 붙은 지식**이다. review.jsonl 의 서명과
+  #   log.jsonl 이 여기 있어 지우면 누가 무엇을 확정했는지가 사라진다. 백업 대상.
+  dir: "/opt/llmwiki/wiki"
+  # 생성 규칙을 고치면 함께 올린다 — front-matter 의 provenance 에 박힌다.
+  pipeline_version: "v0.1.0"
+  owner: "energy-team"
+
+server:
+  host: "127.0.0.1"
+  port: 8722
+  # ⚠ 뷰어는 인증이 없고 nginx 로 공개돼 있다. 폴더 탐색기가 서버 파일시스템
+  #   전체로 내려가지 않도록 업로드 전용 디렉터리 하나로 못박는다.
+  #   분석할 소스는 /opt/llmwiki/sources/<이름> 으로 올린 뒤 UI 에서 등록한다.
+  # 브라우저에서 올린 소스가 풀리는 곳 (프로젝트 삭제 시 사본도 함께 정리)
+  upload_dir: "/opt/llmwiki/uploads"
+  browse_roots:
+    - "/opt/llmwiki/sources"
+    - "/opt/llmwiki/uploads"

@@ -15,6 +15,21 @@ from .indexer import load_index, save_index, scan
 app = typer.Typer(help="레거시 소스 → AI 분석 → 산출물(MD) → 위키 뷰어", no_args_is_help=True)
 console = Console()
 
+# 규제 지식그래프 · 근거기반 자동평가 (llmwiki reg …)
+from .compliance.cli import app as reg_app  # noqa: E402
+
+app.add_typer(reg_app, name="reg")
+
+# 문서 지식베이스 · 4채널 분해 (llmwiki kb …)
+from .kb.cli import app as kb_app  # noqa: E402
+
+app.add_typer(kb_app, name="kb")
+
+# 에너지 진단 위키 · 데이터 컨트랙트 (llmwiki wiki …)
+from .ediag.cli import app as wiki_app  # noqa: E402
+
+app.add_typer(wiki_app, name="wiki")
+
 ConfigOpt = typer.Option("config.yaml", "--config", "-c", help="설정 파일 경로")
 
 
@@ -104,6 +119,65 @@ def serve(
         port=port or cfg.port,
         reload=reload,
     )
+
+
+@app.command()
+def ontology(
+    action: str = typer.Argument("validate", help="validate | export | show"),
+    config: str = ConfigOpt,
+    out: str = typer.Option(None, "--out", "-o", help="export 결과를 쓸 파일"),
+    graph: bool = typer.Option(False, "--graph", help="export 시 스키마 대신 그래프를 내보낸다"),
+):
+    """온톨로지 스키마 검사 / 내보내기."""
+    import json
+
+    from .ontology import ONTOLOGY_VERSION, EDGE_TYPES, NODE_TYPES, build_graph, schema_dict
+    from .ontology import validate_index
+
+    cfg = load_config(config)
+
+    if action == "show":
+        console.print(f"온톨로지 v[bold]{ONTOLOGY_VERSION}[/]")
+        t = Table(show_header=True, title="노드")
+        t.add_column("타입"); t.add_column("ID 규칙"); t.add_column("근거"); t.add_column("설명")
+        for n in NODE_TYPES.values():
+            t.add_row(n.name, f"{n.prefix}:" + "/".join(f"{{{p}}}" for p in n.id_parts),
+                      n.derivation, n.ko)
+        console.print(t)
+        e = Table(show_header=True, title="관계")
+        e.add_column("관계"); e.add_column("도메인 → 레인지"); e.add_column("카디널리티"); e.add_column("근거")
+        for x in EDGE_TYPES.values():
+            e.add_row(x.name, f"{'|'.join(x.domain)} → {'|'.join(x.range)}",
+                      x.cardinality, x.derivation)
+        console.print(e)
+        return
+
+    if action == "export":
+        payload = build_graph(load_index(cfg, with_source=False)) if graph else schema_dict()
+        text = json.dumps(payload, ensure_ascii=False, indent=2)
+        if out:
+            Path(out).write_text(text, encoding="utf-8")
+            console.print(f"저장: [green]{out}[/]")
+        else:
+            print(text)
+        return
+
+    if action != "validate":
+        console.print(f"[red]알 수 없는 동작: {action}[/] (validate | export | show)")
+        raise typer.Exit(code=2)
+
+    result = validate_index(load_index(cfg, with_source=False))
+    for issue in result.issues:
+        color = "red" if issue.level == "error" else "yellow"
+        console.print(f"  [{color}]{issue.level:<7}[/] {issue.code:<18} {issue.message}")
+    if result.ok:
+        console.print(
+            f"온톨로지 v{ONTOLOGY_VERSION} [green]적합[/]"
+            f" (경고 {len(result.warnings)}건)"
+        )
+    else:
+        console.print(f"[red]오류 {len(result.errors)}건[/] / 경고 {len(result.warnings)}건")
+        raise typer.Exit(code=1)
 
 
 @app.command()
