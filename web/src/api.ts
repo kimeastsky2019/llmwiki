@@ -568,6 +568,45 @@ export interface RegProgramCandidate {
   services: string[];
 }
 
+/** 평가 절차 하나. `kind` 가 metric 이면 산식·연산자·임계치가 붙는다. */
+export interface RegProcedure {
+  seq: string;
+  kind: string;
+  metric: string;
+  operator: string;
+  threshold: number | null;
+  unit: string;
+}
+
+/** 관리자가 폼에서 채우는 값. 임계치는 빈 문자열로 남길 수 있다 — 미정이 정직한 상태다. */
+export interface RegProcedureInput {
+  kind: string;
+  metric?: string;
+  operator?: string;
+  threshold?: number | string;
+  unit?: string;
+}
+
+export interface RegControl {
+  code: string;
+  title: string;
+  title_en: string;
+  auto_level: string;
+  category: string;
+  owner: string;
+  status: string;
+  procedures: RegProcedure[];
+  /** 임계치를 아직 정하지 않은 지표 수. 0 이 아니면 판단 유보로 간다. */
+  open_thresholds: number;
+  obligations: { obligation: string; title: string }[];
+}
+
+export interface RegControlVocabulary {
+  auto_level: string[];
+  procedure_kind: string[];
+  operator: string[];
+}
+
 export interface RegServiceGrade {
   label: string;
   key: string;
@@ -1373,6 +1412,27 @@ export const api = {
         rejected: { program_id: string; reason: string }[];
         approver: string;
       }>("/api/reg/services/propose", body),
+
+    /** 평가 항목·지표 (기준 관리) — 만드는 것도 결재를 거친다. */
+    controls: () =>
+      get<{ controls: RegControl[]; vocabulary: RegControlVocabulary }>("/api/reg/controls"),
+    proposeControl: (body: {
+      by: string;
+      code: string;
+      title: string;
+      auto_level?: string;
+      category?: string;
+      owner?: string;
+      note?: string;
+      procedures?: RegProcedureInput[];
+      obligations?: string[];
+    }) =>
+      post<{
+        changeset: RegChange;
+        note: string;
+        rejected: { seq: number; reason: string }[];
+        approver: string;
+      }>("/api/reg/controls/propose", body),
 
     /** 위험등급 산정 — 계산은 서버가 한다. 화면은 입력만 모은다. */
     risk: {

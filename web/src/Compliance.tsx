@@ -13,12 +13,15 @@ import {
 } from "./api";
 import { useLang } from "./i18n";
 import RiskWizard from "./RiskWizard";
+import Controls from "./Controls";
 import Services from "./Services";
 
 /** 서비스가 맨 앞이다 — 규제 작업의 출발점은 조직 현황이 아니라 서비스 하나다. */
-export type RegTab = "services" | "risk" | "assess" | "coverage" | "changes" | "graph";
+export type RegTab =
+  | "services" | "risk" | "assess" | "controls" | "coverage" | "changes" | "graph";
 
-export const REG_TABS: RegTab[] = ["services", "risk", "assess", "coverage", "changes", "graph"];
+export const REG_TABS: RegTab[] =
+  ["services", "risk", "assess", "controls", "coverage", "changes", "graph"];
 
 /** 판정값 → CSS 클래스. 색은 화면에서만 쓰고 판정 자체는 서버가 정한다. */
 const VERDICT_CLASS: Record<string, string> = {
@@ -110,6 +113,7 @@ export default function Compliance({
           onChanged={bumped}
         />
       )}
+      {tab === "controls" && <Controls key={`ct${refresh}`} />}
       {tab === "coverage" && <CoverageTab key={`c${refresh}`} onError={setErr} />}
       {tab === "changes" && (
         <ChangesTab

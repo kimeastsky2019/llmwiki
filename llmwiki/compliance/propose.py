@@ -24,7 +24,15 @@ from pathlib import Path
 
 from . import docparse
 from .changeset import create_edge, create_node
-from .ontology import MANDATORY, OBLIGATION_LEVELS, RECOMMENDED, node_id
+from .ontology import (
+    AUTO_LEVELS,
+    MANDATORY,
+    OBLIGATION_LEVELS,
+    OPERATORS,
+    PROCEDURE_KINDS,
+    RECOMMENDED,
+    node_id,
+)
 from .spans import FORCE_MUST, FORCE_SHOULD, Span, digest, force_of, locate_quote
 from .store import Store
 
@@ -645,6 +653,139 @@ def propose_service(
                   for pid in missing],
         note=(f"서비스 '{label}' 에 프로그램 {len(found)} 건을 묶는다 "
               f"(새 증적 생산 기능 {added} 건)"),
+    )
+
+
+def propose_control(
+    *,
+    code: str,
+    title: str,
+    auto_level: str = "L1",
+    category: str = "",
+    owner: str = "",
+    title_en: str = "",
+    note: str = "",
+    procedures: list[dict[str, Any]] | None = None,
+    obligations: list[str] | None = None,
+    known_controls: set[str] | None = None,
+) -> Proposal:
+    """관리자가 정의한 **평가 항목 + 지표** 를 ops 로 옮긴다.
+
+    화면이 묻는 것은 목업의 '모니터링 지표' 표가 보여 주는 것과 같다 —
+    지표 이름 · 산식(metric) · 임계치 · 근거 법규. 그 네 가지가 여기서
+    `Control` 하나와 `TestProcedure` 여럿, 그리고 의무로 가는 `IMPLEMENTED_BY`
+    엣지가 된다.
+
+    ★ 이 함수도 그래프에 쓰지 않는다. 다른 제안과 똑같이 ChangeSet 으로 나가
+    커밋 결재를 받는다. 기준을 만드는 일이야말로 결재 없이 들어가면 안 되는
+    쪽이다 — 통제가 하나 바뀌면 그 통제를 쓰는 모든 서비스의 판정이 바뀐다.
+
+    임계치를 비워 두는 것을 막지 않는다. 산출물의 위험 항목 중 임계치를 가진
+    것은 3분의 1뿐이었고, 없는 것을 있는 척 채우게 만들면 그 숫자가 근거가 된다.
+    비면 `THRESHOLD_UNDEFINED` 로 판단 유보에 걸린다 — 그게 정직한 상태다.
+    """
+    ctrl_code = code.strip().upper()
+    if not ctrl_code:
+        raise ValueError("통제 코드가 필요하다")
+    label = title.strip()
+    if not label:
+        raise ValueError("평가 항목 이름이 필요하다")
+    if auto_level not in AUTO_LEVELS:
+        raise ValueError(f"auto_level 은 {AUTO_LEVELS} 중 하나여야 한다")
+    if ctrl_code in set(known_controls or ()):
+        raise ValueError(f"이미 있는 통제 코드다: {ctrl_code}")
+
+    ops: list[dict[str, Any]] = [create_node("Control", {
+        "code": ctrl_code,
+        "title": label,
+        "auto_level": auto_level,
+        "category": category,
+        "owner": owner,
+        "status": "active",
+        **({"title_en": title_en} if title_en else {}),
+        **({"note": note} if note else {}),
+    }, derivation="human")]
+
+    ctrl_ident = node_id("Control", code=ctrl_code)
+    rejected: list[dict[str, Any]] = []
+    metrics = 0
+    open_threshold = 0
+
+    for seq, raw in enumerate(procedures or [], start=1):
+        kind = str(raw.get("kind", "")).strip()
+        if kind not in PROCEDURE_KINDS:
+            rejected.append({"seq": seq, "reason": f"알 수 없는 절차 종류: {kind or '(빈값)'}"})
+            continue
+
+        props: dict[str, Any] = {
+            "control_code": ctrl_code, "seq": str(seq), "kind": kind, "status": "active",
+        }
+        if kind == "metric":
+            metric = str(raw.get("metric", "")).strip()
+            if not metric:
+                rejected.append({"seq": seq, "reason": "지표에는 산식(metric)이 있어야 한다"})
+                continue
+            props["metric"] = metric
+            if raw.get("unit"):
+                props["unit"] = str(raw["unit"])
+
+            # 임계치는 연산자와 짝이라 한쪽만 있으면 판정이 불가능하다.
+            # 둘 다 없으면 '아직 정하지 않음' 으로 통과시키고, 한쪽만 있으면 되돌린다.
+            operator = str(raw.get("operator", "")).strip()
+            threshold = raw.get("threshold", "")
+            has_threshold = threshold not in (None, "")
+            if operator and not has_threshold:
+                rejected.append({"seq": seq, "reason": "연산자만 있고 임계치가 없다"})
+                continue
+            if has_threshold and not operator:
+                rejected.append({"seq": seq, "reason": "임계치만 있고 연산자가 없다"})
+                continue
+            if operator:
+                if operator not in OPERATORS:
+                    rejected.append({"seq": seq, "reason": f"알 수 없는 연산자: {operator}"})
+                    continue
+                try:
+                    props["threshold"] = float(threshold)
+                except (TypeError, ValueError):
+                    rejected.append({"seq": seq, "reason": f"임계치가 숫자가 아니다: {threshold!r}"})
+                    continue
+                props["operator"] = operator
+            else:
+                open_threshold += 1
+            metrics += 1
+        elif raw.get("sections"):
+            props["sections"] = raw["sections"]
+
+        ops.append(create_node("TestProcedure", props, derivation="human"))
+        ops.append(create_edge(
+            "VERIFIED_BY", ctrl_ident,
+            node_id("TestProcedure", control_code=ctrl_code, seq=str(seq)),
+            derivation="human",
+        ))
+
+    # 근거 법규 — 의무에서 통제로 내려오는 엣지다. 방향을 뒤집으면 조문 개정
+    # 영향이 통제까지 내려가지 못한다.
+    for obligation in obligations or []:
+        ident = str(obligation).strip()
+        if not ident:
+            continue
+        ops.append(create_edge(
+            "IMPLEMENTED_BY", ident, ctrl_ident,
+            {"mapping_type": "subset-of"}, derivation="human",
+        ))
+
+    made = len([o for o in ops if o.get("node_type") == "TestProcedure"])
+    parts = [f"절차 {made} 건"]
+    if metrics:
+        parts.append(f"그중 지표 {metrics} 개")
+    if open_threshold:
+        parts.append(f"임계치 미정 {open_threshold} 개")
+    if obligations:
+        parts.append(f"근거 법규 {len(obligations)} 건")
+    return Proposal(
+        ops=ops,
+        rejected=rejected,
+        note=f"평가 항목 '{ctrl_code} {label}' — " + " · ".join(parts),
     )
 
 

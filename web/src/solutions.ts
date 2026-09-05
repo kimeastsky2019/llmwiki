@@ -70,7 +70,10 @@ export const SOLUTIONS: Solution[] = [
         match: "/reg", tabs: ["risk"], step: 3 },
       { path: "/reg", labelKey: "regTabAssess", descKey: "solRegMenuAssessDesc",
         match: "/reg", tabs: ["assess"], step: 5 },
-      // 아래 셋은 단계가 아니라 조직 전체를 보는 축이라 번호를 붙이지 않는다.
+      // 아래 넷은 단계가 아니라 조직 전체를 보는 축이라 번호를 붙이지 않는다.
+      // 기준 관리가 커버리지 앞에 온다 — 갭을 보기 전에 무엇을 기준으로 재는지가 먼저다.
+      { path: "/reg/controls", labelKey: "regTabControls", descKey: "solRegMenuControlsDesc",
+        match: "/reg", tabs: ["controls"] },
       { path: "/reg/coverage", labelKey: "regTabCoverage", descKey: "solRegMenuCoverageDesc",
         match: "/reg", tabs: ["coverage"] },
       { path: "/reg/changes", labelKey: "regTabChanges", descKey: "solRegMenuChangesDesc",

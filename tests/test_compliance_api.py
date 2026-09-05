@@ -128,6 +128,11 @@ def test_there_is_no_endpoint_that_writes_the_graph_directly():
         "/api/reg/services/propose",
         # 코드 근거 제안은 아무것도 쓰지 않는다. 조언과 같은 이유로 POST 다.
         "/api/reg/risk/suggest",
+        # 관리자가 만든 평가 항목·지표도 그래프에 직접 쓰지 않는다. 서비스 정의와
+        # 같은 길로 ChangeSet 이 되어 결재 큐에 올라갈 뿐이다. 기준을 만드는 일은
+        # 결재를 건너뛰면 안 되는 쪽이다 — 통제 하나가 바뀌면 그 통제를 쓰는
+        # 모든 서비스의 판정이 바뀐다.
+        "/api/reg/controls/propose",
     }
 
 
@@ -429,3 +434,112 @@ def test_suggestion_never_writes_anything(indexed):
     before = indexed.get("/api/reg/graph").json()["counts"]
     indexed.post("/api/reg/risk/suggest", json={"service_uuid": "svc-여신-심사-보조"})
     assert indexed.get("/api/reg/graph").json()["counts"] == before
+
+
+# --------------------------------------------------------------------------- #
+# 평가 항목·지표 만들기 (관리자)
+# --------------------------------------------------------------------------- #
+def test_controls_list_shows_metric_and_its_basis(client):
+    """기준 화면이 그리는 줄 — 지표·산식·임계치·근거 법규가 한 줄에 있다."""
+    body = client.get("/api/reg/controls").json()
+    by_code = {c["code"]: c for c in body["controls"]}
+
+    prf = by_code["PRF-02"]
+    metric = [p for p in prf["procedures"] if p["kind"] == "metric"][0]
+    assert (metric["metric"], metric["operator"], metric["threshold"]) == ("model_auc", ">=", 0.75)
+    assert prf["obligations"], "근거 법규가 되짚어져야 한다"
+    assert prf["open_thresholds"] == 0
+
+    # 임계치를 정하지 않은 지표는 그 사실이 세어져 나온다 — 관리자가 고칠 자리다
+    assert by_code["DRF-05"]["open_thresholds"] == 1
+
+    assert body["vocabulary"]["operator"] == [">=", ">", "<=", "<", "==", "!="]
+
+
+def test_a_new_evaluation_item_goes_through_the_approval_queue(client):
+    """관리자가 만든 평가 항목도 결재를 거친다 — 승인 전에는 기준이 아니다."""
+    res = client.post("/api/reg/controls/propose", json={
+        "by": "gov-officer",
+        "code": "mon-11", "title": "승인율 격차 상시 감시",
+        "auto_level": "L2", "category": "공정성", "owner": "리스크관리부",
+        "procedures": [
+            {"kind": "metric", "metric": "approval_gap", "operator": "<=",
+             "threshold": 5.0, "unit": "%p"},
+            {"kind": "evidence"},
+        ],
+    })
+    assert res.status_code == 200, res.text
+    change = res.json()["changeset"]
+    assert change["status"] == cs.PENDING
+
+    # 승인 전에는 기준 목록에 없다
+    assert "MON-11" not in {c["code"] for c in client.get("/api/reg/controls").json()["controls"]}
+
+    ok = client.post(f"/api/reg/changes/{change['changeset_id']}/approve", json={"by": "ciso"})
+    assert ok.status_code == 200, ok.text
+
+    row = {c["code"]: c for c in client.get("/api/reg/controls").json()["controls"]}["MON-11"]
+    assert row["title"] == "승인율 격차 상시 감시"
+    assert row["open_thresholds"] == 0
+    metric = [p for p in row["procedures"] if p["kind"] == "metric"][0]
+    assert (metric["metric"], metric["operator"], metric["threshold"]) == ("approval_gap", "<=", 5.0)
+
+
+def test_a_half_written_threshold_is_refused(client):
+    """연산자와 임계치는 짝이다. 한쪽만 있으면 판정이 불가능하니 되돌린다."""
+    res = client.post("/api/reg/controls/propose", json={
+        "by": "gov-officer", "code": "HALF-01", "title": "반쪽 임계치",
+        "procedures": [{"kind": "metric", "metric": "x", "threshold": 1.0}],
+    })
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["rejected"], "되돌린 절차를 숨기지 않는다"
+    assert "연산자" in body["rejected"][0]["reason"]
+    # 통제는 만들되 반쪽짜리 지표만 뺀다 — 관리자가 나머지를 이어 쓸 수 있다
+    ops = body["changeset"]["ops"]
+    assert not [o for o in ops if o.get("node_type") == "TestProcedure"]
+
+
+def test_an_undecided_threshold_is_allowed_and_stays_visible(client):
+    """임계치 미정을 막지 않는다. 없는 것을 채우게 하면 그 숫자가 근거가 된다."""
+    res = client.post("/api/reg/controls/propose", json={
+        "by": "gov-officer", "code": "OPEN-01", "title": "임계치 미정 지표",
+        "procedures": [{"kind": "metric", "metric": "fairness_gap"}],
+    })
+    assert res.status_code == 200, res.text
+    assert not res.json()["rejected"]
+    change = res.json()["changeset"]
+    client.post(f"/api/reg/changes/{change['changeset_id']}/approve", json={"by": "ciso"})
+
+    row = {c["code"]: c for c in client.get("/api/reg/controls").json()["controls"]}["OPEN-01"]
+    assert row["open_thresholds"] == 1
+
+
+def test_a_duplicate_control_code_is_refused(client):
+    res = client.post("/api/reg/controls/propose", json={
+        "by": "gov-officer", "code": "ACC-01", "title": "중복 코드",
+    })
+    assert res.status_code == 400
+    assert "이미 있는" in res.json()["detail"]
+
+
+def test_an_slm_may_draft_an_evaluation_item_but_not_enact_it(client):
+    """모델이 기준을 **제안**하는 것은 막지 않는다 — `Control` 은 `llm_proposable=True`.
+
+    서비스 경계(`Service`)와 다른 점이다. 서비스는 어디까지가 한 서비스인지가
+    업무 판단이라 모델이 손댈 수 없지만, 통제 초안은 규정 문장에서 뽑아 올 수
+    있는 것이라 제안 자체를 막을 이유가 없다.
+
+    막는 자리는 그다음이다 — 승인 없이는 기준이 되지 않는다.
+    """
+    from llmwiki.compliance import propose as propose_mod
+    from llmwiki.compliance.store import Store
+    from llmwiki.server.app import cfg as server_cfg
+
+    result = propose_mod.propose_control(code="SLM-99", title="모델이 초안 잡은 기준")
+    change = cs.stage(Store(server_cfg.compliance_dir), result.ops,
+                      proposer={"type": "SoftwareAgent", "id": "slm-extract-v1"})
+    assert change.status == cs.PENDING
+    assert change.proposer["type"] == "SoftwareAgent"
+    # 상신됐을 뿐 기준 목록에는 없다
+    assert "SLM-99" not in {c["code"] for c in client.get("/api/reg/controls").json()["controls"]}

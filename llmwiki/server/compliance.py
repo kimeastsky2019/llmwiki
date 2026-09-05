@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException, Query
@@ -17,7 +18,13 @@ from fastapi import APIRouter, Body, HTTPException, Query
 from ..compliance import advise as advisor
 from ..compliance import analysis, changeset as cs, codehints, propose, riskassess, rules, verify
 from ..compliance import i18n
-from ..compliance.ontology import node_id, schema_dict
+from ..compliance.ontology import (
+    AUTO_LEVELS,
+    OPERATORS,
+    PROCEDURE_KINDS,
+    node_id,
+    schema_dict,
+)
 from ..compliance.store import Store, now_iso
 from ..llm import check as check_provider
 from ..config import Config
@@ -327,6 +334,99 @@ def service_propose(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
         proposer={"type": "Person", "id": by},
         source={"type": "llmwiki", "id": str(getattr(idx, "project", ""))},
     )
+    return {"changeset": change.to_dict(), "note": result.note,
+            "rejected": result.rejected,
+            "approver": cs.GRADES[change.grade]["approver"]}
+
+
+@router.get("/controls")
+def controls() -> dict[str, Any]:
+    """평가 항목과 그 지표 — 관리자 화면이 그리는 표.
+
+    목업의 '모니터링 지표' 표와 같은 줄을 만든다: 지표 · 산식 · 근거 법규 ·
+    임계치. 여기서는 현재값과 상태를 붙이지 않는다 — 그건 서비스마다 다르고
+    판정(`/assess`)이 답하는 것이라, 기준 화면이 대신 말하면 안 된다.
+    """
+    graph = _store().approved()
+
+    procs: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for node in graph.of_type("TestProcedure"):
+        p = node["props"]
+        procs[str(p.get("control_code"))].append({
+            "seq": str(p.get("seq", "")),
+            "kind": str(p.get("kind", "")),
+            "metric": p.get("metric") or "",
+            "operator": p.get("operator") or "",
+            "threshold": p.get("threshold"),
+            "unit": p.get("unit") or "",
+        })
+
+    rows: list[dict[str, Any]] = []
+    for node in graph.of_type("Control"):
+        p = node["props"]
+        code = str(p.get("code", ""))
+        mine = sorted(procs.get(code, []), key=lambda x: x["seq"])
+        # 근거 법규 — 의무에서 통제로 내려오는 IMPLEMENTED_BY 를 되짚는다.
+        basis = [
+            {"obligation": e["source"],
+             "title": str(graph.props(e["source"]).get("title")
+                          or graph.props(e["source"]).get("text", ""))[:120]}
+            for e in graph.in_edges(node["id"], "IMPLEMENTED_BY")
+        ]
+        rows.append({
+            "code": code,
+            "title": p.get("title", ""),
+            "title_en": p.get("title_en", ""),
+            "auto_level": p.get("auto_level", ""),
+            "category": p.get("category", ""),
+            "owner": p.get("owner", ""),
+            "status": p.get("status", ""),
+            "procedures": mine,
+            # 임계치가 비어 있으면 판단 유보로 간다. 관리자가 고쳐야 할 자리라
+            # 목록에서 바로 보이게 센다.
+            "open_thresholds": sum(
+                1 for x in mine if x["kind"] == "metric" and x["threshold"] in (None, "")
+            ),
+            "obligations": basis,
+        })
+    rows.sort(key=lambda r: r["code"])
+    return {"controls": rows, "vocabulary": {
+        "auto_level": list(AUTO_LEVELS),
+        "procedure_kind": list(PROCEDURE_KINDS),
+        "operator": list(OPERATORS),
+    }}
+
+
+@router.post("/controls/propose")
+def control_propose(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """관리자가 만든 평가 항목·지표를 결재 큐에 올린다.
+
+    ★ 그래프에 직접 쓰지 않는다. 기준을 만드는 일은 결재 없이 들어가면 안 되는
+    쪽이다 — 통제 하나가 바뀌면 그 통제를 쓰는 모든 서비스의 판정이 바뀐다.
+    """
+    by = str(payload.get("by", "")).strip()
+    if not by:
+        raise HTTPException(400, "제안자(by)가 필요하다")
+
+    store = _store()
+    known = {str(n["props"].get("code")) for n in store.approved().of_type("Control")}
+    try:
+        result = propose.propose_control(
+            code=str(payload.get("code", "")),
+            title=str(payload.get("title", "")),
+            auto_level=str(payload.get("auto_level", "L1")),
+            category=str(payload.get("category", "")).strip(),
+            owner=str(payload.get("owner", "")).strip(),
+            title_en=str(payload.get("title_en", "")).strip(),
+            note=str(payload.get("note", "")).strip(),
+            procedures=list(payload.get("procedures") or []),
+            obligations=[str(x) for x in (payload.get("obligations") or [])],
+            known_controls=known,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    change = cs.stage(store, result.ops, proposer={"type": "Person", "id": by})
     return {"changeset": change.to_dict(), "note": result.note,
             "rejected": result.rejected,
             "approver": cs.GRADES[change.grade]["approver"]}
