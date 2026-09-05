@@ -12,11 +12,15 @@
  *   3. **누가 하는지가 없었다.** 단계마다 주체가 다르고, 그것이 역할별로
  *      메뉴가 갈리는 이유다.
  */
+import Assist from "./Assist";
 import { useLang, type StringKey } from "./i18n";
+import type { RoleCode } from "./roles";
 
 export default function Overview({
+  roleCode,
   onNavigate,
 }: {
+  roleCode: RoleCode;
   onNavigate: (path: string) => void;
 }) {
   const { t } = useLang();
@@ -29,6 +33,11 @@ export default function Overview({
           <p className="lede">{t("ovLede")}</p>
         </div>
       </header>
+
+      {/* 기획자에게는 도우미가 먼저다. 이 시스템에서 처음 하는 일이 "빈 폼을
+          채우는 것" 이 되지 않게 한다. 다른 역할에게는 띄우지 않는다 — 결재하러
+          온 사람에게 기획 대화창은 방해다. */}
+      {roleCode === "planner" && <Assist onNavigate={onNavigate} />}
 
       <PipelineDiagram />
 

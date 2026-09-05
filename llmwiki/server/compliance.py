@@ -17,7 +17,8 @@ from typing import Any
 from fastapi import APIRouter, Body, HTTPException, Query
 
 from ..compliance import advise as advisor
-from ..compliance import analysis, approval, changeset as cs, codehints, propose, riskassess, rules, verify
+from ..compliance import (analysis, approval, assist, changeset as cs, codehints,
+                          propose, riskassess, rules, verify)
 from ..compliance import i18n
 from ..compliance.ontology import (
     AUTO_LEVELS,
@@ -565,6 +566,34 @@ def approval_decide(approval_id: str, payload: dict[str, Any] = Body(...)) -> di
         raise HTTPException(403, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/assist")
+def assist_chat(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """기획 도우미 — 사내 sLM 과 함께 서비스를 기획한다. **아무것도 쓰지 않는다.**
+
+    판정하지 않는 것이 이 엔드포인트의 계약이다. 응답에 등급·점수·충족 자리가
+    없고, 프롬프트가 모델에게 그것을 말하지 말라고 박아 둔다.
+    """
+    messages = [
+        {"role": str(m.get("role", "")), "content": str(m.get("content", "")).strip()}
+        for m in (payload.get("messages") or [])
+    ]
+    controls = [
+        {"code": n["props"].get("code"), "title": n["props"].get("title")}
+        for n in _store().approved().of_type("Control")
+    ]
+    try:
+        result = assist.chat(
+            _cfg,
+            messages=messages,
+            service=str(payload.get("service", "")).strip(),
+            controls=controls,
+            allow_external=bool(payload.get("allow_external")),
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return result.to_dict()
 
 
 @router.get("/controls")

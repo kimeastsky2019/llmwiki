@@ -120,7 +120,7 @@ export default function Compliance({
           onChanged={bumped}
         />
       )}
-      {tab === "overview" && <Overview onNavigate={onNavigate} />}
+      {tab === "overview" && <Overview roleCode={roleCode} onNavigate={onNavigate} />}
       {tab === "approvals" && <Approvals key={`ap${refresh}`} roleCode={roleCode} />}
       {tab === "process" && <Process key={`pr${refresh}`} onNavigate={onNavigate} />}
       {tab === "controls" && <Controls key={`ct${refresh}`} />}

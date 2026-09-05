@@ -589,6 +589,20 @@ export interface RegProcess {
   queue_total: number;
 }
 
+/** 기획 도우미 응답. **판정 자리가 없다** — 등급·점수·충족 필드를 두지 않는 것이
+ *  이 타입의 계약이다. 자리를 만들어 두면 언젠가 그 값이 화면에 흘러든다. */
+export interface AssistReply {
+  text: string;
+  provider: string;
+  model: string;
+  /** 사내 sLM 이면 true. 기획 내용이 서버 밖으로 나갔는지를 화면이 말한다. */
+  local: boolean;
+  ok: boolean;
+  reason: string;
+  hint: string;
+  tried: { provider: string; error: string }[];
+}
+
 /** 프로젝트 결재 — 계획 승인과 결과 승인. 기준 변경 결재(RegChange)와 다른 축이다. */
 export interface RegApproval {
   approval_id: string;
@@ -1458,6 +1472,13 @@ export const api = {
 
     /** 업무 프로세스 — 단계별 적체·결재 큐·통제 충족을 한 번에. */
     process: () => get<RegProcess>("/api/reg/process"),
+
+    /** 기획 도우미 — 사내 sLM 과의 대화. 서버는 아무것도 쓰지 않는다. */
+    assist: (body: {
+      messages: { role: string; content: string }[];
+      service?: string;
+      allow_external?: boolean;
+    }) => post<AssistReply>("/api/reg/assist", body),
 
     /** 결재함. role 을 함께 보내 서버가 볼 수 있는 것만 내려 주게 한다 —
      *  화면에서만 거르면 주소를 아는 사람은 그대로 본다. */

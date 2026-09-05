@@ -25,7 +25,12 @@ llm:
     base_url: "http://127.0.0.1:11434"
     # A30 24GB. MoE 라 활성 파라미터가 3B 수준이어서 30B 급인데도 응답이 붙는다.
     model: "hf.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF:Q4_K_M"
-    num_ctx: 32768
+    # A30 24GB 에 32B(Q4, 20GB) 를 올리면 KV 캐시까지 VRAM 에 못 들어간다.
+    # 32768 로 두면 18% 가 CPU 로 내려가 4.3 tok/s 까지 떨어진다 (실측).
+    # 8192 면 100% GPU 로 23.7 tok/s — 대화가 가능한 속도가 된다.
+    num_ctx: 8192
+    # 답변 상한. 조언은 길 필요가 없고, 길면 화면이 그만큼 기다린다.
+    num_predict: 500
     # GPU 가 한 장이다. 2 이상이면 서로 밀어내며 오히려 느려진다.
     concurrency: 1
     keep_alive: "30m"

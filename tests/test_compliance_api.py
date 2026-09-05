@@ -141,6 +141,8 @@ def test_there_is_no_endpoint_that_writes_the_graph_directly():
         "/api/reg/approvals",
         "/api/reg/approvals/{approval_id}/decide",
         "/api/reg/approvals/{approval_id}/verify",
+        # 기획 도우미는 읽기만 한다 — 조언과 같은 이유로 POST 다(본문에 대화를 싣는다).
+        "/api/reg/assist",
     }
 
 

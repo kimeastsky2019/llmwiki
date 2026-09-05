@@ -2321,3 +2321,59 @@ button.hint-ev-item:hover { text-decoration: underline; }
 }
 .ap-verify.done { border-style: solid; border-color: #6ee7b7; background: #ecfdf5; }
 .ap-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+
+/* --------------------------------------------------------------------------- */
+/* 기획 도우미 — AI 서비스기획 역할의 첫 화면 맨 위                             */
+/* 조언과 판정이 같은 모양으로 보이면 사람은 둘을 구별하지 않는다. 그래서       */
+/* 말풍선을 판정표와 다르게 두고, 답변마다 '판정이 아니다' 를 붙인다.           */
+/* --------------------------------------------------------------------------- */
+.as {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: var(--gap-s); margin-bottom: var(--gap-l);
+}
+.as-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.as-head h3 { margin: 0 0 2px; font-size: 15px; }
+.as-head p { margin: 0; }
+.as-ext { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+
+.as-log {
+  max-height: 380px; overflow-y: auto;
+  margin: 12px 0; padding: 4px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.as-empty { padding: 14px 6px; }
+.as-seeds { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; margin-top: 10px; }
+
+.as-msg { display: flex; flex-direction: column; gap: 4px; max-width: 78%; }
+.as-msg.user { align-self: flex-end; align-items: flex-end; }
+.as-msg.assistant { align-self: flex-start; }
+.as-bubble {
+  padding: 10px 13px; border-radius: 12px;
+  font-size: 13.5px; line-height: 1.65; white-space: pre-wrap;
+}
+.as-msg.user .as-bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+.as-msg.assistant .as-bubble {
+  background: var(--bg); border: 1px solid var(--line); border-bottom-left-radius: 4px;
+}
+/* 말풍선 안의 마크다운 — 문서 본문용 여백을 그대로 쓰면 말풍선이 벌어진다. */
+.as-bubble > :first-child { margin-top: 0; }
+.as-bubble > :last-child { margin-bottom: 0; }
+.as-bubble p { margin: 0 0 8px; }
+.as-bubble ul, .as-bubble ol { margin: 0 0 8px; padding-left: 18px; }
+.as-bubble li { margin: 2px 0; }
+.as-bubble h1, .as-bubble h2, .as-bubble h3 {
+  font-size: 13.5px; margin: 8px 0 4px; border: 0; padding: 0;
+}
+.as-wait { color: var(--muted); letter-spacing: 3px; }
+.as-from { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.as-notverdict { font-style: italic; }
+
+.as-input { display: flex; gap: 8px; }
+.as-input input {
+  flex: 1; min-width: 0;
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 9px 12px; background: var(--panel); color: var(--text);
+  font-family: inherit; font-size: 13.5px;
+}
+.as-input input:focus { border-color: var(--accent); outline: none; }
