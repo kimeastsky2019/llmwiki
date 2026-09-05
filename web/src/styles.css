@@ -2259,6 +2259,7 @@ button.hint-ev-item:hover { text-decoration: underline; }
 .topbar-desc { order: 1; font-size: 12.5px; color: var(--muted); }
 /* 권한으로 오해하지 않도록 한 줄 덧붙인다 — 안 보이니까 못 한다고 읽히면 안 된다. */
 .topbar-note { order: 3; flex-basis: 100%; font-size: 11px; color: var(--muted); }
+.topbar-hidden { margin: 10px 40px 0; }
 
 /* --------------------------------------------------------------------------- */
 /* 개요 — 첫 화면. 개요도는 인라인 SVG 라 색을 앱 토큰에서 받는다.              */

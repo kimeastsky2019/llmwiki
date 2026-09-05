@@ -19,6 +19,8 @@ const STRINGS = {
     // ── 서비스 축 — 코드 분석과 규제 검증이 붙는 자리 ──────────────────
     roleTitle: "역할",
     roleFilterNote: "이 역할이 쓰는 메뉴만 보입니다. 사내 포털 연동 전까지는 권한이 아니라 보기 필터입니다.",
+    roleHiddenHere:
+      "이 화면은 {roles} 메뉴에 있습니다. 지금 역할({now})에서는 메뉴에 나오지 않아 주소로만 들어올 수 있습니다.",
     rolePlanner: "AI 서비스기획",
     rolePlannerDesc: "서비스를 정의하고 위험을 식별해 올립니다",
     roleDeveloper: "AI 개발",
@@ -949,6 +951,8 @@ const STRINGS = {
     // ── Service axis — where code analysis and compliance meet ─────────
     roleTitle: "Role",
     roleFilterNote: "Showing only what this role uses. Until the portal is wired up this is a view filter, not access control.",
+    roleHiddenHere:
+      "This screen belongs to {roles}. Under {now} it is not in the menu, so you can only reach it by URL.",
     rolePlanner: "AI service planning",
     rolePlannerDesc: "Defines services and files identified risks",
     roleDeveloper: "AI development",

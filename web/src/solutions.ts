@@ -188,3 +188,13 @@ export function menusFor(sol: Solution, roleCode: RoleCode): SolutionMenu[] {
 export function solutionsFor(list: Solution[], roleCode: RoleCode): Solution[] {
   return list.filter((s) => menusFor(s, roleCode).length > 0);
 }
+
+
+/** 이 경로를 맡는 메뉴 하나. 역할 필터로 감춰졌는지 판단하는 데 쓴다. */
+export function menuOwning(match: (m: SolutionMenu) => boolean): SolutionMenu | undefined {
+  for (const sol of SOLUTIONS) {
+    const hit = sol.menus.find(match);
+    if (hit) return hit;
+  }
+  return undefined;
+}

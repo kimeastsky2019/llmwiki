@@ -34,7 +34,7 @@ import WikiAdmin, { ADMIN_TABS, type AdminTab } from "./WikiAdmin";
 import EngineBar, { EngineLayer } from "./EngineBar";
 import WikiStatusBoard from "./WikiStatusBoard";
 import LlmPicker from "./LlmPicker";
-import { VISIBLE_SOLUTIONS, menusFor, solution, solutionOf, solutionsFor,
+import { VISIBLE_SOLUTIONS, menuOwning, menusFor, solution, solutionOf, solutionsFor,
          type SolutionCode, type SolutionMenu } from "./solutions";
 import { ROLES, readRole, role as roleOf, storeRole, type RoleCode } from "./roles";
 import {
@@ -229,6 +229,12 @@ export default function App() {
   const activeSolution: SolutionCode = solutionOf(
     route.kind === "engines" ? "/engines" : appPath(location.pathname)
   );
+
+  // 지금 보는 화면이 이 역할의 메뉴에 없는가. 있으면 그 메뉴를 돌려준다.
+  const hiddenHere = useMemo(() => {
+    const owning = menuOwning((m) => menuActive(m, route));
+    return owning?.roles && !owning.roles.includes(roleCode) ? owning : null;
+  }, [route, roleCode]);
 
   const langValue = useMemo(
     () => ({
@@ -534,6 +540,16 @@ export default function App() {
             <span className="topbar-desc">{t(roleOf(roleCode).descKey)}</span>
             <span className="topbar-note">{t("roleFilterNote")}</span>
           </div>
+
+          {/* 역할이 감춘 화면에 주소로 바로 들어왔을 때. 메뉴에 없는 이유를
+              말해 주지 않으면 "바뀐 게 없다" 로 읽힌다 — 실제로 그런 일이 있었다. */}
+          {hiddenHere && (
+            <div className="banner note topbar-hidden">
+              {t("roleHiddenHere")
+                .replace("{roles}", hiddenHere.roles!.map((r) => t(roleOf(r).labelKey)).join(" · "))
+                .replace("{now}", t(roleOf(roleCode).labelKey))}
+            </div>
+          )}
           {error && <div className="banner error">{error}</div>}
           {route.kind === "home" && (
             <Home
