@@ -573,6 +573,81 @@ def propose_system_functions(
     return Proposal(ops=ops, note=f"운영 프로그램 {len(ops)} 건을 증적 생산 기능으로 제안")
 
 
+def propose_service(
+    index: Any,
+    *,
+    name: str,
+    program_ids: list[str],
+    service_uuid: str = "",
+    dept: str = "",
+    note: str = "",
+    project_id: str = "default",
+    system: str = "",
+    known_functions: set[str] | None = None,
+) -> Proposal:
+    """운영 프로그램 묶음 → AI 서비스 하나. **두 그래프가 붙는 유일한 합류점.**
+
+    규제는 프로그램이 아니라 서비스 단위로 묻는다. 4축 프로파일도 위험등급도
+    서비스 하나에 붙는 값이라, 이 경계가 흔들리면 등급이 흔들린다. 그래서
+    묶는 행위는 사람의 것이다 — `Service` 와 `REALIZED_BY` 는 둘 다
+    `llm_proposable=False` 이고, 이 함수는 사람이 고른 결과를 ops 로 옮길 뿐이다.
+
+    프로그램은 이미 정적 분석이 확인한 사실이므로 `SystemFunction` 은
+    `collected` 로 낸다. 무엇을 묶을지가 사람의 판단이고, 무엇이 있는지는
+    기계가 읽은 사실이다 — 이 둘을 한 제안 안에서도 갈라 둔다.
+    """
+    label = name.strip()
+    if not label:
+        raise ValueError("서비스 이름이 필요하다")
+
+    uuid = (service_uuid or f"svc-{_slug(label)}").strip()
+    if not uuid:
+        raise ValueError("서비스 식별자를 만들 수 없다")
+
+    wanted = [str(x) for x in program_ids]
+    by_id = {p.id: p for p in getattr(index, "programs", [])}
+    found = [by_id[pid] for pid in wanted if pid in by_id]
+    missing = [pid for pid in wanted if pid not in by_id]
+    if not found:
+        raise ValueError("묶을 프로그램이 없다 — 먼저 소스를 분석해야 한다")
+
+    have = set(known_functions or ())
+    ops: list[dict[str, Any]] = [create_node("Service", {
+        "uuid": uuid,
+        "name": label,
+        "dept": dept,
+        "status": "active",
+        **({"note": note} if note else {}),
+    }, derivation="human")]
+
+    service_ident = node_id("Service", uuid=uuid)
+    added = 0
+    for program in found:
+        key = f"llmwiki:{program.id}"
+        if key not in have:
+            ops.append(create_node("SystemFunction", {
+                "key": key,
+                "name": program.name,
+                "system": system or program.layer or getattr(index, "project", "운영시스템"),
+                "kind": "application",
+                "program_ref": f"prog:{project_id}/{program.id}",
+                "status": "active",
+            }, derivation="collected"))
+            added += 1
+        ops.append(create_edge(
+            "REALIZED_BY", service_ident, node_id("SystemFunction", key=key),
+            derivation="human",
+        ))
+
+    return Proposal(
+        ops=ops,
+        rejected=[{"program_id": pid, "reason": "분석 인덱스에 없는 프로그램"}
+                  for pid in missing],
+        note=(f"서비스 '{label}' 에 프로그램 {len(found)} 건을 묶는다 "
+              f"(새 증적 생산 기능 {added} 건)"),
+    )
+
+
 def link_evidence_to_function(evidence_uuid: str, function_key: str) -> dict[str, Any]:
     return create_edge(
         "COLLECTED_FROM",

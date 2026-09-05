@@ -9,7 +9,7 @@
  */
 import type { StringKey } from "./i18n";
 
-export type SolutionCode = "code" | "report" | "nanogrid";
+export type SolutionCode = "code" | "compliance" | "report" | "nanogrid";
 
 export interface SolutionMenu {
   /** 이동할 경로 */
@@ -18,6 +18,14 @@ export interface SolutionMenu {
   descKey: StringKey;
   /** 이 항목이 활성인지 판정할 경로 접두사 */
   match: string;
+  /** 한 화면의 탭을 각각 메뉴로 낼 때, 이 메뉴가 맡는 탭들.
+   *  없으면 그 경로 전체를 맡는다 — 지정하지 않으면 `/kb` 와 `/kb/checklist` 가
+   *  동시에 활성으로 보인다. */
+  tabs?: string[];
+  /** 업무 흐름의 몇 번째 단계인가. 메뉴를 '기능 목록' 이 아니라 '순서' 로 읽히게 한다. */
+  step?: number;
+  /** 이 메뉴의 상태를 어느 지표에서 가져올지. 사이드바에서 진행 상태를 함께 보여준다. */
+  statusKey?: "wiki" | "review" | "checklist";
 }
 
 export interface Solution {
@@ -29,6 +37,9 @@ export interface Solution {
   menus: SolutionMenu[];
   /** 이 솔루션이 실제로 쓰는 엔진 (엔진 패널에서 어느 쪽이 쓰는지 표시) */
   engines: string[];
+  /** 메뉴에 노출하지 않는다. 개발이 끝나지 않은 솔루션을 지우지 않고 감추기 위한 것 —
+   *  경로로 직접 들어가면 여전히 동작하므로 개발·시연에는 쓸 수 있다. */
+  hidden?: boolean;
 }
 
 export const SOLUTIONS: Solution[] = [
@@ -36,25 +47,56 @@ export const SOLUTIONS: Solution[] = [
     code: "code",
     labelKey: "solCodeName",
     taglineKey: "solCodeTagline",
-    home: "/",
+    home: "/programs",
     menus: [
-      { path: "/", labelKey: "solCodeMenuPrograms", descKey: "solCodeMenuProgramsDesc", match: "/p/" },
+      { path: "/programs", labelKey: "solCodeMenuPrograms", descKey: "solCodeMenuProgramsDesc", match: "/p/" },
       { path: "/tables", labelKey: "tablesLink", descKey: "solCodeMenuTablesDesc", match: "/tables" },
-      { path: "/reg", labelKey: "regLink", descKey: "solCodeMenuRegDesc", match: "/reg" },
     ],
     engines: ["grok", "sllm", "aigov"],
+  },
+  {
+    // 규제 준수 평가 — 소스 분석과 대상도 사용자도 다르다. 저쪽은 프로그램이
+    // 탐색 단위이고 여기는 **서비스**가 탐색 단위다. 한 사이드바에 섞으면
+    // "테이블 목록" 옆에 "커밋 결재"가 붙어 순서가 생기지 않는다.
+    code: "compliance",
+    labelKey: "solRegName",
+    taglineKey: "solRegTagline",
+    home: "/reg/services",
+    menus: [
+      // 앞의 것이 없으면 뒤의 것이 의미가 없는 순서다. 번호가 그 사실을 말한다.
+      { path: "/reg/services", labelKey: "regTabServices", descKey: "solRegMenuServicesDesc",
+        match: "/reg", tabs: ["services"], step: 2 },
+      { path: "/reg/risk", labelKey: "riskTabRisk", descKey: "solRegMenuRiskDesc",
+        match: "/reg", tabs: ["risk"], step: 3 },
+      { path: "/reg", labelKey: "regTabAssess", descKey: "solRegMenuAssessDesc",
+        match: "/reg", tabs: ["assess"], step: 5 },
+      // 아래 셋은 단계가 아니라 조직 전체를 보는 축이라 번호를 붙이지 않는다.
+      { path: "/reg/coverage", labelKey: "regTabCoverage", descKey: "solRegMenuCoverageDesc",
+        match: "/reg", tabs: ["coverage"] },
+      { path: "/reg/changes", labelKey: "regTabChanges", descKey: "solRegMenuChangesDesc",
+        match: "/reg", tabs: ["changes"] },
+      { path: "/reg/graph", labelKey: "regTabGraph", descKey: "solRegMenuGraphDesc",
+        match: "/reg", tabs: ["graph"] },
+    ],
+    engines: ["sllm", "aigov", "grok"],
   },
   {
     code: "report",
     labelKey: "solReportName",
     taglineKey: "solReportTagline",
     home: "/kb",
+    // 앞 화면은 소스 분석과 규제 준수 평가 둘로 간다. 이 솔루션은 지우지 않고
+    // 노출만 막는다 — /kb · /wiki · /admin 로 직접 들어가면 그대로 동작한다.
     menus: [
-      { path: "/kb", labelKey: "kbLink", descKey: "solReportMenuKbDesc", match: "/kb" },
-      { path: "/wiki", labelKey: "wikiLink", descKey: "solReportMenuWikiDesc", match: "/wiki" },
-      { path: "/admin", labelKey: "adminLink", descKey: "solReportMenuAdminDesc", match: "/admin" },
+      {
+        path: "/kb", labelKey: "kbLink", descKey: "solReportMenuKbDesc", match: "/kb",
+        tabs: ["analyze", "documents", "search"], step: 2, statusKey: "wiki",
+      },
+      { path: "/wiki", labelKey: "wikiLink", descKey: "solReportMenuWikiDesc", match: "/wiki", step: 4, statusKey: "wiki" },
+      { path: "/admin", labelKey: "adminLink", descKey: "solReportMenuAdminDesc", match: "/admin", step: 5, statusKey: "review" },
     ],
     engines: ["sllm", "grok", "rag", "aigov"],
+    hidden: true,
   },
   {
     // 나노그리드 데이터 지식화 — 실시간·예측 데이터를 지식DB로 쌓고 AI 인사이트를
@@ -65,6 +107,8 @@ export const SOLUTIONS: Solution[] = [
     home: "/ng/monitor",
     menus: [],
     engines: ["sllm", "grok", "aigov"],
+    // 개발이 끝나면 이 줄만 지우면 메뉴에 다시 나온다.
+    hidden: true,
   },
 ];
 
@@ -73,6 +117,10 @@ export const SOLUTIONS: Solution[] = [
 export function solutionOf(path: string): SolutionCode {
   if (path.startsWith("/ng")) {
     return "nanogrid";
+  }
+  // 서비스 대시보드(/svc/<id>)는 경로가 달라도 규제 축이다.
+  if (path.startsWith("/reg") || path.startsWith("/svc")) {
+    return "compliance";
   }
   if (path.startsWith("/kb") || path.startsWith("/wiki") || path.startsWith("/admin")) {
     return "report";
@@ -83,3 +131,7 @@ export function solutionOf(path: string): SolutionCode {
 export function solution(code: SolutionCode): Solution {
   return SOLUTIONS.find((s) => s.code === code) ?? SOLUTIONS[0];
 }
+
+
+/** 메뉴에 그릴 솔루션. `hidden` 은 코드를 지우지 않고 노출만 막는다. */
+export const VISIBLE_SOLUTIONS: Solution[] = SOLUTIONS.filter((s) => !s.hidden);

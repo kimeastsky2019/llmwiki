@@ -1,0 +1,72 @@
+# LLMWiki 설정 — gpu-server 배포본 (/opt/llmwiki/config.yaml)
+#
+# 이 서버는 A30 한 장을 LLMWiki 혼자 쓴다. 그래서 이전 서버와 달리 기본 공급자가
+# 사내 sLLM(ollama) 이다 — 소스와 규제 문서가 조직 밖으로 나가지 않는다.
+# Grok 은 사내 모델이 못 미치는 작업에만 사람이 골라서 쓴다.
+project:
+  name: "AI 거버넌스 데모"
+  source_roots:
+    - "./sample"
+  layers:
+    - { name: "기관계", match: "**/inst/**" }
+    - { name: "채널계", match: "**/channel/**" }
+    - { name: "공통", match: "**/common/**" }
+
+parse:
+  include: ["**/*.java", "**/*.xml", "**/*.py"]
+  exclude: ["**/target/**", "**/build/**", "**/test/**", "**/generated/**", "**/.venv/**", "**/node_modules/**"]
+  max_class_chars: 12000
+
+llm:
+  # claude | grok | ollama | template
+  provider: ollama
+
+  ollama:
+    base_url: "http://127.0.0.1:11434"
+    # A30 24GB. MoE 라 활성 파라미터가 3B 수준이어서 30B 급인데도 응답이 붙는다.
+    model: "hf.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF:Q4_K_M"
+    num_ctx: 32768
+    # GPU 가 한 장이다. 2 이상이면 서로 밀어내며 오히려 느려진다.
+    concurrency: 1
+    keep_alive: "30m"
+
+  grok:
+    # 키·모델은 /etc/llmwiki/llmwiki.env 에서 온다. 여기에 적지 말 것.
+    model: grok-4.20-0309-non-reasoning
+    max_tokens: 16000
+    temperature: 0.2
+    concurrency: 4
+
+output:
+  docs_dir: "./docs"
+  index_file: "./docs/index.json"
+  workspace_dir: "./projects"
+  language: ko
+
+# 규제 지식그래프 · 근거기반 자동평가 (/api/reg/…)
+compliance:
+  # ⚠ 재생성 가능한 산출물이 아니라 감사 추적이다. append-only 저널이라
+  #   지우면 과거 판정의 근거가 사라진다. 백업 대상.
+  dir: "/opt/llmwiki/compliance"
+  ruleset: "1.0.0"
+  standard: "2026.08"
+
+kb:
+  dir: "/opt/llmwiki/knowledge"
+  # 비우면 llm.provider 를 따른다. 기본이 ollama 라 문서가 조직 밖으로 나가지 않는다.
+  # grok 으로 바꾸면 국외 이전에 해당하므로 비식별을 먼저 건다.
+  destination: "ollama"
+
+wiki:
+  dir: "/opt/llmwiki/wiki"
+  pipeline_version: "v0.1.0"
+  owner: "gng"
+
+server:
+  host: "127.0.0.1"
+  port: 8722
+  # ⚠ 앱에 인증이 없다. 탐색기가 서버 전체로 내려가지 않게 업로드 경로로 못박는다.
+  upload_dir: "/opt/llmwiki/uploads"
+  browse_roots:
+    - "/opt/llmwiki/sources"
+    - "/opt/llmwiki/uploads"

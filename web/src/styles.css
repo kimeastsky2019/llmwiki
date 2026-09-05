@@ -1,18 +1,49 @@
 :root {
-  --bg: #f6f7f9;
+  /* ── 리디자인 가이드 04 · 컬러 토큰 ────────────────────────────────
+     진한 내비게이션 + 밝은 작업면. 상태색은 '판단' 을 뜻하므로 장식에 쓰지 않는다:
+     민트=완료, 앰버=검토 필요, 코랄=차단. */
+  --nav: #101a2d;          /* Navigation */
+  --primary: #5146e5;      /* Primary */
+  --success: #17b890;      /* Success — 완료 */
+  --review: #f5b51b;       /* Review — 검토 필요 */
+  --blocked: #e5484d;      /* 차단 (코랄) */
+  --canvas: #eef2f7;       /* Canvas — 작업면 */
+
+  --bg: var(--canvas);
   --panel: #ffffff;
-  --sidebar: #131a2a;
-  --sidebar-2: #1c2740;
+  --sidebar: var(--nav);
+  --sidebar-2: #1a2540;
   --text: #16202f;
   --muted: #6b7789;
   --line: #e3e7ee;
-  --accent: #4f46e5;
-  --accent-soft: #eef2ff;
-  --warn-bg: #fff7ed;
-  --warn-line: #fdba74;
+  --accent: var(--primary);
+  --accent-soft: #eef0fe;
+  --warn-bg: #fffaeb;
+  --warn-line: var(--review);
   --err-bg: #fef2f2;
   --err-line: #fca5a5;
+
+  /* 카드 모서리 12px · 간격 16/24 (가이드 04 컴포넌트 규칙) */
+  --radius: 12px;
+  --gap-s: 16px;
+  --gap-l: 24px;
+
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* ── 타이포그래피 계층 (가이드 04) ─────────────────────────────────
+   한 화면에 제목 하나. 설명은 제목 아래 두 줄까지. */
+.page > h1 { font-size: 30px; font-weight: 700; line-height: 1.25; margin: 0 0 6px; }
+.page h2 { font-size: 20px; font-weight: 700; }
+.page h3 { font-size: 18px; font-weight: 700; }
+.page .lede { font-size: 15px; color: var(--muted); max-width: 68ch; margin: 0 0 12px; }
+
+/* ── 접근성: 포커스 링을 보라 외곽선으로 (가이드 04) ───────────────
+   색만으로 상태를 말하지 않기 위해, 상태 칩은 아이콘·텍스트를 함께 낸다. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 * { box-sizing: border-box; }
@@ -1828,3 +1859,194 @@ th { background: #f1f3f7; font-weight: 650; white-space: nowrap; }
 .ng-cat-bar-track { flex: 1; height: 10px; border-radius: 5px; background: #eef2f7; overflow: hidden; }
 .ng-cat-bar-fill { height: 100%; border-radius: 5px; transition: width 0.5s; }
 .ng-cat-bar-value { width: 70px; font-size: 12px; font-weight: 600; color: #0f172a; text-align: right; flex-shrink: 0; }
+
+/* ── 현장 점검 체크리스트 ─────────────────────────────────────────────
+   요구된 산출물은 화면이 아니라 A4 한 장짜리 종이다. 현장에서 손으로
+   적어야 하므로 인쇄에서는 입력 위젯을 감추고 빈 칸·빈 줄을 남긴다. */
+.checklist-sheet .sheet-head { border-bottom: 2px solid #222; padding-bottom: 6px; }
+.checklist-sheet .sheet-group { margin-top: 12px; break-inside: avoid; page-break-inside: avoid; }
+.checklist-sheet .sheet-group h4 { margin: 0 0 4px; }
+.checklist-table td, .checklist-table th { padding: 3px 6px; vertical-align: middle; }
+.checklist-table .cell-check { text-align: center; }
+.checklist-table .src-ref { font-size: 11px; }
+.print-box, .print-line { display: none; }
+.print-only { display: none; }
+
+@media print {
+  /* 사이드바·머리말 등 앱 껍데기는 종이에 필요 없다 */
+  .no-print, nav, aside, header, footer, .solution-menu, .reg-tabs, .banner { display: none !important; }
+  body { background: #fff; }
+  .checklist-sheet { font-size: 10.5pt; }
+  .checklist-sheet .src-ref { display: none; }   /* 근거 id 는 종이에선 소음이다 */
+  .checklist-table { width: 100%; border-collapse: collapse; }
+  .checklist-table td, .checklist-table th { border: 1px solid #999; padding: 2px 4px; }
+  .print-box { display: inline-block; width: 12px; height: 12px; border: 1px solid #333; }
+  .print-line { display: block; min-height: 14px; border-bottom: 1px dotted #bbb; }
+  .print-only { display: table-row; }
+  @page { size: A4; margin: 12mm; }
+}
+
+/* ── 사이드바: 업무 흐름 + 상태 (가이드 02) ────────────────────────
+   메뉴를 '기능 목록' 이 아니라 '지금 어디까지 왔는가' 로 읽히게 한다.
+   상태는 색만으로 말하지 않는다 — 아이콘과 글자를 함께 낸다(가이드 04 접근성). */
+.solution-item-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.solution-step {
+  flex: 0 0 auto; width: 17px; height: 17px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 700; line-height: 1;
+  background: rgba(255, 255, 255, 0.14); color: rgba(255, 255, 255, 0.82);
+}
+.solution-item.active .solution-step { background: var(--primary); color: #fff; }
+.menu-chip {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10.5px; font-weight: 600; line-height: 1;
+  padding: 2.5px 6px; border-radius: 999px; white-space: nowrap;
+}
+.menu-chip.ok     { background: rgba(23, 184, 144, 0.18); color: #7ff0cd; }
+.menu-chip.review { background: rgba(245, 181, 27, 0.20); color: #ffd980; }
+.menu-chip.idle   { background: rgba(255, 255, 255, 0.10); color: rgba(255, 255, 255, 0.6); }
+
+/* ── 화면 머리말: 요약 상태 → 대표 행동 → 상세 (가이드 03) ─────────── */
+.page-header { margin-bottom: var(--gap-s); }
+.page-header-top { display: flex; align-items: flex-start; gap: var(--gap-s); flex-wrap: wrap; }
+.page-header-title { flex: 1 1 320px; min-width: 0; }
+.page-header-title h1 { font-size: 30px; font-weight: 700; margin: 0 0 4px; line-height: 1.2; }
+/* 대표 행동은 화면마다 하나. 헤더 우측에 고정해 늘 같은 자리에서 찾게 한다. */
+.page-header-action { flex: 0 0 auto; display: flex; gap: 8px; align-items: center; padding-top: 4px; }
+
+.page-header-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.hstat {
+  flex: 0 1 auto; min-width: 108px; padding: 10px 14px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); border-left-width: 3px;
+}
+.hstat-value { display: block; font-size: 20px; font-weight: 700; line-height: 1.15; }
+.hstat-label { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.hstat.ok      { border-left-color: var(--success); }
+.hstat.review  { border-left-color: var(--review); }
+.hstat.blocked { border-left-color: var(--blocked); }
+.hstat.idle    { border-left-color: var(--line); }
+
+/* 고지는 숨기지 않되 접는다 — 상시 노출은 경고의 긴급도를 죽인다. */
+.page-notice { margin-top: 12px; }
+.page-notice-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--warn-bg); border: 1px solid var(--warn-line);
+  color: #7a5b06; border-radius: 999px; padding: 5px 12px;
+  font-size: 12.5px; cursor: pointer;
+}
+.page-notice-caret { opacity: 0.6; font-size: 10px; }
+.page-notice-body {
+  margin-top: 8px; padding: 12px 14px; font-size: 13px; line-height: 1.6;
+  background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: var(--radius);
+}
+
+/* ── 핵심 작업 카드 (가이드 03: 한 화면, 한 가지 대표 행동) ────────── */
+.action-card {
+  display: flex; align-items: flex-end; gap: var(--gap-s); flex-wrap: wrap;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: var(--gap-s); margin-bottom: var(--gap-s);
+}
+.action-card-body { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.action-card-hint { margin: 0; }
+.action-card-cta { flex: 0 0 auto; display: flex; gap: 8px; }
+/* 버튼은 Primary 1개 + 보조 1개 이하 (가이드 04) */
+.action-card-cta .primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   서비스 축 — 코드 분석과 규제 검증이 붙는 자리
+
+   여기서 시각적으로 지켜야 하는 것이 하나 있다. 코드에서 온 **제안**과
+   사람이 확정한 **입력**이 같아 보이면 안 된다. 제안은 점선 테두리,
+   확정은 실선. 색만으로 말하지 않도록 '후보' 라는 글자도 함께 낸다.
+   ═════════════════════════════════════════════════════════════════════ */
+.svc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--gap-s); flex-wrap: wrap; }
+.svc-head h2 { margin-top: 0; border: 0; padding: 0; }
+
+.svc-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--gap-s); margin-top: var(--gap-s); }
+.svc-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--gap-s); }
+.svc-card-open { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; }
+.svc-card-open h3 { margin: 0 0 2px; font-size: 16px; color: var(--text); }
+.svc-card-open:hover h3 { color: var(--accent); }
+
+/* 진행바 — 서비스마다 따로 돈다. 전역 상태로는 표현할 수 없는 것이다. */
+.svc-stages { display: flex; flex-wrap: wrap; gap: 4px 14px; list-style: none; margin: 12px 0; padding: 0; font-size: 12px; color: var(--muted); }
+.svc-stages li { display: flex; align-items: center; gap: 6px; }
+.svc-stage-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--panel); }
+.svc-stages li.past .svc-stage-dot { background: var(--success); border-color: var(--success); }
+.svc-stages li.now { color: var(--text); font-weight: 600; }
+.svc-stages li.now .svc-stage-dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.svc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0 0 10px; }
+.svc-stats div { min-width: 0; }
+.svc-stats dt { font-size: 11px; color: var(--muted); }
+.svc-stats dd { margin: 0; font-size: 15px; font-weight: 600; }
+.svc-next { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+.svc-next b { color: var(--text); margin-right: 4px; }
+
+.svc-define { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--gap-s); margin: var(--gap-s) 0; }
+.svc-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: var(--gap-s); }
+.svc-pick-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.svc-pick-head h3 { margin: 0; font-size: 14px; }
+.svc-search { flex: 0 1 260px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
+.svc-pick { list-style: none; margin: 10px 0 var(--gap-s); padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; max-height: 380px; overflow-y: auto; }
+.svc-pick li { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.svc-pick li.on { border-color: var(--accent); background: var(--accent-soft); }
+.svc-pick label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.svc-pick-name { font-weight: 600; font-size: 13.5px; }
+.svc-taken { margin-top: 4px; font-size: 11.5px; color: #b45309; }
+
+.svc-dash-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.svc-dash-head h1 { margin-bottom: 2px; }
+.svc-next-banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.btn.sm { padding: 4px 10px; font-size: 12.5px; }
+.link-back { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font-size: 13px; }
+.sig.high { align-self: center; background: var(--warn-bg); border: 1px solid var(--warn-line); color: #b45309; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+
+.svc-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: var(--gap-s) 0; }
+.svc-tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.svc-tile-label { font-size: 11.5px; color: var(--muted); }
+.svc-tile-value { font-size: 19px; font-weight: 700; margin-top: 2px; }
+.svc-fn { list-style: none; margin: 0; padding: 0; }
+.svc-fn li { padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+
+/* ── 코드 근거 제안 ─────────────────────────────────────────────────
+   ★ 점선은 "아직 사람이 누르지 않았다" 는 뜻이다. 누르면 실선(applied)이
+     되고, 그때부터 그 값의 주체는 사람이다. 이 구분을 지우면 화면만 보고는
+     무엇이 자동으로 채워졌는지 알 수 없게 된다. */
+.hint {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  border: 1.5px dashed var(--line); border-radius: 10px;
+  padding: 8px 12px; margin: 8px 0; font-size: 12.5px;
+  background: #fbfcfe;
+}
+.hint.applied { border-style: solid; border-color: var(--success); background: #f2fbf8; }
+.hint-tag {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  color: var(--muted); border: 1px dashed var(--line); border-radius: 999px; padding: 1px 8px;
+}
+.hint.applied .hint-tag { border-style: solid; border-color: var(--success); color: #0f8a6a; }
+.hint-why { flex: 1 1 240px; min-width: 0; color: var(--text); line-height: 1.55; }
+.hint-ev { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.hint-ev-item { font-family: var(--mono); font-size: 11.5px; background: #eef1f6; border-radius: 6px; padding: 1px 7px; border: 0; }
+button.hint-ev-item { cursor: pointer; color: var(--accent); }
+button.hint-ev-item:hover { text-decoration: underline; }
+.hint-head { margin: var(--gap-s) 0 4px; font-size: 13px; }
+.hint-row td { background: #fbfcfe; padding-top: 0; }
+.hint-unknown ul { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--muted); line-height: 1.7; }
+
+/* 규제 모드 사이드바 — 탐색 단위가 프로그램이 아니라 서비스다 */
+.svc-nav { margin-top: var(--gap-s); }
+.svc-nav-title {
+  font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45); padding: 0 4px 6px;
+}
+.svc-nav-item {
+  display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left;
+  background: none; border: 0; border-left: 2px solid transparent;
+  padding: 7px 10px; border-radius: 8px; cursor: pointer; color: rgba(255, 255, 255, 0.78);
+}
+.svc-nav-item:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.svc-nav-item.active { background: rgba(255, 255, 255, 0.1); border-left-color: var(--primary); color: #fff; }
+.svc-nav-name { font-size: 13px; font-weight: 600; }
+.svc-nav-stage { font-size: 11px; color: rgba(255, 255, 255, 0.5); }

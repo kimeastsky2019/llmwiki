@@ -63,7 +63,7 @@ def client(tmp_path_factory):
 
 
 def test_schema_and_graph(client):
-    assert client.get("/api/reg/schema").json()["ontology"] == "1.0.0"
+    assert client.get("/api/reg/schema").json()["ontology"] == "1.1.0"
     graph = client.get("/api/reg/graph").json()
     assert graph["counts"]["Control"] == len(seed_mod.CONTROLS)
     # 시드는 결재 대기 1건을 일부러 남긴다 (승인 화면이 보여 줄 것이 있어야 한다).
@@ -123,6 +123,11 @@ def test_there_is_no_endpoint_that_writes_the_graph_directly():
         # 조언은 읽기만 한다 — LLM 에 물어보고 결과를 돌려줄 뿐 아무것도 쓰지 않는다.
         # POST 인 것은 본문에 코드 분석 사실을 실어 보내기 때문이다.
         "/api/reg/risk/advise",
+        # 서비스 정의도 그래프에 직접 쓰지 않는다. ChangeSet 을 만들어 결재 큐에
+        # 올릴 뿐이고, 승인돼야 저널에 들어간다 — 아래 테스트가 그것을 확인한다.
+        "/api/reg/services/propose",
+        # 코드 근거 제안은 아무것도 쓰지 않는다. 조언과 같은 이유로 POST 다.
+        "/api/reg/risk/suggest",
     }
 
 
@@ -320,3 +325,107 @@ def test_advisors_endpoint_marks_local_vs_external(client):
     for a in body["advisors"]:
         assert isinstance(a["local"], bool)
         assert "ready" in a
+
+
+# --------------------------------------------------------------------------- #
+# 서비스 — 코드 분석과 규제 검증이 붙는 자리
+#
+# 여기 있는 테스트가 지키는 것은 기능이 아니라 경계다. 두 갈래를 이어도
+# "제안 / 판정 / 확정" 분리가 그대로여야 한다 — 자동화한 만큼 감리에서
+# 되돌려 받지 않으려면 이 선이 코드에서 강제돼야 한다.
+# --------------------------------------------------------------------------- #
+@pytest.fixture(scope="module")
+def indexed(client):
+    """샘플 소스를 분석해 인덱스를 만든다. 서비스 정의의 전제 조건이다."""
+    from llmwiki.indexer import save_index, scan
+    from llmwiki.server.app import registry
+
+    cfg = registry.config_for(registry.get(None))
+    save_index(cfg, scan(cfg))
+    return client
+
+
+def test_programs_are_offered_as_service_candidates(indexed):
+    body = indexed.get("/api/reg/programs").json()
+    assert body["programs"], "분석된 프로그램이 후보로 나와야 한다"
+    row = body["programs"][0]
+    assert {"id", "name", "layer", "tables", "urls", "services"} <= set(row)
+    # 아직 어느 서비스에도 묶이지 않았다
+    assert all(not p["services"] for p in body["programs"])
+
+
+def test_service_definition_goes_through_the_approval_queue(indexed):
+    """서비스 정의도 결재를 거친다 — 승인 전에는 그래프에 없다."""
+    program_ids = [p["id"] for p in indexed.get("/api/reg/programs").json()["programs"]][:2]
+    res = indexed.post("/api/reg/services/propose", json={
+        "name": "여신 심사 보조", "program_ids": program_ids, "by": "gov-officer",
+    })
+    assert res.status_code == 200, res.text
+    change = res.json()["changeset"]
+    assert change["status"] == cs.PENDING
+    assert change["proposer"]["type"] == "Person"
+
+    # 승인 전: 승인 그래프에도, 서비스 목록에도 없다
+    before = {s["uuid"] for s in indexed.get("/api/reg/services").json()["services"]}
+    assert "svc-여신-심사-보조" not in before
+    assert indexed.get("/api/reg/service/svc-여신-심사-보조").status_code == 404
+
+    ok = indexed.post(f"/api/reg/changes/{change['changeset_id']}/approve",
+                      json={"by": "ciso"})
+    assert ok.status_code == 200, ok.text
+
+    detail = indexed.get("/api/reg/service/svc-여신-심사-보조")
+    assert detail.status_code == 200, detail.text
+    body = detail.json()
+    assert body["service"]["programs"] == len(program_ids)
+    assert {f["program_id"] for f in body["functions"]} == set(program_ids)
+    # 등급이 아직 없으므로 다음 단계는 ③ 위험등급 산정이다
+    assert body["stage"] == "grade"
+
+    # 묶인 뒤에는 후보 목록이 그 사실을 보여 준다 — 같은 프로그램을 두 서비스에
+    # 넣기 전에 사람이 알아야 한다.
+    again = {p["id"]: p["services"] for p in
+             indexed.get("/api/reg/programs").json()["programs"]}
+    assert all("svc-여신-심사-보조" in again[pid] for pid in program_ids)
+
+
+def test_an_slm_may_not_propose_a_service(indexed):
+    """서비스 경계는 업무 판단이다. 모델이 제안하면 기계 검증에서 막힌다."""
+    from llmwiki.compliance import propose as propose_mod
+    from llmwiki.compliance.store import Store
+    from llmwiki.server.app import cfg as server_cfg
+    from llmwiki.indexer import load_index
+    from llmwiki.server.app import registry
+
+    idx = load_index(registry.config_for(registry.get(None)), with_source=False)
+    result = propose_mod.propose_service(
+        idx, name="모델이 지어낸 서비스",
+        program_ids=[idx.programs[0].id],
+    )
+    change = cs.stage(Store(server_cfg.compliance_dir), result.ops,
+                      proposer={"type": "SoftwareAgent", "id": "slm-extract-v1"})
+    assert change.status == cs.BLOCKED
+    codes = {i["code"] for i in change.checks["issues"]}
+    assert "authority.propose" in codes
+
+
+def test_code_hints_suggest_but_never_decide(indexed):
+    """코드 근거는 제안이다. 신뢰도는 전부 후보이고, 못 답하는 것을 함께 말한다."""
+    body = indexed.post("/api/reg/risk/suggest",
+                        json={"service_uuid": "svc-여신-심사-보조"}).json()
+    assert body["profile"], "프로파일 후보가 나와야 한다"
+    assert all(p["confidence"] == "candidate" for p in body["profile"])
+    assert all(i["confidence"] == "candidate" for i in body["items"])
+    # 제안은 축 2개(사용자 범위·데이터 민감도)까지만 — 나머지는 코드에 없다
+    assert {p["axis"] for p in body["profile"]} <= {"user_scope", "data_sensitivity"}
+    unanswerable = {u["key"] for u in body["unanswerable"]}
+    assert {"high_impact", "output_kind", "decision_impact"} <= unanswerable
+    # 모든 제안에는 근거가 붙어 있다 — 근거 없는 제안은 내지 않는다
+    assert all(p["evidence"] for p in body["profile"])
+    assert all(i["evidence"] for i in body["items"])
+
+
+def test_suggestion_never_writes_anything(indexed):
+    before = indexed.get("/api/reg/graph").json()["counts"]
+    indexed.post("/api/reg/risk/suggest", json={"service_uuid": "svc-여신-심사-보조"})
+    assert indexed.get("/api/reg/graph").json()["counts"] == before

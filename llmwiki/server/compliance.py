@@ -15,7 +15,7 @@ from typing import Any
 from fastapi import APIRouter, Body, HTTPException, Query
 
 from ..compliance import advise as advisor
-from ..compliance import analysis, changeset as cs, riskassess, rules, verify
+from ..compliance import analysis, changeset as cs, codehints, propose, riskassess, rules, verify
 from ..compliance import i18n
 from ..compliance.ontology import node_id, schema_dict
 from ..compliance.store import Store, now_iso
@@ -199,6 +199,201 @@ def impact(provision_uuid: str) -> dict[str, Any]:
 @router.get("/system-functions")
 def system_functions() -> dict[str, Any]:
     return analysis.system_function_links(_store().approved())
+
+
+# --------------------------------------------------------------------------- #
+# 서비스 — 두 갈래가 붙는 자리
+#
+# 규제는 프로그램이 아니라 AI 서비스 단위로 묻는다. 그런데 지금까지 서비스는
+# 손으로 등록하는 이름 하나였고, 이미 분석해 둔 운영 프로그램과 이어지지 않았다.
+# 여기서 그 다리를 화면이 건널 수 있게 연다 — CLI `reg link-programs` 하나뿐이던
+# 경로가 API 가 된다.
+#
+# 쓰기는 여전히 결재를 거친다. 서비스 정의도 ChangeSet 으로 올라가고,
+# 승인돼야 그래프에 들어간다. 사람이 한 일이라고 저널에 직접 쓰지 않는 이유는,
+# "무엇이 언제 왜 들어왔나" 를 묻는 자리가 결재함 하나로 유지돼야 하기 때문이다.
+# --------------------------------------------------------------------------- #
+@router.get("/programs")
+def programs(project: str | None = Query(None)) -> dict[str, Any]:
+    """서비스로 묶을 후보 — 정적 분석이 뽑아 둔 운영 프로그램.
+
+    이미 어느 서비스에 묶였는지도 함께 준다. 화면이 같은 프로그램을 두 서비스에
+    넣기 전에 보여 줘야 한다.
+    """
+    idx = _index(project)
+    if idx is None:
+        return {"programs": [], "project": project or "", "note": "분석된 소스가 없다"}
+
+    graph = _store().approved()
+    taken: dict[str, list[str]] = {}
+    for node in graph.of_type("Service"):
+        row_uuid = str(node["props"].get("uuid", ""))
+        for fn in analysis.service_functions(graph, node["id"]):
+            if fn["program_id"]:
+                taken.setdefault(str(fn["program_id"]), []).append(row_uuid)
+
+    rows = []
+    for program in idx.programs:
+        rows.append({
+            "id": program.id,
+            "name": program.name,
+            "layer": program.layer,
+            "tier": program.tier,
+            "urls": list(program.urls),
+            "tables": list(program.tables),
+            "classes": len(program.classes),
+            "sql": len(program.sql_ids),
+            "services": taken.get(program.id, []),
+        })
+    return {"programs": rows, "project": getattr(idx, "project", "")}
+
+
+@router.get("/services")
+def services(lang: str | None = Query(None)) -> dict[str, Any]:
+    """서비스 목록 — 화면의 새 출발점. 서비스마다 단계가 따로 돈다."""
+    store = _store()
+    graph = store.approved()
+    saved = store.read_json(RISK_FILE, default={}) or {}
+    rows = []
+    for row in analysis.services(graph, lang=i18n.normalize(lang)):
+        grade = _grade_of(saved, row["uuid"])
+        rows.append({**row, "grade": grade,
+                     "stage": analysis.service_stage(row, has_grade=bool(grade))})
+    return {"services": rows, "stages": list(analysis.SERVICE_STAGES),
+            "pending": len([c for c in store.read_changesets().values()
+                            if c.get("status") == cs.PENDING])}
+
+
+@router.get("/service/{service_uuid}")
+def service(service_uuid: str, lang: str | None = Query(None)) -> dict[str, Any]:
+    """서비스 대시보드 한 판 — 등급·충족률·유보·연결 프로그램·다음 할 일."""
+    store = _store()
+    saved = store.read_json(RISK_FILE, default={}) or {}
+    pending = [
+        {"changeset_id": c.get("changeset_id"), "status": c.get("status"),
+         "grade": c.get("grade"), "created_at": c.get("created_at")}
+        for c in store.read_changesets().values()
+        if c.get("status") in (cs.PENDING, cs.BLOCKED)
+        and _touches_service(c, service_uuid)
+    ]
+    try:
+        return analysis.service_detail(
+            store.approved(), service_uuid,
+            grade=_grade_of(saved, service_uuid),
+            pending=sorted(pending, key=lambda r: str(r["changeset_id"])),
+            lang=i18n.normalize(lang),
+        )
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.post("/services/propose")
+def service_propose(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """프로그램 묶음 → 서비스 정의 제안. **승인 그래프에 바로 쓰지 않는다.**
+
+    제안자는 사람이다 — 서비스 경계는 업무 판단이라 sLM 이 제안할 수 없고
+    (`Service`·`REALIZED_BY` 는 `llm_proposable=False`), 검증기가 그것을 막는다.
+    """
+    by = str(payload.get("by", "")).strip()
+    if not by:
+        raise HTTPException(400, "제안자(by)가 필요하다")
+    name = str(payload.get("name", "")).strip()
+    program_ids = [str(x) for x in (payload.get("program_ids") or [])]
+    if not program_ids:
+        raise HTTPException(400, "묶을 프로그램을 하나 이상 골라야 한다")
+
+    idx = _index(payload.get("project"))
+    if idx is None:
+        raise HTTPException(409, "분석된 소스가 없다 — 먼저 소스를 분석해야 한다")
+
+    store = _store()
+    graph = store.approved()
+    known = {str(n["props"].get("key")) for n in graph.of_type("SystemFunction")}
+    try:
+        result = propose.propose_service(
+            idx, name=name, program_ids=program_ids,
+            service_uuid=str(payload.get("service_uuid", "")).strip(),
+            dept=str(payload.get("dept", "")).strip(),
+            note=str(payload.get("note", "")).strip(),
+            project_id=str(getattr(idx, "project", "") or "default"),
+            system=str(payload.get("system", "")).strip(),
+            known_functions=known,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    change = cs.stage(
+        store, result.ops,
+        proposer={"type": "Person", "id": by},
+        source={"type": "llmwiki", "id": str(getattr(idx, "project", ""))},
+    )
+    return {"changeset": change.to_dict(), "note": result.note,
+            "rejected": result.rejected,
+            "approver": cs.GRADES[change.grade]["approver"]}
+
+
+@router.post("/risk/suggest")
+def risk_suggest(payload: dict[str, Any] = Body(default={})) -> dict[str, Any]:
+    """코드 근거 제안 — 프로파일 2축과 데이터·위탁 관련 위험 항목 **후보**.
+
+    ★ 판정하지 않고, 체크하지도 않는다. 근거와 함께 제안만 하고 Yes/No 는 사람이
+    누른다. `unanswerable` 로 "코드가 답할 수 없는 것" 도 같이 내려 과장을 막는다.
+    """
+    program_ids = [str(x) for x in (payload.get("program_ids") or [])]
+    service_uuid = str(payload.get("service_uuid", "")).strip()
+    project = payload.get("project")
+
+    # 서비스만 주면 그 서비스에 묶인 프로그램을 그래프에서 찾아 온다.
+    if not program_ids and service_uuid:
+        graph = _store().approved()
+        ident = node_id("Service", uuid=service_uuid)
+        if graph.node(ident) is not None:
+            fns = analysis.service_functions(graph, ident)
+            program_ids = [f["program_id"] for f in fns if f["program_id"]]
+            project = project or next((f["project"] for f in fns if f["project"]), None)
+
+    return codehints.suggest(_code_facts(program_ids, project=project))
+
+
+def _index(project: str | None) -> Any:
+    """활성 프로젝트의 분석 인덱스. 없으면 None — 화면은 '먼저 분석하라'를 낸다."""
+    try:
+        from ..indexer import load_index
+        from ..server.app import registry  # 지연 import — 순환을 피한다
+
+        proj = registry.get(project)
+        return load_index(registry.config_for(proj), with_source=False)
+    except Exception:  # noqa: BLE001 — 인덱스가 없는 것은 오류가 아니라 상태다
+        return None
+
+
+def _grade_of(saved: dict[str, Any], service_uuid: str) -> dict[str, Any] | None:
+    """저장된 위험평가에서 등급만 꺼낸다. 없으면 None — 아직 ③ 단계다."""
+    row = saved.get(service_uuid)
+    if not row:
+        return None
+    result = row.get("result") or {}
+    return {
+        "label": (result.get("final_grade") or {}).get("label", ""),
+        "key": (result.get("final_grade") or {}).get("key", ""),
+        "residual_score": result.get("step4_residual_score"),
+        "high_impact": (result.get("step1_high_impact") or {}).get("high_impact"),
+        "saved_at": row.get("saved_at", ""),
+        "saved_by": row.get("saved_by", ""),
+    }
+
+
+def _touches_service(change: dict[str, Any], service_uuid: str) -> bool:
+    """이 변경 제안이 그 서비스를 건드리는가. 대시보드의 '대기 중' 표시용."""
+    ident = node_id("Service", uuid=service_uuid)
+    for op in change.get("ops", []):
+        if op.get("node_type") == "Service" and (op.get("props") or {}).get("uuid") == service_uuid:
+            return True
+        if ident in (op.get("source"), op.get("target"), op.get("id")):
+            return True
+        if (op.get("props") or {}).get("service_uuid") == service_uuid:
+            return True
+    return False
 
 
 # --------------------------------------------------------------------------- #
@@ -456,6 +651,7 @@ def _code_facts(program_ids: list[str], *, project: str | None = None) -> dict[s
                 continue
             for table, op in st.crud:
                 crud.setdefault(table, set()).add(op)
+    externals, metrics = _call_signals(idx, programs)
     return {
         "programs": [p.name for p in programs],
         "program_ids": [p.id for p in programs],
@@ -463,7 +659,39 @@ def _code_facts(program_ids: list[str], *, project: str | None = None) -> dict[s
         "tables": sorted(tables),
         "layers": sorted(layers),
         "crud": {t: sorted(ops) for t, ops in sorted(crud.items())},
+        # 외부 호출·성능 측정은 테이블만 봐서는 안 나온다. 클래스의 import·필드·
+        # 호출에서 이름으로 찾는다 — 이름이라 확정이 아니라 후보다.
+        "externals": externals,
+        "metrics": metrics,
     }
+
+
+def _call_signals(idx: Any, programs: list[Any]) -> tuple[list[str], list[str]]:
+    """외부 호출 지점과 성능·드리프트 측정 흔적. 둘 다 '이름으로 보이는 것'이다."""
+    ext_pats = [p.lower() for p in codehints.rules()["external_calls"]]
+    met_pats = [p.lower() for p in codehints.rules()["metric_markers"]]
+    externals: set[str] = set()
+    metrics: set[str] = set()
+
+    for program in programs:
+        for fqn in program.classes:
+            cls = idx.classes.get(fqn)
+            if cls is None:
+                continue
+            names = list(cls.imports) + [t for t, _ in cls.fields] + [cls.name]
+            for method in cls.methods:
+                names.append(method.name)
+                names.extend(recv for recv, _ in method.calls)
+                names.extend(m for _, m in method.calls)
+            for name in names:
+                low = str(name).lower()
+                for pat in ext_pats:
+                    if pat in low:
+                        externals.add(pat)
+                for pat in met_pats:
+                    if pat in low:
+                        metrics.add(pat)
+    return sorted(externals), sorted(metrics)
 
 
 def _pick(props: dict[str, Any], key: str, lang: str | None) -> str:

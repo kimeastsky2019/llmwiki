@@ -1,0 +1,44 @@
+[Unit]
+Description=LLMWiki — 소스 분석 · 규제 준수 평가
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=llmwiki
+Group=llmwiki
+WorkingDirectory=/opt/llmwiki
+
+Environment=LLMWIKI_CONFIG=/opt/llmwiki/config.yaml
+Environment=HOME=/opt/llmwiki
+Environment=PYTHONUNBUFFERED=1
+# 키는 유닛에 적지 않는다 — 유닛 파일은 world-readable 이다.
+EnvironmentFile=/etc/llmwiki/llmwiki.env
+
+# --workers 1 고정: 파싱·생성 작업 상태가 프로세스 메모리에 있어 워커를 늘리면
+# 진행률 폴링이 엉뚱한 워커로 간다.
+ExecStart=/opt/llmwiki/.venv/bin/uvicorn llmwiki.server.app:app \
+    --host 127.0.0.1 \
+    --port 8722 \
+    --workers 1 \
+    --timeout-keep-alive 75 \
+    --proxy-headers \
+    --forwarded-allow-ips '*'
+
+Restart=always
+RestartSec=5
+TimeoutStartSec=60
+TimeoutStopSec=30
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=llmwiki
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/llmwiki
+
+[Install]
+WantedBy=multi-user.target

@@ -34,7 +34,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal
 
-COMPLIANCE_ONTOLOGY_VERSION = "1.0.0"
+COMPLIANCE_ONTOLOGY_VERSION = "1.1.0"
 
 #: collected — 수집기가 문서·시스템에서 기계적으로 읽은 사실
 #: llm       — sLM 이 문서에서 뽑아 제안한 사실 (승인 전에는 그래프에 없다)
@@ -319,6 +319,14 @@ EDGE_TYPES: dict[str, EdgeType] = {
                  note="이 엣지가 없는 통제 = 수기 의존 = 자동화 후보."),
         EdgeType("APPLIES_TO", "적용 대상", ("Control",), ("Service",), "N:M",
                  derivation="human", properties=("reason",)),
+        EdgeType(
+            "REALIZED_BY", "구현 프로그램", ("Service",), ("SystemFunction",), "N:M",
+            derivation="human", llm_proposable=False,
+            note="★ 두 그래프가 만나는 자리. 서비스가 어느 운영 프로그램으로 되어 있는가를 "
+                 "사람이 확정한다. 이 엣지가 있어야 조문 개정 영향이 통제·서비스를 지나 "
+                 "프로그램·테이블까지 내려간다. 모델은 제안할 수 없다 — 서비스 경계는 "
+                 "업무 판단이다.",
+        ),
         EdgeType(
             "SATISFIED_BY", "증적 제출", ("Control",), ("Evidence",), "N:M",
             properties=("service_uuid", "for_required"),

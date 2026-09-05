@@ -220,3 +220,170 @@ def overview(graph: Graph) -> dict[str, Any]:
         "coverage": gap["summary"],
         "system_functions": system_function_links(graph)["summary"],
     }
+
+
+# --------------------------------------------------------------------------- #
+# 서비스 축 — 화면의 출발점
+# --------------------------------------------------------------------------- #
+#: 서비스 하나가 지나는 단계. 화면의 진행바가 이 코드를 그대로 그린다.
+#: 각 단계는 "앞의 것이 없으면 뒤의 것이 의미가 없다" 는 순서다.
+SERVICE_STAGES: tuple[str, ...] = (
+    "define",     # ② 서비스 정의 — 프로그램 묶음
+    "grade",      # ③ 위험등급 산정
+    "controls",   # ④ 통제·증적 매핑
+    "assess",     # ⑤ 자동 판정
+    "confirm",    # ⑥ 결재·확정
+    "done",
+)
+
+
+def service_functions(graph: Graph, service_ident: str) -> list[dict[str, Any]]:
+    """서비스를 이루는 증적 생산 기능과, 그것이 가리키는 운영 프로그램."""
+    out: list[dict[str, Any]] = []
+    for fn in graph.targets(service_ident, "REALIZED_BY"):
+        props = graph.props(fn)
+        ref = str(props.get("program_ref", ""))
+        # prog:<project>/<program_id> — 참조 문자열을 쪼개는 곳을 여기 하나로 둔다.
+        project, _, program_id = ref[5:].partition("/") if ref.startswith("prog:") else ("", "", "")
+        out.append({
+            "key": props.get("key"),
+            "name": props.get("name"),
+            "system": props.get("system"),
+            "program_ref": ref,
+            "project": project,
+            "program_id": program_id,
+            "evidences": len(graph.sources(fn, "COLLECTED_FROM")),
+        })
+    return sorted(out, key=lambda r: str(r["name"] or r["key"]))
+
+
+def service_controls(graph: Graph, service_ident: str) -> list[dict[str, Any]]:
+    """이 서비스에 걸린 통제와, 각 통제가 요구하는 증적의 생산 경로."""
+    rows: list[dict[str, Any]] = []
+    for ctrl in graph.sources(service_ident, "APPLIES_TO"):
+        props = graph.props(ctrl)
+        required = [
+            e for e in graph.targets(ctrl, "PRODUCES")
+            if graph.props(e).get("required_yn")
+        ]
+        # COLLECTED_FROM 이 없는 요구 증적 = 수기 의존 = 자동화 후보
+        manual = [e for e in required if not graph.targets(e, "COLLECTED_FROM")]
+        rows.append({
+            "code": props.get("code"),
+            "title": props.get("title"),
+            "title_en": props.get("title_en", ""),
+            "auto_level": props.get("auto_level"),
+            "required_evidence": len(required),
+            "manual_evidence": len(manual),
+            "manual_titles": [str(graph.props(e).get("title", "")) for e in manual],
+        })
+    return sorted(rows, key=lambda r: str(r["code"]))
+
+
+def service_assessments(graph: Graph, service_uuid: str) -> list[dict[str, Any]]:
+    """이 서비스의 판정. 통제마다 최신 1건만 남긴다 — 화면이 세는 숫자와 맞춘다."""
+    latest: dict[str, dict[str, Any]] = {}
+    for node in sorted(graph.of_type("Assessment"),
+                       key=lambda n: str(n["props"].get("assessed_at", ""))):
+        props = node["props"]
+        if str(props.get("service_uuid")) != service_uuid:
+            continue
+        latest[str(props.get("control_code"))] = {
+            "uuid": props.get("uuid"),
+            "control_code": props.get("control_code"),
+            "verdict": props.get("verdict"),
+            "decision_status": props.get("decision_status"),
+            "assessed_at": props.get("assessed_at"),
+            "reason": props.get("reason", ""),
+        }
+    return [latest[k] for k in sorted(latest)]
+
+
+def service_row(graph: Graph, node: dict[str, Any], *, lang: str = i18n.DEFAULT_LANG) -> dict[str, Any]:
+    """목록 한 줄 — 그래프에서만 나오는 값. 위험등급은 저장소 쪽이 얹는다."""
+    props = node["props"]
+    uuid = str(props.get("uuid", ""))
+    ident = node["id"]
+    functions = service_functions(graph, ident)
+    controls = service_controls(graph, ident)
+    assessments = service_assessments(graph, uuid)
+    verdicts: dict[str, int] = {}
+    for a in assessments:
+        key = str(a["verdict"])
+        verdicts[key] = verdicts.get(key, 0) + 1
+    return {
+        "uuid": uuid,
+        "name": _label(props, "name", lang),
+        "dept": props.get("dept", ""),
+        "high_impact_yn": props.get("high_impact_yn"),
+        "status": node["status"],
+        "programs": len(functions),
+        "controls": len(controls),
+        "manual_evidence": sum(c["manual_evidence"] for c in controls),
+        "assessments": len(assessments),
+        "verdicts": verdicts,
+        "unconfirmed": len([a for a in assessments
+                            if a["decision_status"] != CONFIRMED]),
+    }
+
+
+def _label(props: dict[str, Any], key: str, lang: str) -> str:
+    if i18n.normalize(lang) == "en" and props.get(f"{key}_en"):
+        return str(props[f"{key}_en"])
+    return str(props.get(key, ""))
+
+
+def services(graph: Graph, *, lang: str = i18n.DEFAULT_LANG) -> list[dict[str, Any]]:
+    return sorted(
+        (service_row(graph, n, lang=lang) for n in graph.of_type("Service")),
+        key=lambda r: str(r["name"]),
+    )
+
+
+def service_stage(row: dict[str, Any], *, has_grade: bool) -> str:
+    """지금 이 서비스가 어느 단계에 있는가.
+
+    화면 전체가 하나의 상태를 갖는 구조로는 "서비스 A 는 ③, 서비스 B 는 ⑥" 을
+    표현할 수 없다. 그래서 단계는 서비스마다 따로 돈다.
+    """
+    if not row["programs"]:
+        return "define"
+    if not has_grade:
+        return "grade"
+    if not row["controls"]:
+        return "controls"
+    if not row["assessments"]:
+        return "assess"
+    if row["unconfirmed"]:
+        return "confirm"
+    return "done"
+
+
+def service_detail(
+    graph: Graph, service_uuid: str, *,
+    grade: dict[str, Any] | None = None,
+    pending: list[dict[str, Any]] | None = None,
+    lang: str = i18n.DEFAULT_LANG,
+) -> dict[str, Any]:
+    """서비스 대시보드 한 판. 등급(`grade`)은 저장소에서 읽어 넘겨 준다 —
+    위험등급은 그래프가 아니라 배점 파이프라인의 산출물이라 여기서 계산하지 않는다."""
+    ident = node_id("Service", uuid=service_uuid)
+    node = graph.node(ident)
+    if node is None:
+        raise KeyError(f"서비스를 찾을 수 없다: {service_uuid}")
+
+    row = service_row(graph, node, lang=lang)
+    stage = service_stage(row, has_grade=bool(grade))
+    return {
+        "service": {
+            **row,
+            "note": node["props"].get("note", ""),
+        },
+        "stage": stage,
+        "stages": list(SERVICE_STAGES),
+        "grade": grade,
+        "functions": service_functions(graph, ident),
+        "controls": service_controls(graph, ident),
+        "assessments": service_assessments(graph, service_uuid),
+        "pending_changes": pending or [],
+    }

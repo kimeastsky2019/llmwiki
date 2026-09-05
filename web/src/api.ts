@@ -542,6 +542,132 @@ export interface RegGrade {
 }
 
 // --------------------------------------------------------------------------
+// 서비스 — 코드 분석과 규제 검증이 만나는 유일한 지점
+//
+// 규제는 프로그램이 아니라 AI 서비스 단위로 묻는다. 프로그램을 묶어 서비스를
+// 만드는 행위가 두 갈래를 잇고, 그 뒤로 등급 → 통제 → 판정 → 결재가 한 줄로
+// 흐른다. 진행 단계는 화면 전체가 아니라 **서비스마다** 따로 돈다.
+// --------------------------------------------------------------------------
+/** ② 정의 → ③ 등급 → ④ 통제·증적 → ⑤ 판정 → ⑥ 확정 */
+export type RegStage = "define" | "grade" | "controls" | "assess" | "confirm" | "done";
+
+export interface RegProgramCandidate {
+  id: string;
+  name: string;
+  layer: string;
+  tier: string;
+  urls: string[];
+  tables: string[];
+  classes: number;
+  sql: number;
+  /** 이미 묶인 서비스 — 같은 프로그램을 두 번 넣기 전에 보여 준다 */
+  services: string[];
+}
+
+export interface RegServiceGrade {
+  label: string;
+  key: string;
+  residual_score: number | null;
+  high_impact: boolean | null;
+  saved_at: string;
+  saved_by: string;
+}
+
+export interface RegServiceRow {
+  uuid: string;
+  name: string;
+  dept: string;
+  high_impact_yn: boolean | null;
+  status: string;
+  programs: number;
+  controls: number;
+  manual_evidence: number;
+  assessments: number;
+  verdicts: Record<string, number>;
+  unconfirmed: number;
+  grade: RegServiceGrade | null;
+  stage: RegStage;
+}
+
+export interface RegServiceFunction {
+  key: string;
+  name: string;
+  system: string;
+  program_ref: string;
+  project: string;
+  program_id: string;
+  evidences: number;
+}
+
+export interface RegServiceControl {
+  code: string;
+  title: string;
+  title_en: string;
+  auto_level: string;
+  required_evidence: number;
+  /** 증적을 만드는 시스템 기능이 없는 것 = 수기 의존 = 자동화 후보 */
+  manual_evidence: number;
+  manual_titles: string[];
+}
+
+export interface RegServiceDetail {
+  service: RegServiceRow & { note: string };
+  stage: RegStage;
+  stages: RegStage[];
+  grade: RegServiceGrade | null;
+  functions: RegServiceFunction[];
+  controls: RegServiceControl[];
+  assessments: {
+    uuid: string;
+    control_code: string;
+    verdict: string;
+    decision_status: string;
+    assessed_at: string;
+    reason: string;
+  }[];
+  pending_changes: {
+    changeset_id: string;
+    status: string;
+    grade: string;
+    created_at: string;
+  }[];
+}
+
+/** 근거 한 조각. kind 가 링크 대상을 정한다 — program → /p/<id>, table → /t/<name>. */
+export interface RegHintEvidence {
+  kind: "program" | "table" | "url" | "layer" | "call";
+  id: string;
+  label: string;
+}
+
+/** ★ 제안이지 판정이 아니다. confidence 는 언제나 candidate 다. */
+export interface RegProfileHint {
+  axis: string;
+  value: string;
+  confidence: "candidate";
+  because: string;
+  evidence: RegHintEvidence[];
+}
+
+export interface RegItemHint {
+  no: number;
+  suggest: "identify";
+  confidence: "candidate";
+  because: string;
+  signal: string;
+  evidence: RegHintEvidence[];
+}
+
+export interface RegCodeHints {
+  profile: RegProfileHint[];
+  items: RegItemHint[];
+  /** 코드가 답할 수 없는 것. 과장하지 않기 위해 화면에 그대로 낸다. */
+  unanswerable: { key: string; reason: string }[];
+  facts: RiskAdvice["facts"];
+  version: string;
+}
+
+// --------------------------------------------------------------------------
 // 문서 지식베이스 — 글·표·그림·엑셀 4채널
 //
 // 규제 그래프와 다른 층이다. 저쪽은 조직의 의무와 통제를 다루고, 여기는 문서
@@ -812,7 +938,69 @@ export interface EnginesResponse {
   cached: boolean;
 }
 
+// --- 진단 준비 체크리스트 (/api/audit) --------------------------------------- #
+
+export interface ChecklistItem {
+  id: string;
+  name: string;
+  source: string;      // 근거가 된 위키 measure 의 stable_id
+  checked: string;
+  note: string;
+}
+
+export interface ChecklistGroup {
+  equipment: string;
+  fields: string[];
+  items: ChecklistItem[];
+}
+
+export interface ChecklistDraft {
+  sector: string;
+  sector_name: string;
+  unit_basis: string;
+  energy_sources: string[];
+  groups: ChecklistGroup[];
+  item_count: number;
+  from_wiki: boolean;
+  wiki_measures: number;
+}
+
+export interface ChecklistSummary {
+  id: string;
+  title: string;
+  sector: string;
+  subsector: string;
+  site: string;
+  owner: string;
+  item_count: number;
+  updated_at: string;
+}
+
+export interface ChecklistRecord extends ChecklistDraft {
+  id: string;
+  title: string;
+  subsector: string;
+  site: string;
+  homepage: string;
+  owner: string;
+  note: string;
+  updated_at: string;
+}
+
 // --- 에너지 진단 위키 (/api/wiki) ------------------------------------------- #
+
+/** rag.ets0404.com 에 적재되어 있고 원본이 보관된 문서 */
+export interface RagDocument {
+  id: number;
+  name: string;
+  collection_name: string | null;
+  stable_id: string | null;
+  sha256: string | null;
+  size_bytes: number | null;
+  chunk_count: number;
+  acl: string;
+  created_at: string;
+}
 export type WikiAcl = "public" | "internal" | "confidential" | "restricted";
 export type WikiStatus = "draft" | "reviewed" | "deprecated";
 
@@ -1078,6 +1266,10 @@ function post<T>(url: string, payload?: unknown): Promise<T> {
   });
 }
 
+function del<T>(url: string): Promise<T> {
+  return request<T>(url, { method: "DELETE" });
+}
+
 export const api = {
   meta: () => get<Meta>("/api/meta"),
   tree: () => get<TreeLayer[]>("/api/tree"),
@@ -1151,6 +1343,33 @@ export const api = {
       ),
     commit: () => post<{ assessments: number; records: number }>("/api/reg/assess/commit"),
 
+    /** 서비스 — 프로그램 묶음. 정의는 결재를 거쳐야 그래프에 들어간다. */
+    programs: (project?: string) =>
+      get<{ programs: RegProgramCandidate[]; project: string; note?: string }>(
+        `/api/reg/programs${project ? `?project=${encodeURIComponent(project)}` : ""}`
+      ),
+    services: () =>
+      get<{ services: RegServiceRow[]; stages: RegStage[]; pending: number }>(
+        "/api/reg/services"
+      ),
+    service: (uuid: string) =>
+      get<RegServiceDetail>(`/api/reg/service/${encodeURIComponent(uuid)}`),
+    proposeService: (body: {
+      name: string;
+      program_ids: string[];
+      by: string;
+      dept?: string;
+      note?: string;
+      service_uuid?: string;
+      project?: string;
+    }) =>
+      post<{
+        changeset: RegChange;
+        note: string;
+        rejected: { program_id: string; reason: string }[];
+        approver: string;
+      }>("/api/reg/services/propose", body),
+
     /** 위험등급 산정 — 계산은 서버가 한다. 화면은 입력만 모은다. */
     risk: {
       master: () => get<RiskMaster>("/api/reg/risk/master"),
@@ -1165,6 +1384,10 @@ export const api = {
           `/api/reg/risk/draft/${encodeURIComponent(uuid)}`,
           { method: "DELETE" }
         ),
+
+      /** 코드 근거 제안 — 후보만 낸다. 아무것도 쓰지 않고, 체크하지도 않는다. */
+      suggest: (body: { service_uuid?: string; program_ids?: string[]; project?: string }) =>
+        post<RegCodeHints>("/api/reg/risk/suggest", body),
 
       /** 조언자 목록 — 누가 답할 수 있고 어디서 도는지 */
       advisors: () =>
@@ -1232,6 +1455,18 @@ export const api = {
   // --- 에너지 진단 위키 ---
   // preview 는 저장하지 않는다. 사업장 키가 바뀌면 모든 stable_id 가 바뀌므로,
   // 사람이 눈으로 확인하는 단계를 화면에서도 강제한다.
+  audit: {
+    checklistDraft: (sector: string, lang = "ko") =>
+      get<ChecklistDraft>(`/api/audit/checklist/draft?sector=${encodeURIComponent(sector)}&lang=${lang}`),
+    checklists: () => get<{ checklists: ChecklistSummary[] }>("/api/audit/checklists"),
+    checklist: (cid: string) =>
+      get<ChecklistRecord>(`/api/audit/checklists/${encodeURIComponent(cid)}`),
+    saveChecklist: (payload: Record<string, unknown>) =>
+      post<ChecklistRecord>("/api/audit/checklists", payload),
+    deleteChecklist: (cid: string) =>
+      del<{ deleted: string }>(`/api/audit/checklists/${encodeURIComponent(cid)}`),
+  },
+
   wiki: {
     health: () => get<WikiHealth>("/api/wiki/health"),
     schema: () => get<Record<string, unknown>>("/api/wiki/schema"),
@@ -1243,6 +1478,23 @@ export const api = {
     /** PDF → 위키 저장. 적재 게이트를 통과하지 못하면 아무것도 쓰지 않는다. */
     ingest: (file: File, site: string, sector?: string, owner?: string) =>
       upload<WikiBuildResult>("/api/wiki/ingest", file, { site, sector, owner }),
+
+    /** RAG(rag.ets0404.com)에 이미 적재된 문서 목록. 원본이 보관된 것만 온다. */
+    ragDocuments: () =>
+      get<{ enabled: boolean; documents: RagDocument[]; count: number; reason?: string }>(
+        "/api/wiki/rag/documents"
+      ),
+    /** RAG 문서로 초안만 만든다. 저장하지 않는다. */
+    ragPreview: (documentId: number, site: string, sector?: string, owner?: string) => {
+      const q = new URLSearchParams({ site, owner: owner ?? "" });
+      if (sector) q.set("sector", sector);
+      return get<WikiBuildResult>(`/api/wiki/rag/documents/${documentId}/preview?${q}`);
+    },
+    /** RAG 문서를 위키에 저장한다. 서명(owner)이 없으면 서버가 400 으로 막는다. */
+    ragIngest: (documentId: number, site: string, sector: string | undefined, owner: string) =>
+      post<WikiBuildResult>("/api/wiki/rag/ingest", {
+        document_id: documentId, site, sector, owner,
+      }),
     pages: (acl: WikiAcl, type?: string, status?: string) =>
       get<{ pages: WikiPageSummary[]; stats: WikiStats; types: WikiTypeInfo[] }>(
         `/api/wiki/pages?acl=${acl}` +

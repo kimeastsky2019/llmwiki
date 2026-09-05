@@ -13,10 +13,12 @@ import {
 } from "./api";
 import { useLang } from "./i18n";
 import RiskWizard from "./RiskWizard";
+import Services from "./Services";
 
-export type RegTab = "risk" | "assess" | "coverage" | "changes" | "graph";
+/** 서비스가 맨 앞이다 — 규제 작업의 출발점은 조직 현황이 아니라 서비스 하나다. */
+export type RegTab = "services" | "risk" | "assess" | "coverage" | "changes" | "graph";
 
-export const REG_TABS: RegTab[] = ["risk", "assess", "coverage", "changes", "graph"];
+export const REG_TABS: RegTab[] = ["services", "risk", "assess", "coverage", "changes", "graph"];
 
 /** 판정값 → CSS 클래스. 색은 화면에서만 쓰고 판정 자체는 서버가 정한다. */
 const VERDICT_CLASS: Record<string, string> = {
@@ -47,10 +49,10 @@ function readSigner(): string {
 
 export default function Compliance({
   tab,
-  onTab,
+  onNavigate,
 }: {
   tab: RegTab;
-  onTab: (t: RegTab) => void;
+  onNavigate: (path: string) => void;
 }) {
   const { t } = useLang();
   const [signer, setSignerState] = useState(readSigner);
@@ -82,35 +84,21 @@ export default function Compliance({
       <h1>{t("regTitle")}</h1>
       <p className="lede">{t("regLede")}</p>
 
-      <div className="reg-tabs" role="tablist">
-        {REG_TABS.map((key) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={tab === key}
-            className={tab === key ? "active" : ""}
-            onClick={() => onTab(key)}
-          >
-            {t(
-              key === "risk"
-                ? "riskTabRisk"
-                : key === "assess"
-                  ? "regTabAssess"
-                  : key === "coverage"
-                    ? "regTabCoverage"
-                    : key === "changes"
-                      ? "regTabChanges"
-                      : "regTabGraph"
-            )}
-          </button>
-        ))}
-      </div>
 
       {err && <div className="banner error">{err}</div>}
 
+      {/* 서비스가 유일한 합류점이다. 여기서 프로그램을 묶어야 그 뒤 단계가 의미를 갖는다. */}
+      {tab === "services" && (
+        <Services
+          key={`s${refresh}`}
+          onError={setErr}
+          onOpen={(uuid) => onNavigate(`/svc/${encodeURIComponent(uuid)}`)}
+        />
+      )}
+
       {/* 위험등급 산정은 그래프가 아니라 32항목 배점으로 답한다 —
           같은 화면에 있지만 파이프라인이 다르다. */}
-      {tab === "risk" && <RiskWizard key={`r${refresh}`} />}
+      {tab === "risk" && <RiskWizard key={`r${refresh}`} onNavigate={onNavigate} />}
 
       {tab === "assess" && (
         <AssessTab

@@ -8,6 +8,8 @@ import {
   type RiskMaster,
   type RiskResult,
   type RiskDraftRow,
+  type RegCodeHints,
+  type RegHintEvidence,
 } from "./api";
 import { useLang } from "./i18n";
 
@@ -64,7 +66,11 @@ function fmt(n: number | null | undefined, decimals = 1): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(decimals);
 }
 
-export default function RiskWizard() {
+export default function RiskWizard({
+  onNavigate,
+}: {
+  onNavigate?: (path: string) => void;
+}) {
   const { t } = useLang();
   const [master, setMaster] = useState<RiskMaster | null>(null);
   const [input, setInput] = useState<RiskInput>(emptyInput);
@@ -74,6 +80,8 @@ export default function RiskWizard() {
   const [signer, setSigner] = useState(readSigner);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // 코드 근거 제안. 서비스가 정해져야 무엇을 근거로 삼을지가 정해진다.
+  const [hints, setHints] = useState<RegCodeHints | null>(null);
 
   useEffect(() => {
     api.reg.risk.master().then(setMaster).catch((e) => setErr(e.message));
@@ -99,6 +107,25 @@ export default function RiskWizard() {
       alive = false;
     };
   }, [input]);
+
+  // 서비스가 바뀌면 근거도 바뀐다. 제안은 채우지 않고 옆에 놓기만 한다 —
+  // 자동으로 채우면 사람이 검토하지 않고 넘어가고, 그 순간 감리에서 설명할 수
+  // 없는 값이 등급에 들어간다.
+  useEffect(() => {
+    const uuid = (input.service_uuid ?? "").trim();
+    if (!uuid) {
+      setHints(null);
+      return;
+    }
+    let alive = true;
+    api.reg.risk
+      .suggest({ service_uuid: uuid })
+      .then((r) => alive && setHints(r))
+      .catch(() => alive && setHints(null));
+    return () => {
+      alive = false;
+    };
+  }, [input.service_uuid]);
 
   const patch = useCallback((next: Partial<RiskInput>) => {
     setInput((cur) => ({ ...cur, ...next }));
@@ -210,12 +237,21 @@ export default function RiskWizard() {
             <Step2
               master={master}
               input={input}
+              hints={hints}
+              onNavigate={onNavigate}
               onProfile={(k, v) => patch({ profile: { ...input.profile, [k]: v } })}
               onService={(uuid, name) => patch({ service_uuid: uuid, service_name: name })}
             />
           )}
           {step === 3 && (
-            <Step3 master={master} input={input} result={result} onItem={setItem} />
+            <Step3
+              master={master}
+              input={input}
+              result={result}
+              hints={hints}
+              onNavigate={onNavigate}
+              onItem={setItem}
+            />
           )}
           {step === 4 && (
             <Step4 master={master} input={input} result={result} onItem={setItem} />
@@ -412,15 +448,20 @@ function Step1({
 function Step2({
   master,
   input,
+  hints,
+  onNavigate,
   onProfile,
   onService,
 }: {
   master: RiskMaster;
   input: RiskInput;
+  hints: RegCodeHints | null;
+  onNavigate?: (path: string) => void;
   onProfile: (key: string, value: string) => void;
   onService: (uuid: string, name: string) => void;
 }) {
   const { t } = useLang();
+  const hinted = new Map((hints?.profile ?? []).map((h) => [h.axis, h]));
   return (
     <>
       <h2>{t("riskStep2")}</h2>
@@ -448,9 +489,28 @@ function Step2({
           근거 없는 제외가 되므로, 안내라는 것을 화면에 명시한다. */}
       <div className="banner note">{master.evaluation_set.note}</div>
 
+      {hints && (
+        <div className="hint-head">
+          <b>{t("riskHintTitle")}</b> <span className="muted small">{t("riskHintNote")}</span>
+        </div>
+      )}
+      {hints && hints.profile.length === 0 && (
+        <div className="banner note">{t("riskHintNoFacts")}</div>
+      )}
+
       {master.profile_axes.map((axis) => (
         <section key={axis.key} className="risk-group">
           <h3>{axis.label}</h3>
+          {hinted.get(axis.key) && (
+            <HintBox
+              because={hinted.get(axis.key)!.because}
+              evidence={hinted.get(axis.key)!.evidence}
+              actionLabel={t("riskHintApply")}
+              applied={input.profile[axis.key] === hinted.get(axis.key)!.value}
+              onApply={() => onProfile(axis.key, hinted.get(axis.key)!.value)}
+              onNavigate={onNavigate}
+            />
+          )}
           <div className="risk-choices">
             {axis.options.map((opt) => (
               <label
@@ -469,6 +529,21 @@ function Step2({
           </div>
         </section>
       ))}
+
+      {/* 코드가 답할 수 없는 것을 화면에 남긴다. "무엇을 자동으로 채웠나" 에
+          답하려면 채우지 못한 것도 함께 보여야 한다. */}
+      {hints && hints.unanswerable.length > 0 && (
+        <section className="risk-group hint-unknown">
+          <h3>{t("riskHintUnanswerable")}</h3>
+          <ul>
+            {hints.unanswerable.map((u) => (
+              <li key={u.key}>
+                <code>{u.key}</code> — {u.reason}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </>
   );
 }
@@ -482,12 +557,16 @@ function ItemTable({
   result,
   onItem,
   mode,
+  hints,
+  onNavigate,
 }: {
   master: RiskMaster;
   input: RiskInput;
   result: RiskResult | null;
   onItem: (no: number, next: Partial<RiskItemInput>) => void;
   mode: "identify" | "mitigate";
+  hints?: RegCodeHints | null;
+  onNavigate?: (path: string) => void;
 }) {
   const { t } = useLang();
   const [lv1, setLv1] = useState<string>("");
@@ -516,6 +595,11 @@ function ItemTable({
     [master, lv1, mode, input]
   );
   const scored = new Map((result?.rows ?? []).map((r) => [r.no, r]));
+  // 코드 근거는 STEP 3(식별)에서만 뜬다. 완화 단계는 운영 절차의 문제라
+  // 정적 분석이 답할 것이 없다.
+  const hinted = new Map(
+    mode === "identify" ? (hints?.items ?? []).map((h) => [h.no, h]) : []
+  );
 
   return (
     <>
@@ -629,6 +713,21 @@ function ItemTable({
                     </button>
                   </td>
                 </tr>
+                {hinted.get(spec.no) && (
+                  <tr className="hint-row">
+                    <td />
+                    <td colSpan={mode === "identify" ? 6 : 8}>
+                      <HintBox
+                        because={hinted.get(spec.no)!.because}
+                        evidence={hinted.get(spec.no)!.evidence}
+                        actionLabel={t("riskHintCheck")}
+                        applied={cur.identified}
+                        onApply={() => onItem(spec.no, { identified: true })}
+                        onNavigate={onNavigate}
+                      />
+                    </td>
+                  </tr>
+                )}
                 {asking === spec.no && (
                   <tr className="advice-row">
                     <td colSpan={mode === "identify" ? 7 : 9}>
@@ -636,6 +735,7 @@ function ItemTable({
                         itemNo={spec.no}
                         stage={mode}
                         input={input}
+                        programIds={hints?.facts.program_ids ?? []}
                         advisors={advisors}
                         allowExternal={allowExternal}
                         onAllowExternal={setAllowExternal}
@@ -677,6 +777,7 @@ function AdvicePanel({
   allowExternal,
   onAllowExternal,
   onClose,
+  programIds,
 }: {
   itemNo: number;
   stage: "identify" | "mitigate";
@@ -685,6 +786,8 @@ function AdvicePanel({
   allowExternal: boolean;
   onAllowExternal: (v: boolean) => void;
   onClose: () => void;
+  /** 조언이 근거로 삼을 프로그램. 비면 모델이 코드 사실 없이 답한다. */
+  programIds?: string[];
 }) {
   const { t } = useLang();
   const [advice, setAdvice] = useState<RiskAdvice | null>(null);
@@ -702,7 +805,7 @@ function AdvicePanel({
         stage,
         service: input.service_name || input.service_uuid || "",
         profile: input.profile,
-        program_ids: [],
+        program_ids: programIds,
         note: itemOf(input, itemNo).note ?? "",
         allow_external: allowExternal,
       });
@@ -717,7 +820,7 @@ function AdvicePanel({
     } finally {
       setBusy(false);
     }
-  }, [itemNo, stage, input, allowExternal]);
+  }, [itemNo, stage, input, allowExternal, programIds]);
 
   useEffect(() => {
     ask();
@@ -842,6 +945,8 @@ function Step3(props: {
   master: RiskMaster;
   input: RiskInput;
   result: RiskResult | null;
+  hints: RegCodeHints | null;
+  onNavigate?: (path: string) => void;
   onItem: (no: number, next: Partial<RiskItemInput>) => void;
 }) {
   const { t } = useLang();
@@ -1080,6 +1185,80 @@ function DraftList({
           </button>
         </div>
       ))}
+    </div>
+  );
+}
+
+
+// --------------------------------------------------------------------------
+// 코드 근거 제안 — 제안이지 판정이 아니다
+//
+// 화면에서 이 둘이 구분되지 않으면, 자동화한 만큼 감리에서 되돌려 받는다.
+// 그래서 제안은 **점선 테두리 + 근거 링크**로 그리고, 사람이 누르는 순간에만
+// 값이 입력으로 들어간다. 체크박스를 미리 켜 두지 않는 이유가 이것이다.
+// 색만으로 구분하지 않도록 '후보' 라는 글자도 함께 낸다.
+// --------------------------------------------------------------------------
+function EvidenceLinks({
+  evidence,
+  onNavigate,
+}: {
+  evidence: RegHintEvidence[];
+  onNavigate?: (path: string) => void;
+}) {
+  const { t } = useLang();
+  if (!evidence.length) return null;
+  return (
+    <span className="hint-ev">
+      <span className="muted small">{t("riskHintEvidence")}</span>
+      {evidence.map((e) => {
+        const path =
+          e.kind === "program"
+            ? `/p/${encodeURIComponent(e.id)}`
+            : e.kind === "table"
+              ? `/t/${encodeURIComponent(e.id)}`
+              : "";
+        if (path && onNavigate) {
+          return (
+            <button key={`${e.kind}:${e.id}`} className="hint-ev-item linkish"
+                    onClick={() => onNavigate(path)}>
+              {e.label}
+            </button>
+          );
+        }
+        return (
+          <span key={`${e.kind}:${e.id}`} className="hint-ev-item">
+            {e.label}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+function HintBox({
+  because,
+  evidence,
+  actionLabel,
+  applied,
+  onApply,
+  onNavigate,
+}: {
+  because: string;
+  evidence: RegHintEvidence[];
+  actionLabel: string;
+  applied: boolean;
+  onApply: () => void;
+  onNavigate?: (path: string) => void;
+}) {
+  const { t } = useLang();
+  return (
+    <div className={`hint ${applied ? "applied" : ""}`}>
+      <span className="hint-tag">{t("riskHintCandidate")}</span>
+      <span className="hint-why">{because}</span>
+      <EvidenceLinks evidence={evidence} onNavigate={onNavigate} />
+      <button className="sb-mini" onClick={onApply} disabled={applied}>
+        {applied ? t("riskHintApplied") : actionLabel}
+      </button>
     </div>
   );
 }
