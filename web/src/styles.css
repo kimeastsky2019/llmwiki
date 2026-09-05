@@ -1157,6 +1157,20 @@ th { background: #f1f3f7; font-weight: 650; white-space: nowrap; }
 .risk-table tr.on { background: #fffbeb; }
 .risk-lv3 { font-weight: 600; }
 .risk-table .small { font-size: 11px; }
+/* 평가기준·권장 경감방안 — 기준 마스터의 참고 문구다. 판정이 아니라서
+   본문보다 한 단계 죽여 둔다.
+   ★ 폭을 명시하는 이유: 표가 width:100% 라 칸이 늘면 브라우저가 위험항목 이름을
+   한 글자씩 세로로 접는다. 이름 칸에 하한을 주고, 넘치면 표를 가로로 흘린다
+   (.risk-table-wrap 이 스크롤한다) — 이름이 읽히는 쪽이 먼저다. */
+.risk-table td.risk-name { min-width: 16ch; }
+.risk-criteria {
+  margin-top: 4px; min-width: 30ch; max-width: 46ch;
+  font-size: 11px; line-height: 1.5; color: var(--muted);
+}
+.risk-table td.risk-mitigation {
+  min-width: 22ch; max-width: 30ch;
+  font-size: 11px; line-height: 1.5; color: var(--muted);
+}
 .risk-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .risk-residual { display: inline-flex; gap: 4px; }
 .risk-residual .chip { min-width: 30px; text-align: center; }

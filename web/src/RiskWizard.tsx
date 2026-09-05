@@ -634,6 +634,7 @@ function ItemTable({
                 <th>{t("riskIdentified")}</th>
               ) : (
                 <>
+                  <th title={t("riskReferenceOnly")}>{t("riskMitigationCol")}</th>
                   <th>{t("riskMitigated")}</th>
                   <th>{t("riskResidual")}</th>
                   <th className="num">{t("riskWeight")}</th>
@@ -651,11 +652,18 @@ function ItemTable({
                 <Fragment key={spec.no}>
                 <tr className={cur.identified ? "on" : ""}>
                   <td className="num">{spec.no}</td>
-                  <td>
+                  <td className="risk-name">
                     <div className="risk-lv3">{spec.lv3}</div>
                     <div className="muted small">
                       {spec.lv1} · {spec.lv2} · {spec.owner}
                     </div>
+                    {/* 평가기준 — Yes/No 를 누르기 전에 무엇을 묻는 항목인지 보여 준다.
+                        완화 단계에서는 옆에 경감방안 칸이 서므로 여기서 물러난다. */}
+                    {spec.criteria && mode === "identify" && (
+                      <div className="risk-criteria" title={t("riskReferenceOnly")}>
+                        {spec.criteria}
+                      </div>
+                    )}
                   </td>
                   <td className="muted small">{spec.lv2}</td>
                   <td className="num">{spec.points}</td>
@@ -672,6 +680,9 @@ function ItemTable({
                     </td>
                   ) : (
                     <>
+                      <td className="risk-mitigation" title={t("riskReferenceOnly")}>
+                        {spec.mitigation ?? ""}
+                      </td>
                       <td>
                         <label className="risk-toggle">
                           <input
@@ -716,7 +727,7 @@ function ItemTable({
                 {hinted.get(spec.no) && (
                   <tr className="hint-row">
                     <td />
-                    <td colSpan={mode === "identify" ? 6 : 8}>
+                    <td colSpan={mode === "identify" ? 6 : 9}>
                       <HintBox
                         because={hinted.get(spec.no)!.because}
                         evidence={hinted.get(spec.no)!.evidence}
@@ -730,7 +741,7 @@ function ItemTable({
                 )}
                 {asking === spec.no && (
                   <tr className="advice-row">
-                    <td colSpan={mode === "identify" ? 7 : 9}>
+                    <td colSpan={mode === "identify" ? 7 : 10}>
                       <AdvicePanel
                         itemNo={spec.no}
                         stage={mode}

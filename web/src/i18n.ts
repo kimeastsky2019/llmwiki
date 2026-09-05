@@ -332,6 +332,9 @@ const STRINGS = {
     riskResidual: "Residual",
     riskWeight: "Weight",
     riskScore: "score",
+    riskMitigationCol: "권장 경감방안",
+    riskReferenceOnly:
+      "기준 마스터의 참고 문구입니다. 이 서비스를 보고 도출한 것이 아니고 점수에도 들어가지 않습니다.",
     riskNothingIdentified: "STEP 3 에서 식별한 위험이 없습니다. 완화할 항목이 없습니다.",
     riskNoMitigation: "완화방안 미적용",
     riskRecognized: "인식 위험 점수",
@@ -1011,6 +1014,9 @@ const STRINGS = {
     riskResidual: "Residual",
     riskWeight: "Weight",
     riskScore: "score",
+    riskMitigationCol: "Suggested mitigation",
+    riskReferenceOnly:
+      "Reference text from the criteria master. It was not derived from this service and does not affect the score.",
     riskNothingIdentified: "No risks were identified in STEP 3, so there is nothing to mitigate.",
     riskNoMitigation: "no mitigation applied",
     riskRecognized: "Recognised risk score",

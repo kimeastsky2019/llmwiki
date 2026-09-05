@@ -220,6 +220,10 @@ export interface RiskItemSpec {
   lv3: string;
   points: number;
   owner: string;
+  /** 평가기준·권장 경감방안. 참고 문구라 점수 계산에는 들어가지 않는다.
+   *  마스터에 없던 시절의 서버와도 붙을 수 있어야 해서 선택 필드다. */
+  criteria?: string;
+  mitigation?: string;
 }
 
 export interface RiskGradeBand {
