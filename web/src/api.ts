@@ -600,6 +600,9 @@ export interface SheetQuestion {
   help: string;
   /** 32항목 연결. 없으면 null */
   item_no: number | null;
+  /** 어느 답이 위험 신호인가. yesno 는 "yes"|"no", 보기형은 보기 목록.
+   *  비어 있으면 후보를 만들지 않는다 — 방향을 모르면 반대로 읽는다. */
+  risk_when?: string | string[];
   /** sLM 초안에서 온 질문. 관리자가 손대면 지워진다. */
   drafted_by_slm?: boolean;
 }
@@ -623,6 +626,21 @@ export interface SheetMeta {
   kinds: string[];
   default_scale: string[];
   items: { no: number; label: string }[];
+}
+
+/** 자가진단 응답. 답에서 나오는 것은 전부 후보다 — 등급·점수 자리가 없다. */
+export interface SelfResponse {
+  sheet_id: string;
+  sheet_title: string;
+  /** 어느 버전에 답했는지. 표가 바뀌어도 이 답의 뜻은 바뀌지 않는다. */
+  sheet_version: number;
+  service_uuid: string;
+  service_name: string;
+  answers: Record<string, string | string[]>;
+  candidates: { item_no: number; label: string; because: string; source: string; confidence: string }[];
+  answered_by: string;
+  answered_at: string;
+  note: string;
 }
 
 /** 데이터 폴더 분석. 수치는 전부 서버의 룰이 센다 — LLM 이 개입하지 않는다. */
@@ -1558,6 +1576,17 @@ export const api = {
       post<{ questions: SheetQuestion[]; ok: boolean; reason: string; model: string }>(
         "/api/reg/sheets/draft", { topic, count }
       ),
+
+    /** 자가진단 — 발행된 표와 이미 답한 것. */
+    responses: (service?: string) =>
+      get<{ sheets: RegSheet[]; responses: SelfResponse[];
+            services: { uuid: string; name: string }[] }>(
+        `/api/reg/responses${service ? `?service=${encodeURIComponent(service)}` : ""}`
+      ),
+    saveResponse: (body: {
+      sheet_id: string; service_uuid: string; by: string;
+      answers: Record<string, string | string[]>;
+    }) => post<SelfResponse>("/api/reg/responses", body),
 
     /** 데이터 폴더 분석. 파일은 임시 폴더에서만 읽히고 분석 후 지워진다. */
     analyzeData: (files: File[]) => {

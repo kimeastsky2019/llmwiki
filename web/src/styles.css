@@ -2451,3 +2451,37 @@ button.hint-ev-item:hover { text-decoration: underline; }
   padding: 6px 9px; background: var(--panel); color: var(--text);
   font-family: inherit; font-size: 13px;
 }
+
+
+/* 자가진단 — 담당자가 채우는 화면 */
+.sc-pick { display: flex; gap: 14px; flex-wrap: wrap; margin: var(--gap-s) 0 6px; }
+.sc-pick label { display: flex; flex-direction: column; gap: 4px; }
+.sc-pick span { font-size: 11.5px; color: var(--muted); }
+.sc-pick select, .sc-pick input {
+  border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px;
+  background: var(--panel); color: var(--text); font-family: inherit; font-size: 13px;
+}
+.sc-q {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 13px 15px; margin: 10px 0;
+}
+.sc-q-head { display: flex; gap: 10px; align-items: flex-start; }
+.sc-q-text { font-size: 14px; font-weight: 600; }
+.sc-req { color: var(--blocked); margin-left: 3px; }
+.sc-q-body { margin: 10px 0 0 32px; }
+/* 보기 — 라디오와 체크박스가 같은 모양이면 하나만 고르는지 여럿인지 모른다.
+   브라우저 기본 컨트롤을 그대로 쓰는 이유다. */
+.sc-choices { display: flex; gap: 14px; flex-wrap: wrap; }
+.sc-choices label { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; cursor: pointer; }
+.sc-q textarea {
+  width: 100%; border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; font-family: inherit; font-size: 13.5px;
+  background: var(--panel); color: var(--text); resize: vertical;
+}
+.sc-result { margin-top: var(--gap-l); }
+
+/* 평가표 편집기의 '위험 신호' 칸 */
+.sh-risk { display: flex; flex-direction: column; gap: 4px; margin-top: 9px; }
+.sh-risk > span:first-child { font-size: 11.5px; color: var(--muted); }
+.sh-risk-opts { display: flex; gap: 12px; flex-wrap: wrap; }
+.sh-risk-opts label { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; }

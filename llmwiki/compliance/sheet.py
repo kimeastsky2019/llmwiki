@@ -90,6 +90,19 @@ def validate(questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if kind in ("yesno", "text"):
             options = []
 
+        # 어느 답이 위험 신호인가. 이것이 없으면 답을 32항목으로 옮길 수 없다 —
+        # "측정했는가?" 는 아니오가 위험이고 "민감정보를 쓰는가?" 는 예가 위험이라,
+        # 방향을 사람이 정해 주지 않으면 기계가 반대로 읽는다.
+        # ★ 비워 두면 후보를 만들지 않는다. 찍는 것보다 안 만드는 쪽이 낫다.
+        risk_when = raw.get("risk_when")
+        if kind == "yesno":
+            risk_when = risk_when if risk_when in ("yes", "no") else ""
+        elif kind in ("single", "multi", "scale"):
+            picked = [str(o) for o in (risk_when or []) if str(o) in options]
+            risk_when = picked
+        else:
+            risk_when = ""
+
         item_no = raw.get("item_no")
         try:
             item_no = int(item_no) if item_no not in (None, "") else None
@@ -107,6 +120,7 @@ def validate(questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "help": str(raw.get("help", "")).strip(),
             # 32항목과 이어 두면 자가진단 결과가 어느 위험 항목의 근거인지 남는다.
             "item_no": item_no,
+            "risk_when": risk_when,
             # sLM 초안에서 온 질문인지. 관리자가 손대면 화면이 이 표시를 지운다.
             "drafted_by_slm": bool(raw.get("drafted_by_slm")),
         })

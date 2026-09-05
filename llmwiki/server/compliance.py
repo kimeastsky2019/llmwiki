@@ -22,7 +22,7 @@ from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFil
 
 from ..compliance import advise as advisor
 from ..compliance import (analysis, approval, assist, changeset as cs, codehints,
-                          dataprofile, propose, riskassess, rules, sheet, verify)
+                          dataprofile, propose, response, riskassess, rules, sheet, verify)
 from ..compliance import i18n
 from ..compliance.ontology import (
     AUTO_LEVELS,
@@ -738,6 +738,50 @@ def sheet_draft(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return {"questions": questions, **reply.to_dict()}
+
+
+@router.get("/responses")
+def responses(service: str | None = Query(None), lang: str | None = Query(None)) -> dict[str, Any]:
+    """자가진단 응답 — 발행된 표와, 서비스별로 이미 답한 것."""
+    store = _store()
+    published = [r for r in sheet.latest(store).values() if r["status"] == sheet.PUBLISHED]
+    rows = list(response.latest(store).values())
+    if service:
+        rows = [r for r in rows if r["service_uuid"] == service]
+
+    names = {
+        str(n["props"].get("uuid")): _pick(n["props"], "name", lang)
+        for n in store.approved().of_type("Service")
+    }
+    return {
+        "sheets": published,
+        "responses": sorted(
+            ({**r, "service_name": names.get(r["service_uuid"], r["service_uuid"])}
+             for r in rows),
+            key=lambda r: str(r.get("answered_at")), reverse=True,
+        ),
+        "services": [{"uuid": u, "name": n} for u, n in sorted(names.items(), key=lambda kv: kv[1])],
+    }
+
+
+@router.post("/responses")
+def response_save(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """답을 남긴다. 32항목 후보가 함께 돌아온다 — **판정이 아니다.**"""
+    store = _store()
+    rec = sheet.latest(store).get(str(payload.get("sheet_id", "")))
+    if rec is None:
+        raise HTTPException(404, "평가표를 찾을 수 없다")
+    try:
+        return response.save(
+            store,
+            sheet_rec=rec,
+            service_uuid=str(payload.get("service_uuid", "")),
+            answers=dict(payload.get("answers") or {}),
+            by=str(payload.get("by", "")),
+            note=str(payload.get("note", "")).strip(),
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @router.get("/controls")

@@ -154,6 +154,9 @@ def test_there_is_no_endpoint_that_writes_the_graph_directly():
         "/api/reg/sheets/{sheet_id}/publish",
         # 초안은 저장하지 않는다 — 조언과 같은 이유로 POST 다.
         "/api/reg/sheets/draft",
+        # 자가진단 응답 — 별도 append-only 파일(responses.jsonl). 답에서
+        # 나오는 32항목은 전부 후보라 승인 그래프를 건드리지 않는다.
+        "/api/reg/responses",
     }
 
 
@@ -857,3 +860,77 @@ def test_slm_drafts_are_marked_and_not_saved(client, monkeypatch):
     assert assist_mod._parse_questions(noisy)[0]["kind"] == "yesno"
     # 형식을 어기면 버린다 — 반쯤 파싱된 것을 화면에 올리지 않는다
     assert assist_mod._parse_questions("죄송합니다 만들 수 없습니다") == []
+
+
+# --------------------------------------------------------------------------- #
+# 자가진단 응답 — 답이 32항목 후보로 이어진다
+# --------------------------------------------------------------------------- #
+def _published_sheet(client) -> str:
+    made = client.post("/api/reg/sheets", json={
+        "title": "자가진단 시험표", "by": "admin",
+        "questions": [
+            # "측정했는가?" 는 **아니오**가 위험이다
+            {"text": "집단별 분포를 측정했는가?", "kind": "yesno",
+             "risk_when": "no", "item_no": 10},
+            # 보기 중 특정 값이 위험이다
+            {"text": "수집 항목", "kind": "multi",
+             "options": ["성명", "연락처", "주민번호"],
+             "risk_when": ["주민번호"], "item_no": 32},
+            # 방향을 안 정한 질문 — 후보를 만들면 안 된다
+            {"text": "방향 미지정", "kind": "yesno", "item_no": 7},
+            {"text": "비고", "kind": "text", "required": False},
+        ],
+    }).json()
+    client.post(f"/api/reg/sheets/{made['sheet_id']}/publish", json={"by": "admin"})
+    return made["sheet_id"]
+
+
+def test_answers_become_candidates_in_the_right_direction(client):
+    sid = _published_sheet(client)
+    res = client.post("/api/reg/responses", json={
+        "sheet_id": sid, "service_uuid": "svc-call-summary", "by": "planner-a",
+        "answers": {"1": "no", "2": ["성명", "주민번호"], "3": "yes"},
+    })
+    assert res.status_code == 200, res.text
+    body = res.json()
+
+    items = {c["item_no"] for c in body["candidates"]}
+    assert 10 in items, "'측정했는가'에 아니오 → 편향성 후보"
+    assert 32 in items, "주민번호를 고르면 과다수집 후보"
+    assert 7 not in items, "방향을 안 정한 질문은 후보를 만들지 않는다"
+    assert all(c["confidence"] == "candidate" for c in body["candidates"])
+    # 어느 표의 몇 번 버전에 답했는지 남는다
+    assert body["sheet_version"] == 1
+    assert "v1" in body["candidates"][0]["source"]
+
+
+def test_the_opposite_answer_makes_no_candidate(client):
+    sid = _published_sheet(client)
+    body = client.post("/api/reg/responses", json={
+        "sheet_id": sid, "service_uuid": "svc-fraud-detect", "by": "planner-a",
+        "answers": {"1": "yes", "2": ["성명"], "3": "no"},
+    }).json()
+    assert body["candidates"] == [], "위험 신호가 아닌 답은 후보를 만들지 않는다"
+
+
+def test_required_questions_must_be_answered(client):
+    sid = _published_sheet(client)
+    res = client.post("/api/reg/responses", json={
+        "sheet_id": sid, "service_uuid": "svc-marketing-rec", "by": "planner-a",
+        "answers": {"1": "no"},
+    })
+    assert res.status_code == 400
+    assert "필수" in res.json()["detail"]
+
+
+def test_only_published_sheets_can_be_answered(client):
+    draft = client.post("/api/reg/sheets", json={
+        "title": "초안인 표", "by": "admin",
+        "questions": [{"text": "질문", "kind": "yesno"}],
+    }).json()
+    res = client.post("/api/reg/responses", json={
+        "sheet_id": draft["sheet_id"], "service_uuid": "svc-call-summary",
+        "by": "planner-a", "answers": {"1": "yes"},
+    })
+    assert res.status_code == 400
+    assert "발행" in res.json()["detail"]

@@ -36,7 +36,8 @@ const KIND_LABEL: Record<string, StringKey> = {
 const NEEDS_OPTIONS = new Set(["single", "multi", "scale"]);
 
 const EMPTY: SheetQuestion = {
-  no: 0, text: "", kind: "yesno", options: [], required: true, help: "", item_no: null,
+  no: 0, text: "", kind: "yesno", options: [], required: true, help: "",
+  item_no: null, risk_when: "",
 };
 
 export default function Sheets() {
@@ -300,6 +301,49 @@ function SheetEditor({
               <span>{t("shRequired")}</span>
             </label>
           </div>
+
+          {/* 어느 답이 위험 신호인가. 32항목에 걸었을 때만 묻는다.
+              비워 두면 자가진단 답이 후보로 이어지지 않는다 — 방향을 모르면
+              기계가 반대로 읽고, 반대로 읽은 후보는 없느니만 못하다. */}
+          {q.item_no != null && (
+            <label className="sh-risk">
+              <span>{t("shRiskWhen")}</span>
+              {q.kind === "yesno" ? (
+                <select
+                  value={typeof q.risk_when === "string" ? q.risk_when : ""}
+                  onChange={(e) => set(i, { risk_when: e.target.value })}
+                >
+                  <option value="">{t("shRiskNone")}</option>
+                  <option value="yes">{t("shRiskYes")}</option>
+                  <option value="no">{t("shRiskNo")}</option>
+                </select>
+              ) : NEEDS_OPTIONS.has(q.kind) ? (
+                <div className="sh-risk-opts">
+                  {(q.options ?? []).map((o) => {
+                    const cur = Array.isArray(q.risk_when) ? q.risk_when : [];
+                    return (
+                      <label key={o}>
+                        <input
+                          type="checkbox"
+                          checked={cur.includes(o)}
+                          onChange={(e) =>
+                            set(i, {
+                              risk_when: e.target.checked
+                                ? [...cur, o]
+                                : cur.filter((x) => x !== o),
+                            })
+                          }
+                        />
+                        <span>{o}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                <span className="muted small">{t("shRiskNA")}</span>
+              )}
+            </label>
+          )}
 
           {NEEDS_OPTIONS.has(q.kind) && (
             <label className="sh-opts">

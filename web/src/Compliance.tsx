@@ -17,6 +17,7 @@ import RiskWizard from "./RiskWizard";
 import Controls from "./Controls";
 import Approvals from "./Approvals";
 import Operations from "./Operations";
+import SelfCheck from "./SelfCheck";
 import Sheets from "./Sheets";
 import Overview from "./Overview";
 import Process from "./Process";
@@ -24,10 +25,10 @@ import Services from "./Services";
 
 /** 서비스가 맨 앞이다 — 규제 작업의 출발점은 조직 현황이 아니라 서비스 하나다. */
 export type RegTab =
-  | "overview" | "process" | "services" | "approvals" | "ops" | "sheets" | "risk" | "assess" | "controls" | "coverage" | "changes" | "graph";
+  | "overview" | "process" | "services" | "approvals" | "ops" | "sheets" | "selfcheck" | "risk" | "assess" | "controls" | "coverage" | "changes" | "graph";
 
 export const REG_TABS: RegTab[] =
-  ["overview", "process", "services", "risk", "approvals", "ops", "assess", "controls", "sheets", "coverage", "changes", "graph"];
+  ["overview", "process", "services", "risk", "approvals", "selfcheck", "ops", "assess", "controls", "sheets", "coverage", "changes", "graph"];
 
 /** 판정값 → CSS 클래스. 색은 화면에서만 쓰고 판정 자체는 서버가 정한다. */
 const VERDICT_CLASS: Record<string, string> = {
@@ -125,6 +126,7 @@ export default function Compliance({
       {tab === "overview" && <Overview roleCode={roleCode} onNavigate={onNavigate} />}
       {tab === "approvals" && <Approvals key={`ap${refresh}`} roleCode={roleCode} />}
       {tab === "sheets" && <Sheets key={`sh${refresh}`} />}
+      {tab === "selfcheck" && <SelfCheck key={`sc${refresh}`} onNavigate={onNavigate} />}
       {tab === "ops" && <Operations key={`op${refresh}`} onNavigate={onNavigate} />}
       {tab === "process" && <Process key={`pr${refresh}`} onNavigate={onNavigate} />}
       {tab === "controls" && <Controls key={`ct${refresh}`} />}
