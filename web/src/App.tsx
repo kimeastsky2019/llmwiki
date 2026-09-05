@@ -372,29 +372,6 @@ export default function App() {
             <LangToggle lang={lang} onChange={setLang} />
           </div>
 
-          {/* 역할 — RMF 상의 롤(회의 2026-09-05). 고른 역할이 실제로 쓰는
-              메뉴만 남긴다. ★ 권한이 아니라 보기 필터다. 실제 권한은 SSO·인사
-              테이블 연동 위에서 서버가 판단해야 한다. */}
-          <div className="role-pick">
-            <label>
-              <span className="role-label">{t("roleTitle")}</span>
-              <select
-                value={roleCode}
-                onChange={(e) => {
-                  const next = e.target.value as RoleCode;
-                  setRoleCode(next);
-                  storeRole(next);
-                }}
-              >
-                {ROLES.map((r) => (
-                  <option key={r.code} value={r.code}>{t(r.labelKey)}</option>
-                ))}
-              </select>
-            </label>
-            <span className="role-desc">{t(roleOf(roleCode).descKey)}</span>
-            {roleCode !== "all" && <span className="role-note">{t("roleFilterNote")}</span>}
-          </div>
-
           {/* 솔루션 전환 — 대상과 사용자가 다른 두 작업 공간을 가른다.
               한 사이드바에 여섯 개를 늘어놓으면 '테이블 목록' 옆에 '위키 관리자'가
               붙어, 처음 보는 사람은 이게 한 흐름인 줄 안다. */}
@@ -534,6 +511,29 @@ export default function App() {
         </aside>
 
         <main className="content">
+          {/* 역할 — 지금은 사람이 고르지만, 사내 포털과 연동되면 로그인 권한에서
+              내려온다. 그때 이 자리는 '고르는 곳' 이 아니라 '내가 누구인지 보는
+              곳' 이 된다. 그래서 화면 맨 위, 항상 보이는 자리에 둔다. */}
+          <div className="topbar">
+            <span className="topbar-role">
+              <label htmlFor="role-pick">{t("roleTitle")}</label>
+              <select
+                id="role-pick"
+                value={roleCode}
+                onChange={(e) => {
+                  const next = e.target.value as RoleCode;
+                  setRoleCode(next);
+                  storeRole(next);
+                }}
+              >
+                {ROLES.map((r) => (
+                  <option key={r.code} value={r.code}>{t(r.labelKey)}</option>
+                ))}
+              </select>
+            </span>
+            <span className="topbar-desc">{t(roleOf(roleCode).descKey)}</span>
+            <span className="topbar-note">{t("roleFilterNote")}</span>
+          </div>
           {error && <div className="banner error">{error}</div>}
           {route.kind === "home" && (
             <Home

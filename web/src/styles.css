@@ -2240,21 +2240,22 @@ button.hint-ev-item:hover { text-decoration: underline; }
 .linkish:hover { text-decoration: underline; }
 
 
-/* 역할 선택기 — 사이드바 맨 위. 솔루션 전환보다 위에 둔다.
-   "나는 누구인가" 가 "무엇을 볼 것인가" 보다 먼저다. */
-.role-pick {
-  padding: 10px 12px; margin-bottom: 10px;
-  border: 1px solid rgba(255,255,255,.10); border-radius: 10px;
-  background: rgba(255,255,255,.04);
+/* 역할 — 화면 맨 위 오른쪽. 목업의 헤더 콤보와 같은 자리다.
+   사내 포털과 연동되면 이 값은 로그인 권한에서 내려오므로, 그때 이 자리는
+   '고르는 곳' 이 아니라 '내가 누구인지 보는 곳' 이 된다. 자리를 미리 잡아 둔다. */
+.topbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 40px; border-bottom: 1px solid var(--line);
+  background: var(--panel);
 }
-.role-pick label { display: flex; align-items: center; gap: 8px; }
-.role-label { font-size: 11px; color: rgba(255,255,255,.55); font-weight: 700; }
-.role-pick select {
-  flex: 1; min-width: 0;
-  background: var(--sidebar-2); color: #fff;
-  border: 1px solid rgba(255,255,255,.14); border-radius: 7px;
-  padding: 5px 8px; font-family: inherit; font-size: 13px;
+.topbar-role { display: flex; align-items: center; gap: 7px; margin-left: auto; order: 2; }
+.topbar-role label { font-size: 11.5px; color: var(--muted); font-weight: 700; }
+.topbar select {
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 6px 12px; background: var(--panel); color: var(--text);
+  font-family: inherit; font-size: 13px; font-weight: 650;
 }
-.role-desc { display: block; margin-top: 6px; font-size: 11px; color: rgba(255,255,255,.55); line-height: 1.5; }
+.topbar select:hover { border-color: var(--accent); }
+.topbar-desc { order: 1; font-size: 12.5px; color: var(--muted); }
 /* 권한으로 오해하지 않도록 한 줄 덧붙인다 — 안 보이니까 못 한다고 읽히면 안 된다. */
-.role-note { display: block; margin-top: 4px; font-size: 10.5px; color: rgba(255,255,255,.40); line-height: 1.5; }
+.topbar-note { order: 3; flex-basis: 100%; font-size: 11px; color: var(--muted); }

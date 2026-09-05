@@ -83,7 +83,7 @@ export const SOLUTIONS: Solution[] = [
         roles: ["planner", "developer", "admin"] },
       { path: "/reg", labelKey: "regTabAssess", descKey: "solRegMenuAssessDesc",
         match: "/reg", tabs: ["assess"], step: 5,
-        roles: ["governance", "committee", "admin"] },
+        roles: ["governance", "committee", "verifier", "admin"] },
       // 아래 넷은 단계가 아니라 조직 전체를 보는 축이라 번호를 붙이지 않는다.
       // 기준 관리가 커버리지 앞에 온다 — 갭을 보기 전에 무엇을 기준으로 재는지가 먼저다.
       { path: "/reg/controls", labelKey: "regTabControls", descKey: "solRegMenuControlsDesc",
@@ -164,12 +164,10 @@ export const VISIBLE_SOLUTIONS: Solution[] = SOLUTIONS.filter((s) => !s.hidden);
 /** 이 역할이 볼 메뉴만 남긴다. `all` 이면 그대로 둔다.
  *  역할이 지정되지 않은 메뉴(업무 프로세스 등)는 모두가 본다 — 현황은 공통이다. */
 export function menusFor(sol: Solution, roleCode: RoleCode): SolutionMenu[] {
-  if (roleCode === "all") return sol.menus;
   return sol.menus.filter((m) => !m.roles || m.roles.includes(roleCode));
 }
 
 /** 이 역할이 쓸 솔루션만 남긴다. 메뉴가 하나도 안 남으면 그 솔루션은 감춘다. */
 export function solutionsFor(list: Solution[], roleCode: RoleCode): Solution[] {
-  if (roleCode === "all") return list;
   return list.filter((s) => menusFor(s, roleCode).length > 0);
 }
