@@ -8,6 +8,7 @@
  * 깔아 둔다. 엔진이 메뉴가 되면 사용자는 그것을 기능으로 오해한다.
  */
 import type { StringKey } from "./i18n";
+import type { RoleCode } from "./roles";
 
 export type SolutionCode = "code" | "compliance" | "report" | "nanogrid";
 
@@ -26,6 +27,10 @@ export interface SolutionMenu {
   step?: number;
   /** 이 메뉴의 상태를 어느 지표에서 가져올지. 사이드바에서 진행 상태를 함께 보여준다. */
   statusKey?: "wiki" | "review" | "checklist";
+  /** 이 메뉴를 실제로 쓰는 역할. 비우면 모든 역할이 본다.
+   *  회의 피드백("너무 많고 복잡하다")에 대한 답이다 — 한 사람이 자기 일과
+   *  상관없는 메뉴까지 다 보고 있으면 어디서부터 손댈지 알 수 없다. */
+  roles?: RoleCode[];
 }
 
 export interface Solution {
@@ -49,8 +54,10 @@ export const SOLUTIONS: Solution[] = [
     taglineKey: "solCodeTagline",
     home: "/programs",
     menus: [
-      { path: "/programs", labelKey: "solCodeMenuPrograms", descKey: "solCodeMenuProgramsDesc", match: "/p/" },
-      { path: "/tables", labelKey: "tablesLink", descKey: "solCodeMenuTablesDesc", match: "/tables" },
+      { path: "/programs", labelKey: "solCodeMenuPrograms", descKey: "solCodeMenuProgramsDesc",
+        match: "/p/", roles: ["developer", "operator", "admin"] },
+      { path: "/tables", labelKey: "tablesLink", descKey: "solCodeMenuTablesDesc",
+        match: "/tables", roles: ["developer", "operator", "admin"] },
     ],
     engines: ["grok", "sllm", "aigov"],
   },
@@ -66,23 +73,34 @@ export const SOLUTIONS: Solution[] = [
       // 앞의 것이 없으면 뒤의 것이 의미가 없는 순서다. 번호가 그 사실을 말한다.
       // 업무 프로세스가 맨 위다 — 무엇을 할지 정하기 전에 어디가 막혔는지를 본다.
       { path: "/reg/process", labelKey: "regTabProcess", descKey: "solRegMenuProcessDesc",
-        match: "/reg", tabs: ["process"], step: 1 },
+        match: "/reg", tabs: ["process"], step: 1 },   // 현황은 전원이 본다
       { path: "/reg/services", labelKey: "regTabServices", descKey: "solRegMenuServicesDesc",
-        match: "/reg", tabs: ["services"], step: 2 },
+        match: "/reg", tabs: ["services"], step: 2,
+        roles: ["planner", "admin"] },
       { path: "/reg/risk", labelKey: "riskTabRisk", descKey: "solRegMenuRiskDesc",
-        match: "/reg", tabs: ["risk"], step: 3 },
+        match: "/reg", tabs: ["risk"], step: 3,
+        // 위험 식별·경감은 기획이 적고 개발이 이행한다.
+        roles: ["planner", "developer", "admin"] },
       { path: "/reg", labelKey: "regTabAssess", descKey: "solRegMenuAssessDesc",
-        match: "/reg", tabs: ["assess"], step: 5 },
+        match: "/reg", tabs: ["assess"], step: 5,
+        roles: ["governance", "committee", "admin"] },
       // 아래 넷은 단계가 아니라 조직 전체를 보는 축이라 번호를 붙이지 않는다.
       // 기준 관리가 커버리지 앞에 온다 — 갭을 보기 전에 무엇을 기준으로 재는지가 먼저다.
       { path: "/reg/controls", labelKey: "regTabControls", descKey: "solRegMenuControlsDesc",
-        match: "/reg", tabs: ["controls"] },
+        match: "/reg", tabs: ["controls"],
+        // 기준을 만드는 것은 거버넌스 담당자의 일이다.
+        roles: ["governance", "admin"] },
       { path: "/reg/coverage", labelKey: "regTabCoverage", descKey: "solRegMenuCoverageDesc",
-        match: "/reg", tabs: ["coverage"] },
+        match: "/reg", tabs: ["coverage"],
+        roles: ["governance", "admin"] },
       { path: "/reg/changes", labelKey: "regTabChanges", descKey: "solRegMenuChangesDesc",
-        match: "/reg", tabs: ["changes"] },
+        match: "/reg", tabs: ["changes"],
+        // 고위험은 윤리위원회가, 저·중위험은 거버넌스 담당자가 승인한다.
+        roles: ["governance", "committee", "admin"] },
       { path: "/reg/graph", labelKey: "regTabGraph", descKey: "solRegMenuGraphDesc",
-        match: "/reg", tabs: ["graph"] },
+        match: "/reg", tabs: ["graph"],
+        // 감사 대응용. 평상시 업무 메뉴가 아니다.
+        roles: ["governance", "admin"] },
     ],
     engines: ["sllm", "aigov", "grok"],
   },
@@ -141,3 +159,17 @@ export function solution(code: SolutionCode): Solution {
 
 /** 메뉴에 그릴 솔루션. `hidden` 은 코드를 지우지 않고 노출만 막는다. */
 export const VISIBLE_SOLUTIONS: Solution[] = SOLUTIONS.filter((s) => !s.hidden);
+
+
+/** 이 역할이 볼 메뉴만 남긴다. `all` 이면 그대로 둔다.
+ *  역할이 지정되지 않은 메뉴(업무 프로세스 등)는 모두가 본다 — 현황은 공통이다. */
+export function menusFor(sol: Solution, roleCode: RoleCode): SolutionMenu[] {
+  if (roleCode === "all") return sol.menus;
+  return sol.menus.filter((m) => !m.roles || m.roles.includes(roleCode));
+}
+
+/** 이 역할이 쓸 솔루션만 남긴다. 메뉴가 하나도 안 남으면 그 솔루션은 감춘다. */
+export function solutionsFor(list: Solution[], roleCode: RoleCode): Solution[] {
+  if (roleCode === "all") return list;
+  return list.filter((s) => menusFor(s, roleCode).length > 0);
+}

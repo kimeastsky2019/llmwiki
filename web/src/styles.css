@@ -2238,3 +2238,23 @@ button.hint-ev-item:hover { text-decoration: underline; }
   font: inherit; color: var(--accent); cursor: pointer; text-align: left;
 }
 .linkish:hover { text-decoration: underline; }
+
+
+/* 역할 선택기 — 사이드바 맨 위. 솔루션 전환보다 위에 둔다.
+   "나는 누구인가" 가 "무엇을 볼 것인가" 보다 먼저다. */
+.role-pick {
+  padding: 10px 12px; margin-bottom: 10px;
+  border: 1px solid rgba(255,255,255,.10); border-radius: 10px;
+  background: rgba(255,255,255,.04);
+}
+.role-pick label { display: flex; align-items: center; gap: 8px; }
+.role-label { font-size: 11px; color: rgba(255,255,255,.55); font-weight: 700; }
+.role-pick select {
+  flex: 1; min-width: 0;
+  background: var(--sidebar-2); color: #fff;
+  border: 1px solid rgba(255,255,255,.14); border-radius: 7px;
+  padding: 5px 8px; font-family: inherit; font-size: 13px;
+}
+.role-desc { display: block; margin-top: 6px; font-size: 11px; color: rgba(255,255,255,.55); line-height: 1.5; }
+/* 권한으로 오해하지 않도록 한 줄 덧붙인다 — 안 보이니까 못 한다고 읽히면 안 된다. */
+.role-note { display: block; margin-top: 4px; font-size: 10.5px; color: rgba(255,255,255,.40); line-height: 1.5; }

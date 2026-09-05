@@ -34,7 +34,9 @@ import WikiAdmin, { ADMIN_TABS, type AdminTab } from "./WikiAdmin";
 import EngineBar, { EngineLayer } from "./EngineBar";
 import WikiStatusBoard from "./WikiStatusBoard";
 import LlmPicker from "./LlmPicker";
-import { VISIBLE_SOLUTIONS, solution, solutionOf, type SolutionCode, type SolutionMenu } from "./solutions";
+import { VISIBLE_SOLUTIONS, menusFor, solution, solutionOf, solutionsFor,
+         type SolutionCode, type SolutionMenu } from "./solutions";
+import { ROLES, readRole, role as roleOf, storeRole, type RoleCode } from "./roles";
 import {
   NgAdmin, NgDocView, NgForecast, NgGov, NgInsights,
   NgKnowledgeDb, NgMonitor, NgSection,
@@ -188,6 +190,9 @@ function parseRoute(path: string): Route {
 
 export default function App() {
   const [route, setRoute] = useState<Route>(() => parseRoute(appPath(location.pathname)));
+  // 역할 — 회의 피드백("너무 많고 복잡하다")에 대한 답. 자기 일과 상관없는
+  // 메뉴를 접어 둔다. 접근 통제가 아니라 보기 필터다.
+  const [roleCode, setRoleCode] = useState<RoleCode>(readRole);
   const menuStatus = useMenuStatus();
   const [meta, setMeta] = useState<Meta | null>(null);
   const [tree, setTree] = useState<TreeLayer[]>([]);
@@ -367,11 +372,34 @@ export default function App() {
             <LangToggle lang={lang} onChange={setLang} />
           </div>
 
+          {/* 역할 — RMF 상의 롤(회의 2026-09-05). 고른 역할이 실제로 쓰는
+              메뉴만 남긴다. ★ 권한이 아니라 보기 필터다. 실제 권한은 SSO·인사
+              테이블 연동 위에서 서버가 판단해야 한다. */}
+          <div className="role-pick">
+            <label>
+              <span className="role-label">{t("roleTitle")}</span>
+              <select
+                value={roleCode}
+                onChange={(e) => {
+                  const next = e.target.value as RoleCode;
+                  setRoleCode(next);
+                  storeRole(next);
+                }}
+              >
+                {ROLES.map((r) => (
+                  <option key={r.code} value={r.code}>{t(r.labelKey)}</option>
+                ))}
+              </select>
+            </label>
+            <span className="role-desc">{t(roleOf(roleCode).descKey)}</span>
+            {roleCode !== "all" && <span className="role-note">{t("roleFilterNote")}</span>}
+          </div>
+
           {/* 솔루션 전환 — 대상과 사용자가 다른 두 작업 공간을 가른다.
               한 사이드바에 여섯 개를 늘어놓으면 '테이블 목록' 옆에 '위키 관리자'가
               붙어, 처음 보는 사람은 이게 한 흐름인 줄 안다. */}
           <div className="solution-switch">
-            {VISIBLE_SOLUTIONS.map((sol) => (
+            {solutionsFor(VISIBLE_SOLUTIONS, roleCode).map((sol) => (
               <button
                 key={sol.code}
                 className={`solution-tab ${activeSolution === sol.code ? "active" : ""}`}
@@ -431,7 +459,7 @@ export default function App() {
               {/* 규제 그래프는 프로젝트 단위가 아니라 조직 전체에 하나뿐이다.
                   그래서 여기에는 프로젝트 선택도, 프로그램 트리도 없다. */}
               <nav className="solution-menu">
-                {solution("compliance").menus.map((m) => (
+                {menusFor(solution("compliance"), roleCode).map((m) => (
                   <button
                     key={m.path}
                     className={`solution-item ${menuActive(m, route) ? "active" : ""}`}
@@ -465,7 +493,7 @@ export default function App() {
               {/* 보고서 지식화는 프로젝트 단위가 아니다 — 업종과 사업장이 분리 축이라
                   좌측 트리(소스 분석)와 성격이 다르다. */}
               <nav className="solution-menu">
-                {solution("report").menus.map((m) => {
+                {menusFor(solution("report"), roleCode).map((m) => {
                   const st = m.statusKey ? menuStatus[m.statusKey] : undefined;
                   return (
                     <button
