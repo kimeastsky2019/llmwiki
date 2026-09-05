@@ -120,17 +120,19 @@ export default function WikiAdmin({
         </div>
       )}
 
-      <label className="admin-signer">
+      <label className="reg-signer admin-signer">
         <span>{t("adminReviewer")}</span>
         <input value={reviewer} onChange={(e) => setReviewer(e.target.value)} />
         <span className="muted small">{t("adminReviewerHint")}</span>
       </label>
 
-      <div className="tabs">
+      <div className="reg-tabs" role="tablist">
         {ADMIN_TABS.map((key) => (
           <button
             key={key}
-            className={`tab ${tab === key ? "active" : ""}`}
+            role="tab"
+            aria-selected={tab === key}
+            className={tab === key ? "active" : ""}
             onClick={() => onTab(key)}
           >
             {t(TAB_KEY[key])}
@@ -357,7 +359,7 @@ function UploadTab({
         </label>
 
         <button
-          className="primary"
+          className="btn"
           disabled={!ready || busy !== ""}
           onClick={() => run("preview")}
         >
@@ -429,7 +431,7 @@ function BuildResultView({ result }: { result: WikiBuildResult }) {
 
       <section>
         <h3>{t("adminGeneratedPages")}</h3>
-        <table className="grid">
+        <table className="reg-table">
           <thead>
             <tr>
               <th>{t("adminColType")}</th>
@@ -465,7 +467,7 @@ function BuildResultView({ result }: { result: WikiBuildResult }) {
 function CheckTable({ checks }: { checks: WikiCheck[] }) {
   const { t } = useLang();
   return (
-    <table className="grid">
+    <table className="reg-table">
       <thead>
         <tr>
           <th>{t("adminColCheck")}</th>
@@ -603,7 +605,7 @@ function QueueTab({
               </label>
             )}
             <button
-              className="primary"
+              className="btn"
               disabled={busy === item.stable_id || item.blocking.length > 0}
               onClick={() => decide(item.stable_id, "approve")}
             >
@@ -774,7 +776,7 @@ function Reanalysis({
   return (
     <div className="reanalysis">
       <div className="assist-row">
-        <button className="primary" disabled={busy !== ""} onClick={run}>
+        <button className="btn" disabled={busy !== ""} onClick={run}>
           {busy === "run" ? t("adminReanalyzing") : t("adminReanalyze")}
         </button>
         <span className="muted small">{t("adminReanalyzeNote")}</span>
@@ -805,7 +807,7 @@ function Reanalysis({
 
           <div className="assist-row">
             <button
-              className="primary"
+              className="btn"
               disabled={busy !== "" || !draft.trim() || !reviewer.trim()}
               onClick={apply}
               title={reviewer.trim() ? "" : t("adminReviewerHint")}
@@ -856,7 +858,7 @@ function LintTab({
       {shown.length === 0 ? (
         <div className="muted pad">{t("kbNoFindings")}</div>
       ) : (
-        <table className="grid">
+        <table className="reg-table">
           <thead>
             <tr>
               <th>{t("adminColSeverity")}</th>
@@ -915,7 +917,7 @@ function JournalTab({
       {rows.length === 0 ? (
         <div className="muted pad">{t("adminJournalEmpty")}</div>
       ) : (
-        <table className="grid">
+        <table className="reg-table">
           <thead>
             <tr>
               <th>{t("adminColAt")}</th>
