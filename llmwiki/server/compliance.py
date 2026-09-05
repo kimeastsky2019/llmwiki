@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException, Query
@@ -269,6 +270,131 @@ def services(lang: str | None = Query(None)) -> dict[str, Any]:
     return {"services": rows, "stages": list(analysis.SERVICE_STAGES),
             "pending": len([c for c in store.read_changesets().values()
                             if c.get("status") == cs.PENDING])}
+
+
+def _change_summary(change: dict[str, Any]) -> str:
+    """결재 건을 한 줄로. ChangeSet 에는 설명 필드가 없다 — 무엇을 하는지는
+    ops 에서 읽어 낸다. 없는 제목을 지어내는 것보다 실제로 하는 일을 세는 쪽이
+    결재자에게 쓸모 있다."""
+    made: dict[str, int] = defaultdict(int)
+    edges = 0
+    for op in change.get("ops", []):
+        if op.get("op") == "node.create":
+            made[str(op.get("node_type", "?"))] += 1
+        elif op.get("op") == "edge.create":
+            edges += 1
+    parts = [f"{k} {n}" for k, n in sorted(made.items())]
+    if edges:
+        parts.append(f"관계 {edges}")
+    return " · ".join(parts) or str(change.get("changeset_id", ""))
+
+
+@router.get("/process")
+def process_view(lang: str | None = Query(None)) -> dict[str, Any]:
+    """업무 프로세스 한 판 — 단계별 적체와 지금 손댈 것.
+
+    ★ 이 화면의 규칙 하나: **없는 숫자는 만들지 않는다.**
+    목업에는 SLA·리드타임 같은 칸이 있지만, 우리가 실제로 시각을 기록하는 것은
+    결재(ChangeSet 의 created_at·reviewed_at)뿐이다. 그래서 리드타임은 승인된
+    결재에서만 계산하고, 표본이 없으면 `null` 로 내보내 화면이 '미측정' 이라
+    말하게 한다. 0 이나 임의값을 넣으면 그 숫자가 근거가 되어 버린다.
+    """
+    store = _store()
+    graph = store.approved()
+    saved = store.read_json(RISK_FILE, default={}) or {}
+    lang_n = i18n.normalize(lang)
+
+    # --- 단계별 적체 --- #
+    per_stage: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    high_risk = 0
+    for row in analysis.services(graph, lang=lang_n):
+        grade = _grade_of(saved, row["uuid"])
+        stage = analysis.service_stage(row, has_grade=bool(grade))
+        per_stage[stage].append({"uuid": row["uuid"], "name": row["name"],
+                                 "grade": (grade or {}).get("label", "")})
+        if (grade or {}).get("key") in ("high", "unacceptable"):
+            high_risk += 1
+
+    stages = [
+        {"key": key, "services": per_stage.get(key, []), "count": len(per_stage.get(key, []))}
+        for key in analysis.SERVICE_STAGES
+    ]
+
+    # --- 결재 큐와 리드타임 --- #
+    changes = list(store.read_changesets().values())
+    pending = [c for c in changes if c.get("status") == cs.PENDING]
+    blocked = [c for c in changes if c.get("status") == cs.BLOCKED]
+
+    spans: list[float] = []
+    for c in changes:
+        if c.get("status") != cs.APPROVED:
+            continue
+        made, seen = c.get("created_at"), c.get("reviewed_at")
+        if not made or not seen:
+            continue
+        try:
+            delta = datetime.fromisoformat(seen) - datetime.fromisoformat(made)
+        except ValueError:
+            continue
+        spans.append(delta.total_seconds() / 86400)
+
+    # --- 통제 충족 --- #
+    ruleset, standard = _versions()
+    results = rules.adjudicate_all(
+        graph, ruleset_version=ruleset, standard_version=standard,
+        metrics=store.metrics, prior=_prior(graph), lang=lang_n,
+    )
+    audit = verify.audit_metrics(results)
+    satisfied = audit["by_verdict"].get(rules.SATISFIED, 0)
+
+    # --- 지금 손댈 것 --- #
+    # 순서는 '앞 단계가 막히면 뒤가 의미 없다' 는 것을 따른다. 기한이 없으므로
+    # 마감 임박순으로 정렬하지 않는다 — 우리는 기한을 기록하지 않는다.
+    queue: list[dict[str, Any]] = []
+    for c in sorted(blocked, key=lambda x: str(x.get("changeset_id"))):
+        queue.append({
+            "kind": "blocked", "id": str(c.get("changeset_id", "")),
+            "title": _change_summary(c),
+            "owner": cs.GRADES.get(str(c.get("grade")), {}).get("approver", ""),
+            "at": c.get("created_at", ""),
+        })
+    for c in sorted(pending, key=lambda x: str(x.get("created_at"))):
+        queue.append({
+            "kind": "pending", "id": str(c.get("changeset_id", "")),
+            "title": _change_summary(c),
+            "owner": cs.GRADES.get(str(c.get("grade")), {}).get("approver", ""),
+            "at": c.get("created_at", ""),
+        })
+    for stage in analysis.SERVICE_STAGES:
+        if stage == "done":
+            continue
+        for svc in per_stage.get(stage, []):
+            queue.append({
+                "kind": "stage", "id": svc["uuid"], "title": svc["name"],
+                "stage": stage, "owner": svc["grade"], "at": "",
+            })
+
+    return {
+        "stages": stages,
+        "kpi": {
+            "pending_changes": len(pending),
+            "blocked_changes": len(blocked),
+            "high_risk": high_risk,
+            "auto_rate": audit["auto_rate"],
+            "deferred": audit["deferred"],
+            # 표본이 없으면 null — 화면이 '미측정' 이라고 말한다.
+            "lead_time_days": round(sum(spans) / len(spans), 1) if spans else None,
+            "lead_time_samples": len(spans),
+        },
+        "controls": {
+            "satisfied": satisfied,
+            "total": audit["total"],
+            "rate": round(satisfied / audit["total"], 4) if audit["total"] else 0.0,
+            "triggers": audit["by_trigger"],
+        },
+        "queue": queue[:12],
+        "queue_total": len(queue),
+    }
 
 
 @router.get("/service/{service_uuid}")

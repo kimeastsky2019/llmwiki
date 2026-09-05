@@ -13,6 +13,7 @@ import pytest
 import llmwiki.compliance.seed as seed_mod
 from fastapi.testclient import TestClient
 
+from llmwiki.compliance import analysis
 from llmwiki.compliance import changeset as cs
 from llmwiki.compliance.seed import seed
 from llmwiki.compliance.store import Store
@@ -543,3 +544,51 @@ def test_an_slm_may_draft_an_evaluation_item_but_not_enact_it(client):
     assert change.proposer["type"] == "SoftwareAgent"
     # 상신됐을 뿐 기준 목록에는 없다
     assert "SLM-99" not in {c["code"] for c in client.get("/api/reg/controls").json()["controls"]}
+
+
+# --------------------------------------------------------------------------- #
+# 업무 프로세스 화면
+# --------------------------------------------------------------------------- #
+def test_process_view_counts_what_is_stuck_where(client):
+    body = client.get("/api/reg/process").json()
+
+    stages = {s["key"]: s for s in body["stages"]}
+    assert list(stages) == list(analysis.SERVICE_STAGES), "단계 순서가 서비스 화면과 같아야 한다"
+    # 서비스는 어느 한 단계에만 있다 — 합계가 전체와 같다
+    total = sum(s["count"] for s in body["stages"])
+    assert total == len(client.get("/api/reg/services").json()["services"])
+
+    assert body["kpi"]["pending_changes"] >= 1
+    assert 0.0 <= body["controls"]["rate"] <= 1.0
+    assert body["controls"]["satisfied"] <= body["controls"]["total"]
+
+
+def test_process_view_says_not_measured_instead_of_zero(client, tmp_path_factory, monkeypatch):
+    """리드타임은 잰 것이 있을 때만 숫자를 낸다.
+
+    표본이 없는데 0 을 내보내면 화면은 '즉시 승인' 이라고 읽는다. 그 숫자가
+    감리에서 근거로 쓰이면 되돌릴 수 없다 — 없을 때는 없다고 말해야 한다.
+    """
+    from llmwiki.server import compliance as mod
+
+    body = client.get("/api/reg/process").json()
+    if body["kpi"]["lead_time_samples"] == 0:
+        assert body["kpi"]["lead_time_days"] is None
+        return
+
+    # 표본이 있는 경우: 승인된 결재에서만 계산했는지 확인한다
+    approved = [c for c in mod._store().read_changesets().values()
+                if c.get("status") == cs.APPROVED and c.get("created_at") and c.get("reviewed_at")]
+    assert body["kpi"]["lead_time_samples"] == len(approved)
+    assert body["kpi"]["lead_time_days"] is not None
+
+
+def test_process_queue_never_invents_a_deadline(client):
+    """목업에는 '2h 남음' 같은 기한이 있지만 우리는 기한을 기록하지 않는다.
+
+    큐 항목에 기한 필드가 생기면 화면이 그것을 정렬 기준으로 쓰게 되고,
+    없는 것을 지어내는 자리가 열린다.
+    """
+    body = client.get("/api/reg/process").json()
+    for row in body["queue"]:
+        assert not ({"due", "due_at", "sla", "deadline", "remaining"} & set(row)), row

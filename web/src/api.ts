@@ -568,6 +568,27 @@ export interface RegProgramCandidate {
   services: string[];
 }
 
+/** 업무 프로세스 화면. 값이 `null` 인 것은 '아직 재지 않았다' 는 뜻이고,
+ *  화면은 그것을 0 이 아니라 '미측정' 으로 보여 준다. */
+export interface RegProcess {
+  stages: { key: RegStage; count: number;
+            services: { uuid: string; name: string; grade: string }[] }[];
+  kpi: {
+    pending_changes: number;
+    blocked_changes: number;
+    high_risk: number;
+    auto_rate: number;
+    deferred: number;
+    lead_time_days: number | null;
+    lead_time_samples: number;
+  };
+  controls: { satisfied: number; total: number; rate: number;
+              triggers: Record<string, number> };
+  queue: { kind: "blocked" | "pending" | "stage"; id: string; title: string;
+           owner: string; at: string; stage?: RegStage }[];
+  queue_total: number;
+}
+
 /** 평가 절차 하나. `kind` 가 metric 이면 산식·연산자·임계치가 붙는다. */
 export interface RegProcedure {
   seq: string;
@@ -1412,6 +1433,9 @@ export const api = {
         rejected: { program_id: string; reason: string }[];
         approver: string;
       }>("/api/reg/services/propose", body),
+
+    /** 업무 프로세스 — 단계별 적체·결재 큐·통제 충족을 한 번에. */
+    process: () => get<RegProcess>("/api/reg/process"),
 
     /** 평가 항목·지표 (기준 관리) — 만드는 것도 결재를 거친다. */
     controls: () =>

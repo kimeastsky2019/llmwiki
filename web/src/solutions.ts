@@ -64,6 +64,9 @@ export const SOLUTIONS: Solution[] = [
     home: "/reg/services",
     menus: [
       // 앞의 것이 없으면 뒤의 것이 의미가 없는 순서다. 번호가 그 사실을 말한다.
+      // 업무 프로세스가 맨 위다 — 무엇을 할지 정하기 전에 어디가 막혔는지를 본다.
+      { path: "/reg/process", labelKey: "regTabProcess", descKey: "solRegMenuProcessDesc",
+        match: "/reg", tabs: ["process"], step: 1 },
       { path: "/reg/services", labelKey: "regTabServices", descKey: "solRegMenuServicesDesc",
         match: "/reg", tabs: ["services"], step: 2 },
       { path: "/reg/risk", labelKey: "riskTabRisk", descKey: "solRegMenuRiskDesc",

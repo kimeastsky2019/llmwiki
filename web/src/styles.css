@@ -2137,3 +2137,104 @@ button.hint-ev-item:hover { text-decoration: underline; }
 
 .build-result, .admin-queue, .admin-lint, .admin-journal { margin-top: var(--gap-s); }
 .build-result table, .admin-lint table, .admin-journal table { margin-top: 10px; }
+
+/* --------------------------------------------------------------------------- */
+/* 업무 프로세스 — 목업(2026-09-05 업로드본)의 CONTROL TOWER 배치를 옮긴 것.     */
+/* 색은 목업의 파랑을 그대로 쓰지 않고 앱의 --accent 를 쓴다. 한 앱 안에서       */
+/* 화면마다 브랜드색이 달라지면 같은 제품으로 읽히지 않는다. 배치·밀도·          */
+/* 단계 카드의 형태만 가져왔다.                                                 */
+/* --------------------------------------------------------------------------- */
+.kpi-grid {
+  display: grid; gap: 12px; margin: var(--gap-s) 0;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+.kpi {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 13px 15px;
+}
+.kpi .label {
+  display: block; color: var(--muted);
+  font-size: 11px; font-weight: 700; letter-spacing: .02em;
+}
+.kpi .value-row { display: flex; align-items: baseline; gap: 6px; margin-top: 5px; }
+.kpi b { font-size: 25px; letter-spacing: -.03em; }
+.kpi small { color: var(--muted); font-size: 11px; }
+.kpi .trend { display: block; margin-top: 4px; font-size: 11px; color: var(--muted); }
+.kpi .trend.ok { color: #067647; }
+.kpi .trend.warn { color: var(--review-text); }
+
+.proc-panel {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: var(--gap-s); margin-bottom: var(--gap-s);
+}
+.proc-panel-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: var(--gap-s); flex-wrap: wrap; margin-bottom: 12px;
+}
+.proc-panel-head h3 { margin: 0 0 2px; font-size: 15px; }
+.proc-panel-head p { margin: 0; }
+
+/* 단계 카드 — 좁아지면 가로 스크롤로 흘린다. 접어서 세로로 쌓으면 '흐름' 이
+   아니라 '목록' 으로 읽혀 이 화면의 뜻이 사라진다. */
+.process-flow {
+  display: grid; gap: 10px; margin: 0; padding: 0; list-style: none;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  overflow-x: auto; padding-bottom: 6px;
+}
+.stage-card {
+  display: flex; flex-direction: column;
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px 13px; background: var(--panel);
+}
+.stage-card.busy { border-color: var(--accent); background: var(--accent-soft); }
+.stage-no {
+  font-size: 10px; font-weight: 800; letter-spacing: .08em;
+  color: var(--muted); text-transform: uppercase;
+}
+.stage-card h4 { margin: 5px 0 4px; font-size: 14px; }
+.stage-card p { margin: 0 0 8px; }
+.stage-svcs { list-style: none; margin: 0 0 8px; padding: 0; font-size: 12px; }
+.stage-svcs li { padding: 1px 0; }
+.stage-foot {
+  display: flex; align-items: baseline; gap: 5px;
+  margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line);
+}
+.stage-foot b { font-size: 17px; }
+
+.proc-gate {
+  margin: 12px 0 0; padding: 10px 13px;
+  border: 1px dashed var(--warn-line); border-radius: 8px;
+  background: var(--warn-bg); font-size: 12.5px; line-height: 1.6;
+}
+
+.proc-lower { display: grid; gap: 12px; grid-template-columns: 1.35fr 1fr; }
+@media (max-width: 900px) { .proc-lower { grid-template-columns: 1fr; } }
+.proc-card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: var(--gap-s);
+}
+.proc-rate { font-size: 25px; letter-spacing: -.03em; color: var(--accent); }
+
+.task-list { list-style: none; margin: 0; padding: 0; }
+.task-list li {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px;
+}
+.task-list li:last-child { border-bottom: 0; }
+.task-name { flex: 1; min-width: 0; text-align: left; }
+.task-owner { flex: 0 0 auto; }
+
+.meter { height: 8px; margin: 12px 0 6px; overflow: hidden; border-radius: 999px; background: #f2f4f7; }
+.meter span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+
+.check-list { list-style: none; margin: 10px 0; padding: 0; }
+.check-item { display: flex; align-items: flex-start; gap: 8px; padding: 3px 0; font-size: 12px; color: var(--muted); }
+.check-item i { flex: 0 0 9px; width: 9px; height: 9px; margin-top: 4px; border-radius: 50%; background: var(--success); }
+.check-item.pending i { background: var(--review); }
+
+/* 목록 안의 '누를 수 있는 글자' — 버튼처럼 보이면 표가 시끄러워진다. */
+.linkish {
+  background: none; border: 0; padding: 0;
+  font: inherit; color: var(--accent); cursor: pointer; text-align: left;
+}
+.linkish:hover { text-decoration: underline; }
