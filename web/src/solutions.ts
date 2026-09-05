@@ -55,9 +55,9 @@ export const SOLUTIONS: Solution[] = [
     home: "/programs",
     menus: [
       { path: "/programs", labelKey: "solCodeMenuPrograms", descKey: "solCodeMenuProgramsDesc",
-        match: "/p/", roles: ["developer", "operator", "admin"] },
+        match: "/p/", roles: ["developer", "operator", "governance", "admin"] },
       { path: "/tables", labelKey: "tablesLink", descKey: "solCodeMenuTablesDesc",
-        match: "/tables", roles: ["developer", "operator", "admin"] },
+        match: "/tables", roles: ["developer", "operator", "governance", "admin"] },
     ],
     engines: ["grok", "sllm", "aigov"],
   },
@@ -92,10 +92,6 @@ export const SOLUTIONS: Solution[] = [
       { path: "/reg/selfcheck", labelKey: "regTabSelfCheck", descKey: "solRegMenuSelfCheckDesc",
         match: "/reg", tabs: ["selfcheck"],
         roles: ["planner", "developer", "operator", "governance", "admin"] },
-      // 운영 — 배포 후 데이터 점검. 설계 단계에서도 같은 화면을 쓴다.
-      { path: "/reg/ops", labelKey: "regTabOps", descKey: "solRegMenuOpsDesc",
-        match: "/reg", tabs: ["ops"],
-        roles: ["operator", "developer", "planner", "governance", "admin"] },
       { path: "/reg", labelKey: "regTabAssess", descKey: "solRegMenuAssessDesc",
         match: "/reg", tabs: ["assess"], step: 5,
         roles: ["governance", "committee", "verifier", "admin"] },
@@ -170,6 +166,7 @@ export function solutionOf(path: string): SolutionCode {
   if (path.startsWith("/kb") || path.startsWith("/wiki") || path.startsWith("/admin")) {
     return "report";
   }
+  // /data 는 /programs·/tables 와 같은 작업 공간이다.
   return "code";
 }
 

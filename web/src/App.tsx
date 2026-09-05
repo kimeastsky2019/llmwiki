@@ -27,6 +27,7 @@ import {
 import Markdown from "./Markdown";
 import SourceBrowser, { type SourceTarget } from "./SourceBrowser";
 import Compliance, { REG_TABS, type RegTab } from "./Compliance";
+import Operations from "./Operations";
 import { ServiceDashboard, ServiceNav } from "./Services";
 import KnowledgeBase, { KB_TABS, type KbTab } from "./KnowledgeBase";
 import Wiki, { WIKI_TABS, type WikiTab } from "./Wiki";
@@ -47,6 +48,7 @@ type Route =
   | { kind: "program"; id: string }
   | { kind: "table"; name: string }
   | { kind: "tables" }
+  | { kind: "data" }
   | { kind: "reg"; tab: RegTab }
   // 서비스 축은 /reg 와 다른 경로에 둔다 — 조직 단위 현황과 서비스 단위 작업이
   // 한 줄에 놓여 있으면 순서가 생기지 않는다.
@@ -154,6 +156,8 @@ function parseRoute(path: string): Route {
   if (path.startsWith("/p/")) return { kind: "program", id: path.slice(3) };
   if (path.startsWith("/t/")) return { kind: "table", name: decodeURIComponent(path.slice(3)) };
   if (path === "/tables") return { kind: "tables" };
+  // 데이터 분석은 소스 분석과 같은 축이다 — 둘 다 운영 자산의 사실이다.
+  if (path === "/data") return { kind: "data" };
   // 나노그리드 데이터 지식화 (/ng/*)
   if (path === "/ng/monitor") return { kind: "ng-monitor", tab: "energy" };
   if (path === "/ng/monitor/ev") return { kind: "ng-monitor", tab: "ev" };
@@ -426,6 +430,14 @@ export default function App() {
                 >
                   {t("tablesLink")}
                 </button>
+                {/* 데이터 분석 — 코드와 같은 축이다. 코드가 무엇을 만지는지와
+                    그 데이터가 어떤 상태인지는 함께 봐야 판단이 된다. */}
+                <button
+                  className={`tables-link ${route.kind === "data" ? "active" : ""}`}
+                  onClick={() => navigate("/data")}
+                >
+                  {t("dataLink")}
+                </button>
                 <button
                   className="tables-link"
                   onClick={() => {
@@ -594,6 +606,7 @@ export default function App() {
               onTab={(tab) => navigate(tab === "upload" ? "/admin" : `/admin/${tab}`)}
             />
           )}
+          {route.kind === "data" && <Operations onNavigate={navigate} />}
           {route.kind === "engines" && <EngineLayer onNavigate={navigate} />}
           {route.kind === "ng-monitor" && <NgMonitor tab={route.tab} onNavigate={navigate} />}
           {route.kind === "ng-forecast" && <NgForecast />}

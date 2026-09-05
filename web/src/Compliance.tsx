@@ -127,6 +127,8 @@ export default function Compliance({
       {tab === "approvals" && <Approvals key={`ap${refresh}`} roleCode={roleCode} />}
       {tab === "sheets" && <Sheets key={`sh${refresh}`} />}
       {tab === "selfcheck" && <SelfCheck key={`sc${refresh}`} onNavigate={onNavigate} />}
+      {/* 옛 경로(/reg/ops)로 들어와도 같은 화면을 보여 준다 — 링크가 끊기면 안 된다.
+          메뉴에서는 소스 분석 쪽 /data 하나만 낸다. */}
       {tab === "ops" && <Operations key={`op${refresh}`} onNavigate={onNavigate} />}
       {tab === "process" && <Process key={`pr${refresh}`} onNavigate={onNavigate} />}
       {tab === "controls" && <Controls key={`ct${refresh}`} />}

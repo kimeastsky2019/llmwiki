@@ -111,7 +111,7 @@ export const GUIDES: Record<RoleCode, RoleGuide> = {
     steps: [
       // 소스 분석이 개발자의 출발점이다 — 코드에서 나온 사실이 위험 식별의 근거다.
       { labelKey: "dvS1", descKey: "dvS1D", path: "/programs" },
-      { labelKey: "dvS2", descKey: "dvS2D", path: "/reg/ops" },
+      { labelKey: "dvS2", descKey: "dvS2D", path: "/data" },
       { labelKey: "dvS3", descKey: "dvS3D", path: "/reg/risk" },
       { labelKey: "dvS4", descKey: "dvS4D", path: "/reg/selfcheck" },
     ],
@@ -119,7 +119,7 @@ export const GUIDES: Record<RoleCode, RoleGuide> = {
   operator: {
     owns: [],
     steps: [
-      { labelKey: "opS1", descKey: "opS1D", path: "/reg/ops" },
+      { labelKey: "opS1", descKey: "opS1D", path: "/data" },
       { labelKey: "opS2", descKey: "opS2D", path: "/reg/selfcheck" },
       { labelKey: "opS3", descKey: "opS3D", path: "/programs" },
       { labelKey: "opS4", descKey: "opS4D", path: "/reg/process" },

@@ -15,7 +15,7 @@
  *   · **올린 파일을 남기지 않는다.** 보존기간과 파기 절차가 정해지기 전까지는
  *     분석하고 지운다.
  */
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Assist from "./Assist";
 import { api, type DataAnalysis } from "./api";
 import { useLang } from "./i18n";
@@ -34,6 +34,24 @@ export default function Operations({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const picker = useRef<HTMLInputElement>(null);
+
+  // 소스 분석이 찾은 테이블. 데이터와 대조해 "어느 테이블에 자료가 없나" 를 낸다.
+  // /api/tables 의 programs 는 프로그램 **이름 문자열** 배열이다 (객체가 아니다).
+  type TableRow = { name: string; crud: string[]; programs: string[] };
+  const [tables, setTables] = useState<TableRow[] | null>(null);
+  const loadTables = useCallback(() => {
+    api.tables().then(setTables).catch(() => setTables([]));
+  }, []);
+  useEffect(loadTables, [loadTables]);
+
+  /** 업로드한 데이터셋이 어느 테이블과 이어졌나. 서버가 이름으로 맞춘 결과를 되짚는다. */
+  const covered = useMemo(() => {
+    const hit = new Set<string>();
+    for (const ds of result?.datasets ?? []) {
+      for (const l of ds.source_links ?? []) hit.add(l.table.toUpperCase());
+    }
+    return hit;
+  }, [result]);
 
   const send = (list: FileList | null) => {
     if (!list || list.length === 0) return;
@@ -202,6 +220,53 @@ export default function Operations({
               </button>
             </>
           )}
+        </>
+      )}
+
+      {/* ── 소스 분석과 대조 ─────────────────────────────────────────
+          코드가 만지는 테이블과 올린 데이터를 나란히 놓는다. 자료가 없는
+          테이블은 '점검 안 된 곳' 이지 '문제 없는 곳' 이 아니다. */}
+      {tables !== null && tables.length > 0 && (
+        <>
+          <h3>{t("opsCross")}</h3>
+          <p className="muted small">{t("opsCrossNote")}</p>
+          <div className="ops-cols">
+            <table className="reg-table">
+              <thead>
+                <tr>
+                  <th>{t("opsTable")}</th>
+                  <th>{t("opsCrud")}</th>
+                  <th>{t("opsPrograms")}</th>
+                  <th>{t("opsHasData")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tables.map((tb) => {
+                  const has = covered.has(tb.name.toUpperCase());
+                  return (
+                    <tr key={tb.name} className={result && !has ? "on" : ""}>
+                      <td>
+                        <button className="linkish" onClick={() => onNavigate(`/t/${encodeURIComponent(tb.name)}`)}>
+                          {tb.name}
+                        </button>
+                      </td>
+                      <td className="muted small">{tb.crud.join(" ")}</td>
+                      <td className="muted small">{tb.programs.join(", ")}</td>
+                      <td>
+                        {!result ? (
+                          <span className="muted small">{t("opsNotChecked")}</span>
+                        ) : has ? (
+                          <span className="chip s-ok">{t("opsDataYes")}</span>
+                        ) : (
+                          <span className="chip s-pending">{t("opsDataNo")}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
 
