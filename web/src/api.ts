@@ -589,6 +589,42 @@ export interface RegProcess {
   queue_total: number;
 }
 
+/** 평가표 — 관리자가 만드는 자가진단 설문. 기준 관리(통제·지표)와 다른 축이다. */
+export interface SheetQuestion {
+  no: number;
+  text: string;
+  /** yesno · single(라디오) · multi(체크박스) · scale(척도) · text(서술) */
+  kind: string;
+  options: string[];
+  required: boolean;
+  help: string;
+  /** 32항목 연결. 없으면 null */
+  item_no: number | null;
+  /** sLM 초안에서 온 질문. 관리자가 손대면 지워진다. */
+  drafted_by_slm?: boolean;
+}
+
+export interface RegSheet {
+  sheet_id: string;
+  title: string;
+  version: number;
+  status: "draft" | "published";
+  owner_role: string;
+  questions: SheetQuestion[];
+  note: string;
+  saved_by: string;
+  saved_at: string;
+  published_by: string;
+  published_at: string;
+}
+
+export interface SheetMeta {
+  sheets: RegSheet[];
+  kinds: string[];
+  default_scale: string[];
+  items: { no: number; label: string }[];
+}
+
 /** 데이터 폴더 분석. 수치는 전부 서버의 룰이 센다 — LLM 이 개입하지 않는다. */
 export interface DataColumn {
   name: string; rows: number; missing: number; missing_ratio: number;
@@ -1509,6 +1545,19 @@ export const api = {
 
     /** 업무 프로세스 — 단계별 적체·결재 큐·통제 충족을 한 번에. */
     process: () => get<RegProcess>("/api/reg/process"),
+
+    /** 평가표 — 만들고 고치고 발행한다. */
+    sheets: () => get<SheetMeta>("/api/reg/sheets"),
+    saveSheet: (body: {
+      sheet_id?: string; title: string; by: string; questions: SheetQuestion[];
+    }) => post<RegSheet>("/api/reg/sheets", body),
+    publishSheet: (id: string, by: string) =>
+      post<RegSheet>(`/api/reg/sheets/${encodeURIComponent(id)}/publish`, { by }),
+    /** sLM 질문 초안. 저장하지 않는다 — 관리자가 고쳐서 따로 저장해야 표가 된다. */
+    draftSheet: (topic: string, count = 6) =>
+      post<{ questions: SheetQuestion[]; ok: boolean; reason: string; model: string }>(
+        "/api/reg/sheets/draft", { topic, count }
+      ),
 
     /** 데이터 폴더 분석. 파일은 임시 폴더에서만 읽히고 분석 후 지워진다. */
     analyzeData: (files: File[]) => {

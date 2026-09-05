@@ -22,7 +22,7 @@ from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFil
 
 from ..compliance import advise as advisor
 from ..compliance import (analysis, approval, assist, changeset as cs, codehints,
-                          dataprofile, propose, riskassess, rules, verify)
+                          dataprofile, propose, riskassess, rules, sheet, verify)
 from ..compliance import i18n
 from ..compliance.ontology import (
     AUTO_LEVELS,
@@ -667,6 +667,77 @@ def data_analyze(
         result = dataprofile.analyze(root)
 
     return _link_to_source(result, _index(project))
+
+
+# --------------------------------------------------------------------------- #
+# 평가표 — 관리자가 만드는 자가진단 설문
+#
+# 기준 관리(Control·TestProcedure)와 다른 축이다. 저쪽은 기계가 증적으로
+# 확인하는 통제이고, 여기는 사람이 채우는 질문지다.
+# --------------------------------------------------------------------------- #
+@router.get("/sheets")
+def sheets() -> dict[str, Any]:
+    rows = sorted(sheet.latest(_store()).values(), key=lambda r: str(r["title"]))
+    return {
+        "sheets": rows,
+        "kinds": list(sheet.KINDS),
+        "default_scale": list(sheet.DEFAULT_SCALE),
+        # 질문을 32항목에 걸 수 있게 목록을 함께 준다 — 화면이 따로 들지 않는다.
+        "items": [{"no": i["no"], "label": f"{i['lv1']} > {i['lv3']}"}
+                  for i in riskassess.items()],
+    }
+
+
+@router.get("/sheets/{sheet_id}/history")
+def sheet_history(sheet_id: str) -> dict[str, Any]:
+    """버전 이력. 고치면 새 버전이 쌓이고 옛 버전은 지워지지 않는다."""
+    return {"history": sheet.history(_store(), sheet_id)}
+
+
+@router.post("/sheets")
+def sheet_save(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """표를 만들거나 고친다. 고치면 다시 초안이 된다."""
+    try:
+        return sheet.save(
+            _store(),
+            sheet_id=str(payload.get("sheet_id", "")).strip(),
+            title=str(payload.get("title", "")),
+            questions=list(payload.get("questions") or []),
+            by=str(payload.get("by", "")),
+            note=str(payload.get("note", "")).strip(),
+            owner_role=str(payload.get("owner_role", "")).strip(),
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/sheets/{sheet_id}/publish")
+def sheet_publish(sheet_id: str, payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    try:
+        return sheet.publish(_store(), sheet_id, by=str(payload.get("by", "")))
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/sheets/draft")
+def sheet_draft(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """sLM 이 질문 초안을 잡아 준다. **초안일 뿐이다** — 저장하지 않는다.
+
+    관리자가 화면에서 고치고 지운 뒤 따로 저장해야 표가 된다. 모델이 만든
+    질문이 그대로 기준이 되면 무엇을 왜 묻는지에 대한 근거가 사라진다.
+    """
+    try:
+        questions, reply = assist.draft_questions(
+            _cfg,
+            topic=str(payload.get("topic", "")),
+            count=int(payload.get("count", 6)),
+            allow_external=bool(payload.get("allow_external")),
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"questions": questions, **reply.to_dict()}
 
 
 @router.get("/controls")

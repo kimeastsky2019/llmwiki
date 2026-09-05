@@ -147,6 +147,13 @@ def test_there_is_no_endpoint_that_writes_the_graph_directly():
         # 저장소에도 쓰지 않는다 — 원본을 남기려면 보존기간과 파기 절차부터
         # 정해야 하고 지금은 그 결정이 없다.
         "/api/reg/data/analyze",
+        # 평가표 — 자가진단 설문. 승인 그래프가 아니라 별도 append-only
+        # 파일(sheets.jsonl)에 쌓인다. 발행이 아직 결재를 거치지 않는다는
+        # 것은 sheet.py 에 적어 두었다.
+        "/api/reg/sheets",
+        "/api/reg/sheets/{sheet_id}/publish",
+        # 초안은 저장하지 않는다 — 조언과 같은 이유로 POST 다.
+        "/api/reg/sheets/draft",
     }
 
 
@@ -775,3 +782,78 @@ def test_uploaded_data_is_not_kept(client, tmp_path_factory):
                 data={"paths": ["loan.csv"]})
     after = set(p.name for p in mod._store().root.rglob("*"))
     assert after == before, "분석 후 저장소에 파일이 남으면 안 된다"
+
+
+# --------------------------------------------------------------------------- #
+# 평가표 — 관리자가 만드는 자가진단 설문
+# --------------------------------------------------------------------------- #
+def test_sheet_supports_the_answer_types_the_meeting_named(client):
+    """회의에서 든 예 — 라디오(single)와 체크박스(multi), 그리고 척도."""
+    body = client.get("/api/reg/sheets").json()
+    assert set(body["kinds"]) == {"single", "multi", "scale", "yesno", "text"}
+    assert len(body["default_scale"]) == 5
+    assert len(body["items"]) == 32, "질문을 32항목에 걸 수 있어야 한다"
+
+
+def test_choice_questions_need_options(client):
+    """보기가 하나뿐인 라디오·체크박스는 화면이 그릴 수 없다."""
+    res = client.post("/api/reg/sheets", json={
+        "title": "보기 없는 표", "by": "admin",
+        "questions": [{"text": "고르세요", "kind": "multi", "options": ["하나"]}],
+    })
+    assert res.status_code == 400
+    assert "보기" in res.json()["detail"]
+
+
+def test_editing_a_published_sheet_makes_a_new_draft_version(client):
+    """발행본을 조용히 바꾸면 이미 답한 사람이 무엇에 답했는지 알 수 없게 된다."""
+    made = client.post("/api/reg/sheets", json={
+        "title": "개인정보 자가진단", "by": "admin",
+        "questions": [
+            {"text": "개인정보를 학습에 사용합니까?", "kind": "yesno", "item_no": 5},
+            {"text": "수집 항목을 고르세요", "kind": "multi",
+             "options": ["성명", "연락처", "주민번호"], "item_no": 32},
+        ],
+    }).json()
+    assert made["version"] == 1 and made["status"] == "draft"
+    assert made["questions"][1]["kind"] == "multi"
+
+    sid = made["sheet_id"]
+    pub = client.post(f"/api/reg/sheets/{sid}/publish", json={"by": "admin"}).json()
+    assert pub["status"] == "published" and pub["published_by"] == "admin"
+
+    again = client.post("/api/reg/sheets", json={
+        "sheet_id": sid, "title": "개인정보 자가진단", "by": "admin",
+        "questions": [{"text": "바뀐 질문", "kind": "yesno"}],
+    }).json()
+    assert again["version"] == 2
+    assert again["status"] == "draft", "고치면 다시 초안으로 내려간다"
+
+    # 옛 버전은 남는다
+    hist = client.get(f"/api/reg/sheets/{sid}/history").json()["history"]
+    assert [h["version"] for h in hist] == [1, 1, 2]
+
+
+def test_empty_sheet_cannot_be_published(client):
+    made = client.post("/api/reg/sheets", json={
+        "title": "빈 표", "by": "admin", "questions": [],
+    }).json()
+    res = client.post(f"/api/reg/sheets/{made['sheet_id']}/publish", json={"by": "admin"})
+    assert res.status_code == 400
+
+
+def test_slm_drafts_are_marked_and_not_saved(client, monkeypatch):
+    """모델이 만든 질문은 초안일 뿐이고, 그 사실이 표시돼야 한다."""
+    from llmwiki.compliance import assist as assist_mod
+
+    sample = ('[{"text":"학습 데이터의 집단별 분포를 측정했는가?","kind":"yesno",'
+              '"options":[],"help":"편향 확인","item_no":10}]')
+    parsed = assist_mod._parse_questions(sample)
+    assert parsed[0]["drafted_by_slm"] is True
+    assert parsed[0]["item_no"] == 10
+
+    # 코드펜스와 잡담이 섞여도 배열만 건져 낸다
+    noisy = "네, 만들었습니다.\n```json\n" + sample + "\n```\n확인해 보세요."
+    assert assist_mod._parse_questions(noisy)[0]["kind"] == "yesno"
+    # 형식을 어기면 버린다 — 반쯤 파싱된 것을 화면에 올리지 않는다
+    assert assist_mod._parse_questions("죄송합니다 만들 수 없습니다") == []

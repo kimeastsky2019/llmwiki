@@ -101,6 +101,10 @@ export const SOLUTIONS: Solution[] = [
         match: "/reg", tabs: ["controls"],
         // 기준을 만드는 것은 거버넌스 담당자의 일이다.
         roles: ["governance", "admin"] },
+      // 평가표 — 사람이 채우는 질문지. 기준 관리(기계가 확인하는 통제)와 나란히 둔다.
+      { path: "/reg/sheets", labelKey: "regTabSheets", descKey: "solRegMenuSheetsDesc",
+        match: "/reg", tabs: ["sheets"],
+        roles: ["governance", "admin"] },
       { path: "/reg/coverage", labelKey: "regTabCoverage", descKey: "solRegMenuCoverageDesc",
         match: "/reg", tabs: ["coverage"],
         roles: ["governance", "admin"] },
