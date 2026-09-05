@@ -125,6 +125,24 @@ function menuActive(m: SolutionMenu, route: Route): boolean {
   return tab !== undefined && m.tabs.includes(tab);
 }
 
+/** 앱이 하위 경로에 얹혀 있을 수 있다 (게이트웨이 뒤 `/aigov/` 등).
+ *
+ * 라우팅을 `location.pathname` 그대로 하면 그런 배포에서 전부 첫 화면으로 떨어진다.
+ * 주소창의 경로에서 접두사를 떼어 앱 경로로 바꾸고, 되돌릴 때 다시 붙인다.
+ * api.ts 도 같은 `BASE_URL` 을 쓰므로 정적·API·라우팅이 한 접두사를 공유한다. */
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+/** 주소창 경로 → 앱 경로 */
+function appPath(pathname: string): string {
+  if (BASE && pathname.startsWith(BASE)) return pathname.slice(BASE.length) || "/";
+  return pathname;
+}
+
+/** 앱 경로 → 주소창 경로 */
+function fullPath(path: string): string {
+  return `${BASE}${path}`;
+}
+
 function parseRoute(path: string): Route {
   // 첫 화면은 규제 서비스 목록이다. 이 제품이 무엇을 하는 도구인지 들어오자마자
   // 말해야 하고, 규제 작업의 출발점은 조직 현황이 아니라 서비스 하나다.
@@ -169,7 +187,7 @@ function parseRoute(path: string): Route {
 }
 
 export default function App() {
-  const [route, setRoute] = useState<Route>(() => parseRoute(location.pathname));
+  const [route, setRoute] = useState<Route>(() => parseRoute(appPath(location.pathname)));
   const menuStatus = useMenuStatus();
   const [meta, setMeta] = useState<Meta | null>(null);
   const [tree, setTree] = useState<TreeLayer[]>([]);
@@ -204,7 +222,7 @@ export default function App() {
   // 솔루션은 별도 상태로 들지 않는다 — 주소창으로 바로 들어온 사람과 메뉴로
   // 들어온 사람이 다른 화면을 보면 안 된다.
   const activeSolution: SolutionCode = solutionOf(
-    route.kind === "engines" ? "/engines" : location.pathname
+    route.kind === "engines" ? "/engines" : appPath(location.pathname)
   );
 
   const langValue = useMemo(
@@ -219,7 +237,7 @@ export default function App() {
   const t = langValue.t;
 
   const navigate = useCallback((path: string) => {
-    history.pushState(null, "", path);
+    history.pushState(null, "", fullPath(path));
     setRoute(parseRoute(path));
   }, []);
 
@@ -229,7 +247,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const onPop = () => setRoute(parseRoute(location.pathname));
+    const onPop = () => setRoute(parseRoute(appPath(location.pathname)));
     addEventListener("popstate", onPop);
     return () => removeEventListener("popstate", onPop);
   }, []);
@@ -334,7 +352,7 @@ export default function App() {
         <aside className="sidebar">
           <div className="brand-row">
             <div className="brand" onClick={() => navigate("/")}>
-              <img src="/gng-logo.png" alt="GnG" className="brand-logo" />
+              <img src={`${BASE}/gng-logo.png`} alt="GnG" className="brand-logo" />
               <div>
                 <div className="brand-title">{meta?.project ?? "LLMWiki"}</div>
                 <div className="brand-sub">
