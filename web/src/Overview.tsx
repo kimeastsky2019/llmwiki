@@ -132,56 +132,81 @@ function PipelineDiagram({
           </marker>
         </defs>
 
-        {/* ── 입력 두 갈래 ─────────────────────────────────────────── */}
-        {/* ① 을 누르면 소스 분석으로 간다. 개요에서 "저 사실이 어디서 오나" 를
-            물었을 때 갈 곳이 없으면 그림이 설명으로만 끝난다. */}
+        {/* ── 입력 세 갈래 ───────────────────────────────────────────
+            코드 · 데이터 · 규제. 앞의 둘은 운영 자산에서 나온 **사실**이고,
+            셋째는 우리가 지켜야 하는 **기준**이다. 성격이 달라 색을 가른다. */}
         <g className="ov-src ov-src-code ov-clickable"
            onClick={() => onNavigate("/programs")}
            role="link" tabIndex={0}
            onKeyDown={(e) => e.key === "Enter" && onNavigate("/programs")}>
-          <rect x={X0} y="24" width="420" height="82" rx="14" />
-          <text x={X0 + 210} y="54" textAnchor="middle" className="ov-h">
+          <rect x={X0} y="20" width="290" height="78" rx="14" />
+          <text x={X0 + 145} y="48" textAnchor="middle" className="ov-h">
             {t("ovSrcCode")}
           </text>
-          <text x={X0 + 210} y="80" textAnchor="middle" className="ov-sub">
+          <text x={X0 + 145} y="72" textAnchor="middle" className="ov-sub">
             {t("ovSrcCodeSub")}
           </text>
-          <text x={X0 + 410} y="46" textAnchor="end" className="ov-go">→</text>
+          <text x={X0 + 280} y="40" textAnchor="end" className="ov-go">→</text>
+        </g>
+
+        {/* 데이터 구축 · 분석 — 코드와 나란한 또 하나의 사실. 이 상자가 없으면
+            "편향은 어디서 나오나" 에 그림이 답하지 못한다. */}
+        <g className="ov-src ov-src-data ov-clickable"
+           onClick={() => onNavigate("/data")}
+           role="link" tabIndex={0}
+           onKeyDown={(e) => e.key === "Enter" && onNavigate("/data")}>
+          <rect x="365" y="20" width="290" height="78" rx="14" />
+          <text x="510" y="48" textAnchor="middle" className="ov-h">
+            {t("ovSrcData")}
+          </text>
+          <text x="510" y="72" textAnchor="middle" className="ov-sub">
+            {t("ovSrcDataSub")}
+          </text>
+          <text x="645" y="40" textAnchor="end" className="ov-go">→</text>
         </g>
 
         <g className="ov-src ov-src-reg">
-          <rect x="570" y="24" width="420" height="82" rx="14" />
-          <text x="780" y="54" textAnchor="middle" className="ov-h">
+          <rect x="700" y="20" width="290" height="78" rx="14" />
+          <text x="845" y="48" textAnchor="middle" className="ov-h">
             {t("ovSrcReg")}
           </text>
-          <text x="780" y="80" textAnchor="middle" className="ov-sub">
+          <text x="845" y="72" textAnchor="middle" className="ov-sub">
             {t("ovSrcRegSub")}
           </text>
         </g>
 
-        {/* 기준 관리 — 규제 쪽 입력을 사람이 만들고 고친다는 것을 보인다.
-            원래 그림에 없어서 규제 그래프가 저절로 있는 것처럼 읽혔다. */}
+        {/* 기준 관리 — 규제 쪽 입력을 사람이 만들고 고친다는 것을 보인다. */}
         <g className="ov-feed">
-          <rect x="662" y="128" width="236" height="40" rx="10" />
-          <text x="780" y="153" textAnchor="middle" className="ov-feed-t">
+          <rect x="727" y="118" width="236" height="38" rx="10" />
+          <text x="845" y="142" textAnchor="middle" className="ov-feed-t">
             {t("ovCriteria")}
           </text>
-          <path d="M780,128 L780,112" markerEnd="url(#ovArrow)" />
+          <path d="M845,118 L845,104" markerEnd="url(#ovArrow)" />
         </g>
 
-        {/* 두 입력이 ② 로 모인다 */}
+        {/* 코드·데이터는 ③ 위험등급의 근거가 되고, 코드는 ② 서비스 정의도 만든다.
+            규제·기준은 ④ 통제·증적으로 간다. 화살표가 그 사실을 말한다. */}
         <g className="ov-flow">
-          <path d={`M${X0 + 210},106 L${X0 + 210},196 L${X0 + 88},196 L${X0 + 88},${ROW_Y - 8}`}
+          <path d={`M${X0 + 145},98 L${X0 + 145},176 L${X0 + 88},176 L${X0 + 88},${ROW_Y - 8}`}
                 markerEnd="url(#ovArrow)" />
-          <path d="M780,168 L780,196 L118,196" />
+          <path d={`M510,98 L510,176 L${X0 + 88 + CARD_W + GAP},176 L${X0 + 88 + CARD_W + GAP},${ROW_Y - 8}`}
+                markerEnd="url(#ovArrow)" />
+          <path d={`M845,156 L845,176 L${X0 + 88 + 2 * (CARD_W + GAP)},176 L${X0 + 88 + 2 * (CARD_W + GAP)},${ROW_Y - 8}`}
+                markerEnd="url(#ovArrow)" />
         </g>
+
+        {/* 32항목 후보가 어디서 오는지 — 세 갈래다. 자가진단은 그림 밖(사람)이라
+            글자로만 적는다. */}
+        <text x="510" y="196" textAnchor="middle" className="ov-note">
+          {t("ovThreeSources")}
+        </text>
 
         {/* ── 결재 게이트 ──────────────────────────────────────────
             이 제품의 척추. 그래프에 쓰는 길은 이것 하나뿐이라, 파이프라인
             위에 띠로 깔아 ②·④ 가 여기를 지난다는 것을 보인다. */}
         <g className="ov-gate">
-          <rect x={X0} y="208" width="960" height="26" rx="8" />
-          <text x={X0 + 12} y="226" className="ov-gate-t">{t("ovGateBand")}</text>
+          <rect x={X0} y="210" width="960" height="26" rx="8" />
+          <text x={X0 + 12} y="228" className="ov-gate-t">{t("ovGateBand")}</text>
         </g>
 
         {/* ── 파이프라인 6단계 ─────────────────────────────────────── */}

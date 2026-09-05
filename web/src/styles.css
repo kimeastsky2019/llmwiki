@@ -2276,6 +2276,9 @@ button.hint-ev-item:hover { text-decoration: underline; }
 .ov-svg .ov-src rect { stroke-width: 1.5; }
 .ov-svg .ov-src-code rect { fill: #ecf5f2; stroke: #4b8a7a; }
 .ov-svg .ov-src-reg rect { fill: #fbeeec; stroke: #a8574c; }
+/* 데이터 — 코드와 나란한 '사실' 이라 같은 계열로 두되 구분되게 파랑을 쓴다. */
+.ov-svg .ov-src-data rect { fill: #eaf1f8; stroke: #4a6f96; }
+.ov-svg .ov-note { font-size: 11.5px; fill: var(--muted); }
 
 .ov-svg .ov-feed rect { fill: var(--panel); stroke: #a8574c; stroke-width: 1.2; stroke-dasharray: 4 3; }
 .ov-svg .ov-feed-t { font-size: 12px; fill: #a8574c; font-weight: 650; }
