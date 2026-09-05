@@ -12,17 +12,20 @@ import {
   type RegValidation,
 } from "./api";
 import { useLang } from "./i18n";
+import type { RoleCode } from "./roles";
 import RiskWizard from "./RiskWizard";
 import Controls from "./Controls";
+import Approvals from "./Approvals";
+import Overview from "./Overview";
 import Process from "./Process";
 import Services from "./Services";
 
 /** 서비스가 맨 앞이다 — 규제 작업의 출발점은 조직 현황이 아니라 서비스 하나다. */
 export type RegTab =
-  | "process" | "services" | "risk" | "assess" | "controls" | "coverage" | "changes" | "graph";
+  | "overview" | "process" | "services" | "approvals" | "risk" | "assess" | "controls" | "coverage" | "changes" | "graph";
 
 export const REG_TABS: RegTab[] =
-  ["process", "services", "risk", "assess", "controls", "coverage", "changes", "graph"];
+  ["overview", "process", "services", "risk", "approvals", "assess", "controls", "coverage", "changes", "graph"];
 
 /** 판정값 → CSS 클래스. 색은 화면에서만 쓰고 판정 자체는 서버가 정한다. */
 const VERDICT_CLASS: Record<string, string> = {
@@ -53,9 +56,12 @@ function readSigner(): string {
 
 export default function Compliance({
   tab,
+  roleCode,
   onNavigate,
 }: {
   tab: RegTab;
+  /** 결재 화면이 역할마다 다른 것을 보여 준다 — 목록 자체가 달라진다. */
+  roleCode: RoleCode;
   onNavigate: (path: string) => void;
 }) {
   const { t } = useLang();
@@ -114,6 +120,8 @@ export default function Compliance({
           onChanged={bumped}
         />
       )}
+      {tab === "overview" && <Overview onNavigate={onNavigate} />}
+      {tab === "approvals" && <Approvals key={`ap${refresh}`} roleCode={roleCode} />}
       {tab === "process" && <Process key={`pr${refresh}`} onNavigate={onNavigate} />}
       {tab === "controls" && <Controls key={`ct${refresh}`} />}
       {tab === "coverage" && <CoverageTab key={`c${refresh}`} onError={setErr} />}

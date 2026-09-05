@@ -134,6 +134,13 @@ def test_there_is_no_endpoint_that_writes_the_graph_directly():
         # 결재를 건너뛰면 안 되는 쪽이다 — 통제 하나가 바뀌면 그 통제를 쓰는
         # 모든 서비스의 판정이 바뀐다.
         "/api/reg/controls/propose",
+        # 프로젝트 결재 — 승인 그래프를 건드리지 않는다. 별도 append-only 파일
+        # (approvals.jsonl)에만 쌓인다. 기준 변경 결재(/changes)와 다른 축이라
+        # 한 테이블에 합치지 않았다 — 합치면 "기준이 바뀌었다" 와 "서비스가
+        # 승인됐다" 가 같은 줄에 서서 감사에서 답이 섞인다.
+        "/api/reg/approvals",
+        "/api/reg/approvals/{approval_id}/decide",
+        "/api/reg/approvals/{approval_id}/verify",
     }
 
 
@@ -592,3 +599,102 @@ def test_process_queue_never_invents_a_deadline(client):
     body = client.get("/api/reg/process").json()
     for row in body["queue"]:
         assert not ({"due", "due_at", "sla", "deadline", "remaining"} & set(row)), row
+
+
+# --------------------------------------------------------------------------- #
+# 프로젝트 결재 — 계획 승인 → 결과 승인, 등급이 승인권자를 정한다
+# --------------------------------------------------------------------------- #
+def _grade(client, uuid, key, label):
+    """등급을 저장해 둔다. 결재는 저장된 등급에서 승인권자를 정하므로 전제 조건이다."""
+    from llmwiki.server import compliance as mod
+    store = mod._store()
+    saved = store.read_json("risk_assessments.json", default={}) or {}
+    saved[uuid] = {"result": {"final_grade": {"key": key, "label": label}}, "saved_by": "t"}
+    store.write_json("risk_assessments.json", saved)
+
+
+def test_grade_decides_who_approves(client):
+    """회의에서 정해진 유일한 분기 — 고위험은 윤리위원회, 저·중위험은 거버넌스."""
+    from llmwiki.compliance import approval as ap
+
+    assert ap.approver_role("high") == ap.COMMITTEE
+    assert ap.approver_role("unacceptable") == ap.COMMITTEE
+    assert ap.approver_role("medium") == ap.GOVERNANCE
+    assert ap.approver_role("low") == ap.GOVERNANCE
+    # 고위험만 제3자 검증을 거친다
+    assert ap.needs_verification("high") and not ap.needs_verification("medium")
+
+
+def test_result_approval_needs_the_plan_first(client):
+    _grade(client, "svc-call-summary", "medium", "중위험 서비스")
+    early = client.post("/api/reg/approvals", json={
+        "service_uuid": "svc-call-summary", "kind": "result", "by": "planner-a"})
+    assert early.status_code == 400
+    assert "계획 승인이 먼저" in early.json()["detail"]
+
+
+def test_low_risk_runs_through_governance(client):
+    _grade(client, "svc-call-summary", "medium", "중위험 서비스")
+    made = client.post("/api/reg/approvals", json={
+        "service_uuid": "svc-call-summary", "kind": "plan", "by": "planner-a"})
+    assert made.status_code == 200, made.text
+    row = made.json()
+    assert row["approver_role"] == "governance"
+    assert row["needs_verification"] is False
+
+    # 윤리위원회는 이 건을 결정할 수 없다 — 등급이 정한 승인권자가 아니다
+    wrong = client.post(f"/api/reg/approvals/{row['approval_id']}/decide",
+                        json={"by": "chair", "role": "committee", "approve": True})
+    assert wrong.status_code == 403
+
+    # 상신자는 자기 건을 승인할 수 없다
+    self_ok = client.post(f"/api/reg/approvals/{row['approval_id']}/decide",
+                          json={"by": "planner-a", "role": "governance", "approve": True})
+    assert self_ok.status_code == 403
+    assert "상신자" in self_ok.json()["detail"]
+
+    ok = client.post(f"/api/reg/approvals/{row['approval_id']}/decide",
+                     json={"by": "gov-officer", "role": "governance", "approve": True})
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["status"] == "approved"
+
+
+def test_high_risk_result_needs_third_party_verification(client):
+    """고위험 경로가 검증 없이 뚫리지 않는다."""
+    uuid = "svc-credit-scoring"
+    _grade(client, uuid, "high", "고위험 서비스")
+
+    plan = client.post("/api/reg/approvals", json={
+        "service_uuid": uuid, "kind": "plan", "by": "planner-b"}).json()
+    assert plan["approver_role"] == "committee"
+    client.post(f"/api/reg/approvals/{plan['approval_id']}/decide",
+                json={"by": "chair", "role": "committee", "approve": True})
+
+    result = client.post("/api/reg/approvals", json={
+        "service_uuid": uuid, "kind": "result", "by": "planner-b"}).json()
+    assert result["needs_verification"] is True
+
+    # 검증 없이 승인 → 막힌다
+    early = client.post(f"/api/reg/approvals/{result['approval_id']}/decide",
+                        json={"by": "chair", "role": "committee", "approve": True})
+    assert early.status_code == 400
+    assert "제3자 검증" in early.json()["detail"]
+
+    # 검증기관이 결과를 등록한다 — 이것은 승인이 아니다
+    ver = client.post(f"/api/reg/approvals/{result['approval_id']}/verify",
+                      json={"by": "kisa", "result": "pass", "note": "샘플 검증"})
+    assert ver.status_code == 200, ver.text
+    assert ver.json()["status"] == "pending", "검증 등록이 승인이 되어서는 안 된다"
+
+    ok = client.post(f"/api/reg/approvals/{result['approval_id']}/decide",
+                     json={"by": "chair", "role": "committee", "approve": True})
+    assert ok.status_code == 200, ok.text
+
+    gate = client.get(f"/api/reg/approvals/gate/{uuid}").json()
+    assert gate["deployable"] is True, "두 승인이 끝나면 IT 포털의 이행 버튼이 열린다"
+
+
+def test_verifier_only_sees_what_it_must_verify(client):
+    """사외 기관에 사내 서비스 목록 전체가 열리면 안 된다."""
+    rows = client.get("/api/reg/approvals?role=verifier").json()["approvals"]
+    assert all(r["needs_verification"] and r["status"] == "pending" for r in rows)

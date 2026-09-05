@@ -68,8 +68,11 @@ export const SOLUTIONS: Solution[] = [
     code: "compliance",
     labelKey: "solRegName",
     taglineKey: "solRegTagline",
-    home: "/reg/services",
+    home: "/reg/overview",
     menus: [
+      // 개요가 맨 위다 — 처음 온 사람이 메뉴를 눌러 보며 구조를 짐작하게 두지 않는다.
+      { path: "/reg/overview", labelKey: "regTabOverview", descKey: "solRegMenuOverviewDesc",
+        match: "/reg", tabs: ["overview"] },
       // 앞의 것이 없으면 뒤의 것이 의미가 없는 순서다. 번호가 그 사실을 말한다.
       // 업무 프로세스가 맨 위다 — 무엇을 할지 정하기 전에 어디가 막혔는지를 본다.
       { path: "/reg/process", labelKey: "regTabProcess", descKey: "solRegMenuProcessDesc",
@@ -81,6 +84,10 @@ export const SOLUTIONS: Solution[] = [
         match: "/reg", tabs: ["risk"], step: 3,
         // 위험 식별·경감은 기획이 적고 개발이 이행한다.
         roles: ["planner", "developer", "admin"] },
+      // 결재 — 계획 승인과 결과 승인. 상신하는 쪽과 결정하는 쪽이 모두 본다.
+      { path: "/reg/approvals", labelKey: "regTabApprovals", descKey: "solRegMenuApprovalsDesc",
+        match: "/reg", tabs: ["approvals"], step: 4,
+        roles: ["planner", "governance", "committee", "verifier", "admin"] },
       { path: "/reg", labelKey: "regTabAssess", descKey: "solRegMenuAssessDesc",
         match: "/reg", tabs: ["assess"], step: 5,
         roles: ["governance", "committee", "verifier", "admin"] },
@@ -143,7 +150,9 @@ export function solutionOf(path: string): SolutionCode {
     return "nanogrid";
   }
   // 서비스 대시보드(/svc/<id>)는 경로가 달라도 규제 축이다.
-  if (path.startsWith("/reg") || path.startsWith("/svc")) {
+  // 루트도 여기다 — 첫 화면이 규제 축의 개요이므로, 사이드바가 소스 분석을
+  // 보이면 본문과 사이드바가 서로 다른 제품을 말한다.
+  if (path === "/" || path === "" || path.startsWith("/reg") || path.startsWith("/svc")) {
     return "compliance";
   }
   if (path.startsWith("/kb") || path.startsWith("/wiki") || path.startsWith("/admin")) {

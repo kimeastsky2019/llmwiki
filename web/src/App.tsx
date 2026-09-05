@@ -149,7 +149,7 @@ function parseRoute(path: string): Route {
   // 첫 화면은 규제 서비스 목록이다. 이 제품이 무엇을 하는 도구인지 들어오자마자
   // 말해야 하고, 규제 작업의 출발점은 조직 현황이 아니라 서비스 하나다.
   // 프로그램 목록은 사라지지 않고 /programs 로 옮겼다.
-  if (path === "/" || path === "") return { kind: "reg", tab: "services" };
+  if (path === "/" || path === "") return { kind: "reg", tab: "overview" };
   if (path === "/programs") return { kind: "home" };
   if (path.startsWith("/p/")) return { kind: "program", id: path.slice(3) };
   if (path.startsWith("/t/")) return { kind: "table", name: decodeURIComponent(path.slice(3)) };
@@ -555,7 +555,7 @@ export default function App() {
             />
           )}
           {route.kind === "reg" && (
-            <Compliance tab={route.tab} onNavigate={navigate} />
+            <Compliance tab={route.tab} roleCode={roleCode} onNavigate={navigate} />
           )}
           {route.kind === "svc" && (
             <ServiceDashboard key={route.id} uuid={route.id} onNavigate={navigate} />

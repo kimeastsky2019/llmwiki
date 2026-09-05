@@ -17,7 +17,7 @@ from typing import Any
 from fastapi import APIRouter, Body, HTTPException, Query
 
 from ..compliance import advise as advisor
-from ..compliance import analysis, changeset as cs, codehints, propose, riskassess, rules, verify
+from ..compliance import analysis, approval, changeset as cs, codehints, propose, riskassess, rules, verify
 from ..compliance import i18n
 from ..compliance.ontology import (
     AUTO_LEVELS,
@@ -463,6 +463,108 @@ def service_propose(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     return {"changeset": change.to_dict(), "note": result.note,
             "rejected": result.rejected,
             "approver": cs.GRADES[change.grade]["approver"]}
+
+
+# --------------------------------------------------------------------------- #
+# 프로젝트 결재 — 계획 승인과 결과 승인
+#
+# 기준 변경 결재(/changes)와 다른 것이다. 저쪽은 *무엇으로 잴 것인가*, 여기는
+# *이 서비스를 내보내도 되는가* 를 묻는다. 회의에서 정한 대로 결재는 IT 포털
+# ITSM 을 타지 않고 전부 이 시스템에서 한다.
+# --------------------------------------------------------------------------- #
+@router.get("/approvals")
+def approvals(service: str | None = Query(None),
+              role: str | None = Query(None),
+              lang: str | None = Query(None)) -> dict[str, Any]:
+    """결재함. `role` 을 주면 그 역할이 결정할 수 있는 건만 남긴다.
+
+    사외 역할(제3자 검증기관)은 자기가 검증할 건만 봐야 한다 — 사내 서비스
+    목록 전체가 사외에 열리면 안 된다.
+    """
+    store = _store()
+    rows = list(approval.latest(store).values())
+    if service:
+        rows = [r for r in rows if r["service_uuid"] == service]
+
+    if role == approval.VERIFIER:
+        # 검증기관은 '검증이 필요하고 아직 대기 중인 건' 만 본다.
+        rows = [r for r in rows
+                if r.get("needs_verification") and r["status"] == approval.PENDING]
+    elif role in (approval.COMMITTEE, approval.GOVERNANCE):
+        rows = [r for r in rows if r["approver_role"] == role]
+
+    names = {
+        str(n["props"].get("uuid")): _pick(n["props"], "name", lang)
+        for n in store.approved().of_type("Service")
+    }
+    rows.sort(key=lambda r: (r["status"] != approval.PENDING, str(r.get("requested_at"))))
+    return {
+        "approvals": [{**r, "service_name": names.get(r["service_uuid"], r["service_uuid"])}
+                      for r in rows],
+        "kinds": list(approval.KINDS),
+    }
+
+
+@router.get("/approvals/gate/{service_uuid}")
+def approval_gate(service_uuid: str) -> dict[str, Any]:
+    """이 서비스가 이행 가능한가. IT 포털이 물어볼 값이다."""
+    return approval.gate(_store(), service_uuid)
+
+
+@router.post("/approvals")
+def approval_request(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """결재 상신. 등급은 저장된 위험평가에서 가져온다 — 여기서 다시 계산하지 않는다."""
+    service_uuid = str(payload.get("service_uuid", "")).strip()
+    store = _store()
+    grade = _grade_of(store.read_json(RISK_FILE, default={}) or {}, service_uuid)
+    if not grade:
+        raise HTTPException(409, "위험등급이 없다 — 등급을 산정해야 결재를 올릴 수 있다")
+    try:
+        return approval.request(
+            store, service_uuid=service_uuid,
+            kind=str(payload.get("kind", "")),
+            grade_key=str(grade.get("key", "")),
+            grade_label=str(grade.get("label", "")),
+            by=str(payload.get("by", "")),
+            note=str(payload.get("note", "")).strip(),
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/approvals/{approval_id}/verify")
+def approval_verify(approval_id: str, payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """제3자 검증 결과 등록. **승인이 아니다** — 결과를 남길 뿐이다."""
+    try:
+        return approval.file_verification(
+            _store(), approval_id,
+            by=str(payload.get("by", "")),
+            result=str(payload.get("result", "")),
+            note=str(payload.get("note", "")).strip(),
+        )
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/approvals/{approval_id}/decide")
+def approval_decide(approval_id: str, payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """승인·반려. 등급이 정한 승인권자만, 상신자가 아닌 사람이 결정한다."""
+    try:
+        return approval.decide(
+            _store(), approval_id,
+            by=str(payload.get("by", "")),
+            role=str(payload.get("role", "")),
+            approve=bool(payload.get("approve")),
+            note=str(payload.get("note", "")).strip(),
+        )
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @router.get("/controls")

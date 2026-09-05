@@ -2259,3 +2259,65 @@ button.hint-ev-item:hover { text-decoration: underline; }
 .topbar-desc { order: 1; font-size: 12.5px; color: var(--muted); }
 /* 권한으로 오해하지 않도록 한 줄 덧붙인다 — 안 보이니까 못 한다고 읽히면 안 된다. */
 .topbar-note { order: 3; flex-basis: 100%; font-size: 11px; color: var(--muted); }
+
+/* --------------------------------------------------------------------------- */
+/* 개요 — 첫 화면. 개요도는 인라인 SVG 라 색을 앱 토큰에서 받는다.              */
+/* --------------------------------------------------------------------------- */
+.ov-fig { margin: var(--gap-s) 0; padding: 0; }
+.ov-svg { width: 100%; height: auto; display: block; }
+.ov-svg text { font-family: inherit; fill: var(--text); }
+.ov-svg .ov-h { font-size: 14px; font-weight: 700; }
+.ov-svg .ov-sub { font-size: 12px; fill: var(--muted); }
+.ov-svg .ov-who { font-size: 11px; fill: var(--accent); font-weight: 650; }
+
+/* 입력 두 갈래 — 색으로 '코드에서 온 것' 과 '규제에서 온 것' 을 가른다.
+   상태색(민트=완료, 앰버=검토, 코랄=차단)과 겹치지 않게 채도를 낮춘다. */
+.ov-svg .ov-src rect { stroke-width: 1.5; }
+.ov-svg .ov-src-code rect { fill: #ecf5f2; stroke: #4b8a7a; }
+.ov-svg .ov-src-reg rect { fill: #fbeeec; stroke: #a8574c; }
+
+.ov-svg .ov-feed rect { fill: var(--panel); stroke: #a8574c; stroke-width: 1.2; stroke-dasharray: 4 3; }
+.ov-svg .ov-feed-t { font-size: 12px; fill: #a8574c; font-weight: 650; }
+.ov-svg .ov-feed path { stroke: #a8574c; fill: none; color: #a8574c; stroke-width: 1.4; }
+
+.ov-svg .ov-flow path { stroke: var(--muted); fill: none; color: var(--muted); stroke-width: 1.5; }
+
+/* 결재 게이트 — 파이프라인 위에 깔리는 띠. 이 제품의 척추라 눈에 걸려야 한다. */
+.ov-svg .ov-gate rect { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.2; }
+.ov-svg .ov-gate-t { font-size: 11.5px; fill: var(--accent); font-weight: 700; }
+
+.ov-svg .ov-stage rect { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+/* 자동 판정만 테두리를 굵게 — 여기가 'LLM 이 없는 자리' 라는 것이 핵심이다. */
+.ov-svg .ov-stage-rule rect { stroke: var(--text); stroke-width: 2; }
+.ov-svg .ov-arrow { stroke: var(--text); fill: none; color: var(--text); stroke-width: 1.6; }
+.ov-svg .ov-always path { stroke: var(--line); fill: none; stroke-width: 1.2; stroke-dasharray: 5 4; }
+
+.ov-cards {
+  display: grid; gap: 12px; margin: var(--gap-l) 0;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.ov-card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 15px 16px;
+}
+.ov-card h3 { margin: 0 0 6px; font-size: 14.5px; }
+.ov-card p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.65; }
+.ov-go { display: flex; gap: 10px; flex-wrap: wrap; }
+
+
+/* 결재 — 계획 승인과 결과 승인 */
+.ap-list { display: flex; flex-direction: column; gap: 10px; margin-top: var(--gap-s); }
+.ap-card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px 16px;
+}
+.ap-card > header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.ap-card > header b { font-size: 14.5px; }
+.ap-note { margin: 6px 0; font-size: 13px; }
+/* 제3자 검증 — 없으면 비어 있다는 것이 보여야 한다. 채워진 것처럼 보이면 안 된다. */
+.ap-verify {
+  margin: 8px 0; padding: 9px 12px; border-radius: 8px;
+  border: 1px dashed var(--warn-line); background: var(--warn-bg); font-size: 12.5px;
+}
+.ap-verify.done { border-style: solid; border-color: #6ee7b7; background: #ecfdf5; }
+.ap-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }

@@ -589,6 +589,28 @@ export interface RegProcess {
   queue_total: number;
 }
 
+/** 프로젝트 결재 — 계획 승인과 결과 승인. 기준 변경 결재(RegChange)와 다른 축이다. */
+export interface RegApproval {
+  approval_id: string;
+  service_uuid: string;
+  service_name: string;
+  kind: "plan" | "result";
+  grade_key: string;
+  grade_label: string;
+  /** 등급이 정한다 — 고위험은 committee, 저·중위험은 governance */
+  approver_role: string;
+  /** 고위험 결과 승인에만 붙는다 */
+  needs_verification: boolean;
+  verification: { result: "pass" | "fail"; by: string; at: string; note: string } | null;
+  status: "pending" | "approved" | "rejected";
+  requested_by: string;
+  requested_at: string;
+  note: string;
+  decided_by: string;
+  decided_at: string;
+  decision_note: string;
+}
+
 /** 평가 절차 하나. `kind` 가 metric 이면 산식·연산자·임계치가 붙는다. */
 export interface RegProcedure {
   seq: string;
@@ -1436,6 +1458,30 @@ export const api = {
 
     /** 업무 프로세스 — 단계별 적체·결재 큐·통제 충족을 한 번에. */
     process: () => get<RegProcess>("/api/reg/process"),
+
+    /** 결재함. role 을 함께 보내 서버가 볼 수 있는 것만 내려 주게 한다 —
+     *  화면에서만 거르면 주소를 아는 사람은 그대로 본다. */
+    approvals: (role?: string, service?: string) => {
+      const q = new URLSearchParams();
+      if (role) q.set("role", role);
+      if (service) q.set("service", service);
+      return get<{ approvals: RegApproval[]; kinds: string[] }>(
+        `/api/reg/approvals${q.toString() ? `?${q}` : ""}`
+      );
+    },
+    gate: (uuid: string) =>
+      get<{ service_uuid: string; plan: string; result: string; deployable: boolean }>(
+        `/api/reg/approvals/gate/${encodeURIComponent(uuid)}`
+      ),
+    requestApproval: (body: { service_uuid: string; kind: string; by: string; note?: string }) =>
+      post<RegApproval>("/api/reg/approvals", body),
+    /** 검증 결과 등록 — 승인이 아니다. */
+    verify: (id: string, by: string, result: "pass" | "fail", note = "") =>
+      post<RegApproval>(`/api/reg/approvals/${encodeURIComponent(id)}/verify`,
+                        { by, result, note }),
+    decide: (id: string, by: string, role: string, approve: boolean, note = "") =>
+      post<RegApproval>(`/api/reg/approvals/${encodeURIComponent(id)}/decide`,
+                        { by, role, approve, note }),
 
     /** 평가 항목·지표 (기준 관리) — 만드는 것도 결재를 거친다. */
     controls: () =>
