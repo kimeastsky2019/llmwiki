@@ -2485,3 +2485,34 @@ button.hint-ev-item:hover { text-decoration: underline; }
 .sh-risk > span:first-child { font-size: 11.5px; color: var(--muted); }
 .sh-risk-opts { display: flex; gap: 12px; flex-wrap: wrap; }
 .sh-risk-opts label { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; }
+
+
+/* 개요 — 역할별 '내가 할 일' 과 파이프라인 강조 */
+.ov-steps {
+  display: grid; gap: 10px; margin: var(--gap-s) 0; padding: 0; list-style: none;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.ov-step {
+  display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 12px 13px;
+  font-family: inherit; cursor: pointer;
+}
+.ov-step:hover { border-color: var(--accent); }
+.ov-step b { display: block; font-size: 13.5px; margin-bottom: 2px; }
+.ov-step span.small { display: block; line-height: 1.5; }
+.ov-step-no {
+  flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 12px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* 파이프라인 — 내 단계는 살리고 나머지는 죽인다. 색이 아니라 명도로 가른다:
+   색맹이어도 구분되고, 흑백 인쇄에서도 남는다. */
+.ov-svg .ov-stage-mine rect { stroke: var(--accent); stroke-width: 2; fill: var(--accent-soft); }
+.ov-svg .ov-stage-off { opacity: 0.38; }
+.ov-svg .ov-clickable { cursor: pointer; }
+.ov-svg .ov-clickable:hover rect { stroke-width: 2.5; }
+.ov-svg .ov-go { font-size: 15px; fill: #4b8a7a; font-weight: 700; }
+.ov-svg .ov-always-mine path { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 4; }
+.ov-svg .ov-always-mine text { fill: var(--accent); font-weight: 650; }

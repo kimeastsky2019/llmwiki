@@ -14,7 +14,7 @@
  */
 import Assist from "./Assist";
 import { useLang, type StringKey } from "./i18n";
-import type { RoleCode } from "./roles";
+import { guide, role as roleOf, type RoleCode } from "./roles";
 
 export default function Overview({
   roleCode,
@@ -29,9 +29,10 @@ export default function Overview({
     <section className="ov">
       <header className="svc-head">
         <div>
-          <h2>{t("ovTitle")}</h2>
-          <p className="lede">{t("ovLede")}</p>
+          <h2>{t(`ovTitle_${roleCode}` as StringKey)}</h2>
+          <p className="lede">{t(`ovLede_${roleCode}` as StringKey)}</p>
         </div>
+        <span className="chip">{t(roleOf(roleCode).labelKey)}</span>
       </header>
 
       {/* 기획자에게는 도우미가 먼저다. 이 시스템에서 처음 하는 일이 "빈 폼을
@@ -39,7 +40,23 @@ export default function Overview({
           온 사람에게 기획 대화창은 방해다. */}
       {roleCode === "planner" && <Assist onNavigate={onNavigate} />}
 
-      <PipelineDiagram />
+      {/* 내가 할 일 — 역할마다 다르다. 개요를 읽고 나서 어디로 갈지 모르면
+          개요가 제 몫을 못 한 것이다. */}
+      <ol className="ov-steps">
+        {guide(roleCode).steps.map((step, i) => (
+          <li key={step.path}>
+            <button className="ov-step" onClick={() => onNavigate(step.path)}>
+              <span className="ov-step-no">{i + 1}</span>
+              <span>
+                <b>{t(step.labelKey)}</b>
+                <span className="muted small">{t(step.descKey)}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ol>
+
+      <PipelineDiagram roleCode={roleCode} onNavigate={onNavigate} />
 
       <div className="ov-cards">
         <article className="ov-card">
@@ -73,16 +90,25 @@ export default function Overview({
  *  라이브러리를 쓰지 않는 이유: 이 그림은 한 장이고 바뀌는 값이 없다. 차트
  *  라이브러리를 들이면 번들만 커지고, 글자 크기·색이 앱과 따로 논다.
  *  색은 CSS 변수로 받아 KO/EN·테마와 함께 움직인다. */
-function PipelineDiagram() {
+function PipelineDiagram({
+  roleCode,
+  onNavigate,
+}: {
+  roleCode: RoleCode;
+  onNavigate: (path: string) => void;
+}) {
   const { t } = useLang();
+  // 이 역할이 만지는 단계. 비어 있으면(운영) 아무것도 죽이지 않는다 —
+  // 전부 흐리게 만들면 그림이 '내 일이 없다' 로 읽힌다.
+  const owns = new Set(guide(roleCode).owns);
 
   /** 파이프라인 6단계. x 는 카드 왼쪽 좌표. */
-  const stages: { no: string; head: StringKey; sub: StringKey; who: StringKey }[] = [
-    { no: "②", head: "ovS2", sub: "ovS2Sub", who: "ovS2Who" },
-    { no: "③", head: "ovS3", sub: "ovS3Sub", who: "ovS3Who" },
-    { no: "④", head: "ovS4", sub: "ovS4Sub", who: "ovS4Who" },
-    { no: "⑤", head: "ovS5", sub: "ovS5Sub", who: "ovS5Who" },
-    { no: "⑥", head: "ovS6", sub: "ovS6Sub", who: "ovS6Who" },
+  const stages: { no: string; key: string; head: StringKey; sub: StringKey; who: StringKey }[] = [
+    { no: "②", key: "define", head: "ovS2", sub: "ovS2Sub", who: "ovS2Who" },
+    { no: "③", key: "grade", head: "ovS3", sub: "ovS3Sub", who: "ovS3Who" },
+    { no: "④", key: "controls", head: "ovS4", sub: "ovS4Sub", who: "ovS4Who" },
+    { no: "⑤", key: "assess", head: "ovS5", sub: "ovS5Sub", who: "ovS5Who" },
+    { no: "⑥", key: "confirm", head: "ovS6", sub: "ovS6Sub", who: "ovS6Who" },
   ];
 
   const CARD_W = 176;
@@ -107,7 +133,12 @@ function PipelineDiagram() {
         </defs>
 
         {/* ── 입력 두 갈래 ─────────────────────────────────────────── */}
-        <g className="ov-src ov-src-code">
+        {/* ① 을 누르면 소스 분석으로 간다. 개요에서 "저 사실이 어디서 오나" 를
+            물었을 때 갈 곳이 없으면 그림이 설명으로만 끝난다. */}
+        <g className="ov-src ov-src-code ov-clickable"
+           onClick={() => onNavigate("/programs")}
+           role="link" tabIndex={0}
+           onKeyDown={(e) => e.key === "Enter" && onNavigate("/programs")}>
           <rect x={X0} y="24" width="420" height="82" rx="14" />
           <text x={X0 + 210} y="54" textAnchor="middle" className="ov-h">
             {t("ovSrcCode")}
@@ -115,6 +146,7 @@ function PipelineDiagram() {
           <text x={X0 + 210} y="80" textAnchor="middle" className="ov-sub">
             {t("ovSrcCodeSub")}
           </text>
+          <text x={X0 + 410} y="46" textAnchor="end" className="ov-go">→</text>
         </g>
 
         <g className="ov-src ov-src-reg">
@@ -156,7 +188,15 @@ function PipelineDiagram() {
         {stages.map((s, i) => {
           const x = X0 + i * (CARD_W + GAP);
           return (
-            <g key={s.no} className={`ov-stage ${i === 3 ? "ov-stage-rule" : ""}`}>
+            <g
+              key={s.no}
+              className={[
+                "ov-stage",
+                i === 3 ? "ov-stage-rule" : "",
+                owns.size && !owns.has(s.key) ? "ov-stage-off" : "",
+                owns.has(s.key) ? "ov-stage-mine" : "",
+              ].filter(Boolean).join(" ")}
+            >
               <rect x={x} y={ROW_Y} width={CARD_W} height={CARD_H} rx="12" />
               <text x={x + CARD_W / 2} y={ROW_Y + 30} textAnchor="middle" className="ov-h">
                 {s.no} {t(s.head)}
@@ -179,7 +219,9 @@ function PipelineDiagram() {
         })}
 
         {/* ── ⑦ 상시로 도는 것 ─────────────────────────────────────── */}
-        <g className="ov-always">
+        {/* 운영은 파이프라인의 한 단계를 맡지 않는다 — 배포 뒤에 상시로 도는
+            ⑦ 이 그 역할의 자리다. 그래서 운영일 때는 이 줄을 살린다. */}
+        <g className={`ov-always ${roleCode === "operator" ? "ov-always-mine" : ""}`}>
           <path d={`M${X0 + 6},${ROW_Y + CARD_H + 18} L985,${ROW_Y + CARD_H + 18}`} />
           <text x="508" y={ROW_Y + CARD_H + 46} textAnchor="middle" className="ov-sub">
             {t("ovAlways")}

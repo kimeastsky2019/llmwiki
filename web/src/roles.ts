@@ -72,3 +72,85 @@ export function storeRole(code: RoleCode): void {
 export function role(code: RoleCode): Role {
   return ROLES.find((r) => r.code === code) ?? ROLES[0];
 }
+
+
+/** 역할이 파이프라인에서 맡는 단계와, 그 역할이 할 일.
+ *
+ * 개요 그림을 역할마다 따로 그리지 않는다. 파이프라인은 하나뿐인데 그림이
+ * 일곱 장이면 고칠 때 서로 어긋나고, 어긋난 그림은 아무도 믿지 않는다.
+ * 대신 **같은 그림 위에서 그 역할이 만지는 단계만 살린다.**
+ */
+export interface RoleGuide {
+  /** 파이프라인에서 이 역할이 맡는 단계 (Overview 의 카드 키) */
+  owns: string[];
+  /** 이 역할이 실제로 누르는 순서. 개요에서 바로 들어갈 수 있게 경로를 준다. */
+  steps: { labelKey: StringKey; descKey: StringKey; path: string }[];
+}
+
+export const GUIDES: Record<RoleCode, RoleGuide> = {
+  governance: {
+    owns: ["controls", "assess"],
+    steps: [
+      { labelKey: "gvS1", descKey: "gvS1D", path: "/reg/controls" },
+      { labelKey: "gvS2", descKey: "gvS2D", path: "/reg/sheets" },
+      { labelKey: "gvS3", descKey: "gvS3D", path: "/reg" },
+      { labelKey: "gvS4", descKey: "gvS4D", path: "/reg/changes" },
+    ],
+  },
+  planner: {
+    owns: ["define", "grade"],
+    steps: [
+      { labelKey: "plS1", descKey: "plS1D", path: "/reg/services" },
+      { labelKey: "plS2", descKey: "plS2D", path: "/reg/selfcheck" },
+      { labelKey: "plS3", descKey: "plS3D", path: "/reg/risk" },
+      { labelKey: "plS4", descKey: "plS4D", path: "/reg/approvals" },
+    ],
+  },
+  developer: {
+    owns: ["grade", "controls"],
+    steps: [
+      // 소스 분석이 개발자의 출발점이다 — 코드에서 나온 사실이 위험 식별의 근거다.
+      { labelKey: "dvS1", descKey: "dvS1D", path: "/programs" },
+      { labelKey: "dvS2", descKey: "dvS2D", path: "/reg/ops" },
+      { labelKey: "dvS3", descKey: "dvS3D", path: "/reg/risk" },
+      { labelKey: "dvS4", descKey: "dvS4D", path: "/reg/selfcheck" },
+    ],
+  },
+  operator: {
+    owns: [],
+    steps: [
+      { labelKey: "opS1", descKey: "opS1D", path: "/reg/ops" },
+      { labelKey: "opS2", descKey: "opS2D", path: "/reg/selfcheck" },
+      { labelKey: "opS3", descKey: "opS3D", path: "/programs" },
+      { labelKey: "opS4", descKey: "opS4D", path: "/reg/process" },
+    ],
+  },
+  committee: {
+    owns: ["confirm"],
+    steps: [
+      { labelKey: "cmS1", descKey: "cmS1D", path: "/reg/approvals" },
+      { labelKey: "cmS2", descKey: "cmS2D", path: "/reg" },
+      { labelKey: "cmS3", descKey: "cmS3D", path: "/reg/process" },
+    ],
+  },
+  verifier: {
+    owns: ["confirm"],
+    steps: [
+      { labelKey: "vfS1", descKey: "vfS1D", path: "/reg/approvals" },
+      { labelKey: "vfS2", descKey: "vfS2D", path: "/reg" },
+    ],
+  },
+  admin: {
+    owns: ["define", "grade", "controls", "assess", "confirm"],
+    steps: [
+      { labelKey: "adS1", descKey: "adS1D", path: "/reg/process" },
+      { labelKey: "adS2", descKey: "adS2D", path: "/reg/controls" },
+      { labelKey: "adS3", descKey: "adS3D", path: "/programs" },
+      { labelKey: "adS4", descKey: "adS4D", path: "/reg/graph" },
+    ],
+  },
+};
+
+export function guide(code: RoleCode): RoleGuide {
+  return GUIDES[code] ?? GUIDES.governance;
+}
