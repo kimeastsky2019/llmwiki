@@ -143,6 +143,10 @@ def test_there_is_no_endpoint_that_writes_the_graph_directly():
         "/api/reg/approvals/{approval_id}/verify",
         # 기획 도우미는 읽기만 한다 — 조언과 같은 이유로 POST 다(본문에 대화를 싣는다).
         "/api/reg/assist",
+        # 데이터 분석은 올린 파일을 임시 폴더에서만 읽고 지운다. 그래프에도,
+        # 저장소에도 쓰지 않는다 — 원본을 남기려면 보존기간과 파기 절차부터
+        # 정해야 하고 지금은 그 결정이 없다.
+        "/api/reg/data/analyze",
     }
 
 
@@ -700,3 +704,74 @@ def test_verifier_only_sees_what_it_must_verify(client):
     """사외 기관에 사내 서비스 목록 전체가 열리면 안 된다."""
     rows = client.get("/api/reg/approvals?role=verifier").json()["approvals"]
     assert all(r["needs_verification"] and r["status"] == "pending" for r in rows)
+
+
+# --------------------------------------------------------------------------- #
+# 데이터 폴더 분석 — 수치는 룰이 센다
+# --------------------------------------------------------------------------- #
+def _biased_csv() -> bytes:
+    import csv as _csv, io as _io, random
+    random.seed(11)
+    buf = _io.StringIO()
+    w = _csv.writer(buf)
+    w.writerow(["cust_id", "gender", "approve_yn", "memo"])
+    for i in range(600):
+        g = "M" if i % 2 == 0 else "F"
+        ok = random.random() < (0.75 if g == "M" else 0.40)
+        w.writerow([f"C{i}", g, "Y" if ok else "N", "" if i % 3 else "비고"])
+    return buf.getvalue().encode("utf-8")
+
+
+def test_data_analysis_measures_bias_without_calling_an_llm(client, monkeypatch):
+    """같은 파일이면 같은 값이 나와야 한다 — 모델이 개입하면 그것을 보장할 수 없다."""
+    from llmwiki.llm import base as llm_base
+
+    def boom(*a, **k):  # pragma: no cover - 불리면 테스트가 실패한다
+        raise AssertionError("데이터 분석은 LLM 을 부르지 않는다")
+
+    monkeypatch.setattr(llm_base, "get_provider", boom)
+
+    payload = _biased_csv()
+    res = client.post(
+        "/api/reg/data/analyze",
+        files=[("files", ("loan.csv", payload, "text/csv"))],
+        data={"paths": ["loan.csv"]},
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+
+    ds = body["datasets"][0]
+    assert ds["rows"] == 600
+    memo = next(c for c in ds["columns"] if c["name"] == "memo")
+    assert memo["missing_ratio"] > 0.3
+
+    bias = next(b for b in body["bias"] if b["protected"] == "gender")
+    assert bias["di"] < 0.8 and bias["outside"] is True
+    # 임계치의 출처를 함께 낸다 — RMF 규정값이 아니라 관행값이다
+    assert bias["source"] and bias["scored"] is False
+
+    # 32항목으로 이어지되 전부 후보다. 판정하지 않는다.
+    items = {f["item_no"] for f in body["findings"]}
+    assert {10, 11} <= items, "편향·공정성 항목이 후보로 올라와야 한다"
+    assert all(f["confidence"] == "candidate" for f in body["findings"])
+
+
+def test_data_analysis_is_deterministic(client):
+    payload = _biased_csv()
+    def run():
+        return client.post("/api/reg/data/analyze",
+                           files=[("files", ("loan.csv", payload, "text/csv"))],
+                           data={"paths": ["loan.csv"]}).json()
+    assert run()["bias"] == run()["bias"]
+
+
+def test_uploaded_data_is_not_kept(client, tmp_path_factory):
+    """올린 원본을 남기지 않는다 — 보존기간·파기 절차가 정해지기 전까지."""
+    from llmwiki.server import compliance as mod
+
+    before = set(p.name for p in mod._store().root.rglob("*"))
+    client.post("/api/reg/data/analyze",
+                files=[("files", ("loan.csv", _biased_csv(), "text/csv"))],
+                data={"paths": ["loan.csv"]})
+    after = set(p.name for p in mod._store().root.rglob("*"))
+    assert after == before, "분석 후 저장소에 파일이 남으면 안 된다"

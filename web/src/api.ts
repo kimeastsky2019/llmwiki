@@ -589,6 +589,43 @@ export interface RegProcess {
   queue_total: number;
 }
 
+/** 데이터 폴더 분석. 수치는 전부 서버의 룰이 센다 — LLM 이 개입하지 않는다. */
+export interface DataColumn {
+  name: string; rows: number; missing: number; missing_ratio: number;
+  unique: number; kind: string; top_value: string; top_ratio: number;
+}
+
+export interface DataSet {
+  name: string; path: string; rows: number; sampled: boolean; error: string;
+  columns: DataColumn[];
+  /** 소스 분석과 이어지는 자리 — 이 데이터를 어느 프로그램이 만지는가.
+   *  이름이 겹치는 것을 찾은 것이라 확정이 아니라 후보다. */
+  source_links?: { table: string; programs: { id: string; name: string }[] }[];
+}
+
+export interface DataBias {
+  dataset: string; protected: string; protected_kind: string;
+  outcome: string; positive_value: string;
+  groups: { value: string; n: number; positive: number; rate: number }[];
+  dropped_small_groups: string[];
+  di: number;
+  /** 임계치 밖이라는 사실만 말한다 — 위반이라 하지 않는다. */
+  outside: boolean;
+  criterion: string;
+  /** RMF 규정값이 아닌 것이 있어 출처를 함께 낸다. */
+  source: string;
+  scored: boolean;
+}
+
+export interface DataAnalysis {
+  folder: string;
+  datasets: DataSet[];
+  bias: DataBias[];
+  findings: { item_no: number; label: string; because: string; source: string; confidence: string }[];
+  skipped: string[];
+  max_rows: number;
+}
+
 /** 기획 도우미 응답. **판정 자리가 없다** — 등급·점수·충족 필드를 두지 않는 것이
  *  이 타입의 계약이다. 자리를 만들어 두면 언젠가 그 값이 화면에 흘러든다. */
 export interface AssistReply {
@@ -1472,6 +1509,18 @@ export const api = {
 
     /** 업무 프로세스 — 단계별 적체·결재 큐·통제 충족을 한 번에. */
     process: () => get<RegProcess>("/api/reg/process"),
+
+    /** 데이터 폴더 분석. 파일은 임시 폴더에서만 읽히고 분석 후 지워진다. */
+    analyzeData: (files: File[]) => {
+      const form = new FormData();
+      for (const f of files) {
+        form.append("files", f);
+        // 브라우저가 폴더 구조를 주면 함께 보낸다 (webkitRelativePath).
+        form.append("paths", (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name);
+      }
+      // Content-Type 을 지정하지 않는다 — 지정하면 boundary 가 빠져 서버가 못 읽는다.
+      return request<DataAnalysis>("/api/reg/data/analyze", { method: "POST", body: form });
+    },
 
     /** 기획 도우미 — 사내 sLM 과의 대화. 서버는 아무것도 쓰지 않는다. */
     assist: (body: {

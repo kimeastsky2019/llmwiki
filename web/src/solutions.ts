@@ -88,6 +88,10 @@ export const SOLUTIONS: Solution[] = [
       { path: "/reg/approvals", labelKey: "regTabApprovals", descKey: "solRegMenuApprovalsDesc",
         match: "/reg", tabs: ["approvals"], step: 4,
         roles: ["planner", "governance", "committee", "verifier", "admin"] },
+      // 운영 — 배포 후 데이터 점검. 설계 단계에서도 같은 화면을 쓴다.
+      { path: "/reg/ops", labelKey: "regTabOps", descKey: "solRegMenuOpsDesc",
+        match: "/reg", tabs: ["ops"],
+        roles: ["operator", "developer", "planner", "governance", "admin"] },
       { path: "/reg", labelKey: "regTabAssess", descKey: "solRegMenuAssessDesc",
         match: "/reg", tabs: ["assess"], step: 5,
         roles: ["governance", "committee", "verifier", "admin"] },

@@ -10,15 +10,19 @@
 
 from __future__ import annotations
 
+import re
+import shutil
+import tempfile
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFile
 
 from ..compliance import advise as advisor
 from ..compliance import (analysis, approval, assist, changeset as cs, codehints,
-                          propose, riskassess, rules, verify)
+                          dataprofile, propose, riskassess, rules, verify)
 from ..compliance import i18n
 from ..compliance.ontology import (
     AUTO_LEVELS,
@@ -594,6 +598,75 @@ def assist_chat(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return result.to_dict()
+
+
+# --------------------------------------------------------------------------- #
+# 데이터 폴더 분석 — 유효성·편향성
+#
+# 회의: "편향성 같은 거 ... 이거는 또 다른 LLM 을 넣어가지고 걔가 프롬포터를
+# 계속 날려보면서 이렇게 평가를 할 수도 있는 거잖아요. 그게 이제 자동화잖아요."
+#
+# 그 자동화를 **룰로** 한다. 수치는 dataprofile 이 세고, LLM 은 부르지 않는다.
+# 설명이 필요하면 화면이 그 수치를 assist 에 넘겨 말로 풀게 한다.
+# --------------------------------------------------------------------------- #
+def _tables_of(idx: Any) -> dict[str, list[dict[str, str]]]:
+    """테이블 → 그 테이블을 만지는 프로그램. 소스 분석과 데이터를 잇는 자리다."""
+    out: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for program in getattr(idx, "programs", []) or []:
+        for table in getattr(program, "tables", []) or []:
+            out[str(table).upper()].append({"id": program.id, "name": program.name})
+    return out
+
+
+def _link_to_source(result: dict[str, Any], idx: Any) -> dict[str, Any]:
+    """데이터셋 이름이 분석된 테이블과 닿는지 본다.
+
+    이름이 겹치는 것을 찾을 뿐이라 **확정이 아니라 후보다.** 그래도 이 연결이
+    있어야 "이 편향된 데이터를 어느 프로그램이 쓰는가" 를 물을 수 있다.
+    """
+    if idx is None:
+        return result
+    tables = _tables_of(idx)
+    for ds in result["datasets"]:
+        stem = re.sub(r"[^A-Za-z0-9_]+", "", Path(ds["name"]).stem).upper()
+        hits = [
+            {"table": name, "programs": progs}
+            for name, progs in tables.items()
+            if name and (name in stem or stem in name)
+        ]
+        ds["source_links"] = hits
+    return result
+
+
+@router.post("/data/analyze")
+def data_analyze(
+    files: list[UploadFile] = File(...),
+    paths: list[str] = Form(default=[]),
+    project: str | None = Form(default=None),
+) -> dict[str, Any]:
+    """폴더를 받아 유효성·편향성을 센다. **LLM 을 부르지 않는다.**
+
+    올린 파일은 임시 폴더에만 두고 분석 후 지운다. 원본을 보관하려면 보존기간과
+    파기 절차부터 정해야 하는데, 지금은 그 결정이 없다 — 없는 채로 쌓아 두면
+    그 자체가 개인정보 처리다.
+    """
+    if not files:
+        raise HTTPException(400, "업로드된 파일이 없습니다.")
+
+    with tempfile.TemporaryDirectory(prefix="llmwiki-data-") as tmp:
+        root = Path(tmp)
+        for i, up in enumerate(files):
+            rel = (paths[i] if i < len(paths) else "") or up.filename or f"f{i}"
+            # 상위 경로 탈출을 막는다. 브라우저가 주는 상대경로를 그대로 믿지 않는다.
+            safe = Path(*[p for p in Path(rel.replace("\\", "/")).parts
+                          if p not in ("..", "/", "")])
+            dest = root / safe
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            with dest.open("wb") as fh:
+                shutil.copyfileobj(up.file, fh)
+        result = dataprofile.analyze(root)
+
+    return _link_to_source(result, _index(project))
 
 
 @router.get("/controls")

@@ -2377,3 +2377,24 @@ button.hint-ev-item:hover { text-decoration: underline; }
   font-family: inherit; font-size: 13.5px;
 }
 .as-input input:focus { border-color: var(--accent); outline: none; }
+
+
+/* 운영 · 데이터 점검 */
+.ops-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: var(--gap-s) 0; }
+.ops-ds, .ops-bias {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 13px 15px; margin: 10px 0;
+}
+.ops-ds > header, .ops-bias > header {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.ops-cols { overflow-x: auto; }
+/* 임계치 밖 — 빨강이 아니라 주의색이다. 위반이 아니라 '봐야 할 것' 이다. */
+.ops-bias.out { border-color: var(--warn-line); background: var(--warn-bg); }
+.ops-src { margin: 8px 0 0; }
+.ops-findings { list-style: none; margin: 10px 0; padding: 0; }
+.ops-findings li {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 9px 0; border-bottom: 1px solid var(--line);
+}
+.ops-findings li:last-child { border-bottom: 0; }
