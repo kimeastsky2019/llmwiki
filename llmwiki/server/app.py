@@ -52,10 +52,6 @@ registry = Registry(cfg)
 
 app = FastAPI(title=f"{cfg.project_name} — LLMWiki")
 
-# 나노그리드 Knowledge Wiki (/api/ng/*) — ngwiki wiki-server 프록시
-from .ng_proxy import router as ng_router  # noqa: E402
-
-app.include_router(ng_router, prefix="/api/ng", tags=["nanogrid"])
 # 소스 열람 한도 — 뷰어가 브라우저를 멈추게 하지 않도록 자른다
 MAX_SOURCE_BYTES = 2_000_000
 MAX_TREE_FILES = 20_000
@@ -852,6 +848,17 @@ app.include_router(bind_kb(cfg))
 from .ediag import bind as bind_ediag  # noqa: E402
 
 app.include_router(bind_ediag(cfg))
+
+# 진단 준비(체크리스트·시계열). 위키를 읽어 만들 뿐 위키를 바꾸지 않는다.
+from .audit import bind as bind_audit  # noqa: E402
+
+app.include_router(bind_audit(cfg))
+
+# 나노그리드 데이터 지식화(`/api/ng/*`) — ngwiki wiki-server 프록시 (env NGWIKI_API).
+# 세 번째 솔루션의 모든 화면이 이 경로 하나로 데이터를 받는다.
+from .ng_proxy import router as ng_router  # noqa: E402
+
+app.include_router(ng_router, prefix="/api/ng", tags=["nanogrid"])
 
 # 엔진 레이어(`/api/engines`). 두 솔루션이 같은 엔진을 쓴다는 사실을 한 곳에서 알린다.
 # 이 줄이 빠지면 사이드바의 엔진 표시줄이 영원히 '불러오는 중' 으로 남는다.

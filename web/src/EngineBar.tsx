@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type EngineInfo, type EngineStatus } from "./api";
 import { useLang, type StringKey } from "./i18n";
-import { SOLUTIONS } from "./solutions";
+import { VISIBLE_SOLUTIONS } from "./solutions";
 
 const NAME_KEY: Record<string, StringKey> = {
   sllm: "engSllm",
@@ -167,7 +167,9 @@ export function EngineLayer({ onNavigate }: { onNavigate: (path: string) => void
 
             <p className="muted small engine-used">
               {t("engUsedBy")}:{" "}
-              {SOLUTIONS.filter((s) => s.engines.includes(e.code))
+              {/* 숨긴 솔루션은 여기서도 이름을 내지 않는다 — 메뉴에 없는 것을
+                  "이 엔진을 쓰는 곳" 으로 보여 주면 찾을 수 없는 화면을 가리킨다. */}
+              {VISIBLE_SOLUTIONS.filter((s) => s.engines.includes(e.code))
                 .map((s) => t(s.labelKey))
                 .join(" · ")}
             </p>

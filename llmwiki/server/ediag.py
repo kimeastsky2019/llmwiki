@@ -15,7 +15,10 @@
 from __future__ import annotations
 
 import os
+import re
+import httpx
 import shutil
+from urllib.parse import unquote
 import tempfile
 from typing import Any
 
@@ -546,3 +549,119 @@ def calculate(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     if len(out) == 1:
         raise HTTPException(400, "계산할 입력이 없다")
     return out
+
+
+# --------------------------------------------------------------------------- #
+# RAG 연동 — rag.ets0404.com 에 이미 적재된 문서를 그대로 위키로 넘긴다.
+#
+# 검색으로 찾은 문서를 위키에 올리려고 파일을 다시 업로드하게 만들면, 사람이
+# 다른 판본을 집어 올릴 여지가 생긴다. RAG 가 보관한 원본을 서버끼리 주고받아
+# 같은 파일이라는 것을 보장한다. 저장 확정은 여전히 검토자 서명을 거친다.
+# --------------------------------------------------------------------------- #
+RAG_BASE_URL = os.getenv("RAG_BASE_URL", "")            # 예: http://127.0.0.1:8010
+RAG_INTERNAL_TOKEN = os.getenv("INTERNAL_API_TOKEN", "")
+RAG_TIMEOUT_SEC = float(os.getenv("RAG_TIMEOUT_SEC", "120"))
+
+
+def _rag_headers() -> dict[str, str]:
+    return {"X-Internal-Token": RAG_INTERNAL_TOKEN}
+
+
+def _rag_ready() -> None:
+    if not RAG_BASE_URL or not RAG_INTERNAL_TOKEN:
+        raise HTTPException(503, "RAG 연동이 설정되지 않았다 (RAG_BASE_URL / INTERNAL_API_TOKEN)")
+
+
+@router.get("/rag/documents")
+def rag_documents() -> dict[str, Any]:
+    """위키로 넘길 수 있는 RAG 문서 목록. 원본이 보관된 것만 온다."""
+    if not RAG_BASE_URL or not RAG_INTERNAL_TOKEN:
+        return {"enabled": False, "documents": [], "count": 0,
+                "reason": "RAG_BASE_URL / INTERNAL_API_TOKEN 미설정"}
+    try:
+        with httpx.Client(timeout=RAG_TIMEOUT_SEC) as c:
+            r = c.get(f"{RAG_BASE_URL.rstrip('/')}/internal/documents", headers=_rag_headers())
+            r.raise_for_status()
+            data = r.json()
+    except Exception as exc:  # noqa: BLE001 - 화면은 '못 불러왔다'만 알면 된다
+        return {"enabled": False, "documents": [], "count": 0,
+                "reason": f"RAG 에 연결하지 못했다: {exc}"}
+    return {"enabled": True, **data}
+
+
+def _fetch_rag_file(document_id: int) -> tuple[str, bytes]:
+    """RAG 가 보관한 원본을 받아 온다. (파일명, 내용)"""
+    _rag_ready()
+    try:
+        with httpx.Client(timeout=RAG_TIMEOUT_SEC) as c:
+            r = c.get(f"{RAG_BASE_URL.rstrip('/')}/internal/documents/{document_id}/file",
+                      headers=_rag_headers())
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(502, f"RAG 에 연결하지 못했다: {exc}") from exc
+    if r.status_code == 404:
+        raise HTTPException(404, "RAG 에 그 문서의 원본이 없다")
+    if r.status_code >= 400:
+        raise HTTPException(r.status_code, f"RAG 가 거절했다: {r.text[:200]}")
+
+    # 파일명은 Content-Disposition 에 온다. 없으면 문서 id 로 대체하되 확장자는 지킨다 —
+    # _save_upload 가 확장자로 형식을 판정하기 때문이다.
+    #
+    # 한글 파일명은 RFC 5987 형식으로 온다: filename*=utf-8''%EC%97%90...
+    # 이 분기를 먼저 보지 않으면 charset 접두사(utf-8'')가 파일명에 그대로 붙어,
+    # 위키의 source_span 이 존재하지 않는 파일을 가리키게 된다.
+    cd = r.headers.get("content-disposition", "")
+    m = re.search(r"filename\*\s*=\s*[\w-]+''([^;]+)", cd, re.I)
+    if not m:
+        m = re.search(r'filename\s*=\s*"?([^";]+)', cd, re.I)
+    name = unquote(m.group(1)).strip() if m else ""
+    return (name or f"rag-{document_id}.pdf"), r.content
+
+
+@router.get("/rag/documents/{document_id}/preview")
+def rag_preview(document_id: int, site: str = Query(""), sector: str | None = Query(None),
+                owner: str = Query("")) -> dict[str, Any]:
+    """RAG 문서로 페이지 초안만 만든다. **저장하지 않는다.**"""
+    filename, content = _fetch_rag_file(document_id)
+    path = _save_upload(filename, content)
+    try:
+        _doc, analysis, result = _run_build(path, site=site, sector=sector, owner=owner)
+        return {**_build_payload(analysis, result), "stored": False, "source_filename": filename}
+    finally:
+        shutil.rmtree(os.path.dirname(path), ignore_errors=True)
+
+
+@router.post("/rag/ingest")
+def rag_ingest(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """RAG 문서를 위키에 저장한다.
+
+    `/ingest` 와 같은 게이트를 지난다. 다른 점은 파일을 브라우저가 아니라 RAG 에서
+    가져온다는 것뿐이다. 검토자 서명(actor)이 없으면 저장하지 않는다 — 업로드
+    경로와 달리 여기서는 '누가 이 문서를 위키로 넘겼는가'가 저널에 남아야 한다.
+    """
+    document_id = payload.get("document_id")
+    if document_id is None:
+        raise HTTPException(400, "document_id 가 없다")
+    actor = str(payload.get("owner") or payload.get("actor") or "").strip()
+    if not actor:
+        raise HTTPException(400, "검토자 서명이 없다 — 서명 없이 확정되는 경로는 없다")
+    site = str(payload.get("site") or "").strip()
+    sector = payload.get("sector") or None
+
+    filename, content = _fetch_rag_file(int(document_id))
+    path = _save_upload(filename, content)
+    try:
+        _doc, analysis, result = _run_build(path, site=site, sector=sector, owner=actor)
+        out = _build_payload(analysis, result)
+        if not analysis.upload_allowed:
+            return {**out, "stored": False, "source_filename": filename,
+                    "skipped": "적재 게이트가 허용하지 않았다 — 위키를 만들지 않는다"}
+        store = _store()
+        records = write_all(store, result.pages, actor=actor,
+                            note=f"rag ingest #{document_id} {filename}")
+        channels = _store_channels(analysis)
+        res = lint_mod.run(store)
+        return {**out, "stored": True, "source_filename": filename,
+                "records": records, "channels": channels,
+                "lint": {k: v for k, v in res.to_dict().items() if k != "findings"}}
+    finally:
+        shutil.rmtree(os.path.dirname(path), ignore_errors=True)

@@ -10,8 +10,7 @@ import {
   type WikiLint,
   type WikiQueueItem,
   type WikiReanalysis,
-  type WikiSuggestion,
-} from "./api";
+  type WikiSuggestion, RagDocument } from "./api";
 import { useLang, type StringKey } from "./i18n";
 import WikiStatusBoard from "./WikiStatusBoard";
 import { useLlmChoice } from "./llmChoice";
@@ -184,21 +183,53 @@ function UploadTab({
   const [result, setResult] = useState<WikiBuildResult | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // 원본을 어디서 가져오는가 — 내 컴퓨터의 파일이냐, RAG 에 이미 적재된 문서냐.
+  // 검색으로 찾은 문서를 위키에 올리려고 같은 파일을 다시 업로드하면 다른 판본을
+  // 집어 올릴 여지가 생긴다. RAG 에서 가져오면 같은 파일임이 보장된다.
+  const [source, setSource] = useState<"file" | "rag">("file");
+  const [ragDocs, setRagDocs] = useState<RagDocument[]>([]);
+  const [ragReason, setRagReason] = useState<string>("");
+  const [ragId, setRagId] = useState<number | null>(null);
+
   useEffect(() => {
     api.kb
       .sectors()
       .then((r) => setSectors(r.sectors))
       .catch(() => setSectors([]));
+    api.wiki
+      .ragDocuments()
+      .then((r) => {
+        setRagDocs(r.documents ?? []);
+        setRagReason(r.enabled ? "" : r.reason ?? "RAG 에 연결할 수 없다");
+      })
+      .catch((e) => setRagReason((e as Error).message));
   }, []);
+
+  const ready = source === "file" ? !!file : ragId !== null;
 
   const run = useCallback(
     async (mode: "preview" | "ingest") => {
-      if (!file) return;
+      // 저장은 서명이 있어야 한다. 서버도 막지만, 눌러 놓고 몇 분 기다린 뒤
+      // 400 을 보는 것보다 여기서 먼저 알려 주는 편이 낫다.
+      if (mode === "ingest" && !owner.trim()) {
+        onError("검토자 서명을 먼저 입력하세요 — 서명 없이 확정되는 경로는 없습니다.");
+        return;
+      }
       setBusy(mode);
       onError(null);
       try {
-        const fn = mode === "preview" ? api.wiki.preview : api.wiki.ingest;
-        const res = await fn(file, site.trim(), sector || undefined, owner || undefined);
+        let res: WikiBuildResult;
+        if (source === "rag") {
+          if (ragId === null) return;
+          res =
+            mode === "preview"
+              ? await api.wiki.ragPreview(ragId, site.trim(), sector || undefined, owner)
+              : await api.wiki.ragIngest(ragId, site.trim(), sector || undefined, owner);
+        } else {
+          if (!file) return;
+          const fn = mode === "preview" ? api.wiki.preview : api.wiki.ingest;
+          res = await fn(file, site.trim(), sector || undefined, owner || undefined);
+        }
         setResult(res);
         if (mode === "ingest" && res.stored) onStored();
       } catch (e) {
@@ -207,7 +238,7 @@ function UploadTab({
         setBusy("");
       }
     },
-    [file, site, sector, owner, onError, onStored]
+    [source, file, ragId, site, sector, owner, onError, onStored]
   );
 
   const { isOver, dropProps } = useFileDrop({
@@ -230,10 +261,64 @@ function UploadTab({
 
   return (
     <div className="admin-upload">
+      {/* 원본을 어디서 가져올지 — RAG 에 이미 있는 문서를 그대로 쓸 수 있다. */}
+      <div className="upload-row" style={{ marginBottom: 8 }}>
+        <label style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <input
+            type="radio"
+            name="wiki-source"
+            checked={source === "file"}
+            onChange={() => { setSource("file"); setResult(null); }}
+            disabled={busy !== ""}
+          />
+          <span>내 컴퓨터에서 파일 선택</span>
+        </label>
+        <label style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <input
+            type="radio"
+            name="wiki-source"
+            checked={source === "rag"}
+            onChange={() => { setSource("rag"); setResult(null); }}
+            disabled={busy !== "" || ragDocs.length === 0}
+          />
+          <span>
+            RAG 에 적재된 문서에서 불러오기
+            {ragDocs.length > 0 ? ` (${ragDocs.length}건)` : ""}
+          </span>
+        </label>
+        {ragReason && <span className="muted small">RAG 불러오기 불가 — {ragReason}</span>}
+      </div>
+
+      {source === "rag" && (
+        <div className="upload-row" style={{ marginBottom: 8 }}>
+          <label style={{ flex: 1 }}>
+            <span>RAG 문서</span>
+            <select
+              value={ragId ?? ""}
+              onChange={(e) => { setRagId(e.target.value ? Number(e.target.value) : null); setResult(null); }}
+              disabled={busy !== ""}
+            >
+              <option value="">— 문서를 고르세요 —</option>
+              {ragDocs.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                  {d.collection_name ? ` — ${d.collection_name}` : ""}
+                  {d.chunk_count ? ` (청크 ${d.chunk_count})` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="muted small" style={{ flexBasis: "100%" }}>
+            rag.ets0404.com 이 보관한 원본을 그대로 가져옵니다 — 다시 업로드하지 않으므로 같은 판본임이 보장됩니다.
+          </p>
+        </div>
+      )}
+
       <div className="upload-row">
         <button
           className={`file-pick ${isOver ? "dropping" : ""}`}
           onClick={() => inputRef.current?.click()}
+          disabled={source === "rag"}
           {...dropProps}
         >
           <span>{isOver ? t("kbDropHere") : file ? file.name : t("kbPickFile")}</span>
@@ -273,15 +358,15 @@ function UploadTab({
 
         <button
           className="primary"
-          disabled={!file || busy !== ""}
+          disabled={!ready || busy !== ""}
           onClick={() => run("preview")}
         >
           {busy === "preview" ? t("adminPreviewing") : t("adminPreview")}
         </button>
         <button
-          disabled={!file || busy !== ""}
+          disabled={!ready || busy !== "" || !owner.trim()}
           onClick={() => run("ingest")}
-          title={t("kbIngestHint")}
+          title={owner.trim() ? t("kbIngestHint") : "검토자 서명을 먼저 입력하세요"}
         >
           {busy === "ingest" ? t("adminIngesting") : t("adminIngest")}
         </button>
@@ -289,6 +374,11 @@ function UploadTab({
 
       <p className="muted small">{t("adminSiteKeyHint")}</p>
       <p className="muted small">{t("adminUploadNote")}</p>
+      {!owner.trim() && (
+        <p className="muted small">
+          위키에 저장하려면 위쪽 <strong>검토자 (서명)</strong> 을 먼저 채우세요 — 저장 기록에 서명이 남습니다.
+        </p>
+      )}
 
       {result && <BuildResultView result={result} />}
     </div>

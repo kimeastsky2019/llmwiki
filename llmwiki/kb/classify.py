@@ -29,6 +29,40 @@ MIN_SCORE = 3.0
 #: 분류 방법의 닫힌 집합. rule 이 기본이고, manual 은 사람이 지정한 것이다.
 METHODS: tuple[str, ...] = ("rule", "manual", "fallback")
 
+#: 업종과 무관하게 **모든 에너지진단서에 나오는** 유틸리티 설비·용어.
+#:
+#: 진단은 애초에 이 설비들을 들여다보는 일이라, 어느 공장 보고서를 열어도
+#: 보일러·압축기·펌프·조명이 수십~수백 번 나온다. 이걸 업종 신호로 세면
+#: 등장 횟수가 많은 쪽이 이겨서 **모든 공장이 '건물' 로 분류된다**
+#: (실측: 5개 진단서 중 4건이 건물로 확정, 근거가 전부 공조·냉동기·조명이었다).
+#: 업종을 가르는 것은 유틸리티가 아니라 공정 어휘다.
+GENERIC_UTILITY: frozenset[str] = frozenset({
+    "보일러", "압축기", "펌프", "열교환기", "냉동기", "공조기", "공조", "냉동",
+    "조명", "송풍기", "송풍", "집진기", "승강기", "난방기", "제습기", "건조기",
+    "연면적",
+    # '전기로' 는 '전기로 인한' 의 앞부분과 구별되지 않는다.
+    "전기로",
+})
+
+#: 힌트가 더 긴 낱말 안에 박혀 생기는 오탐.
+#:
+#: 한국어는 낱말 경계가 없어 부분문자열이 그대로 걸린다. 진단서에는 온실가스
+#: 감축량이 늘 나오므로 '온실' 을 그대로 세면 모든 문서가 농업으로 기운다
+#: (실측: 한 보고서에서 '온실' 99회 중 92%가 '온실가스' 였다).
+#: 값은 '이 말이 나오면 그 자리는 힌트가 아니다' 라는 뜻이다.
+HINT_TRAPS: dict[str, tuple[str, ...]] = {
+    "온실": ("온실가스",),
+    "발효": ("증발효과",),
+}
+
+
+def _occurrences(term: str, text: str) -> int:
+    """힌트 등장 횟수. 더 긴 낱말에 삼켜진 건 빼고 센다."""
+    n = len(re.findall(re.escape(term), text))
+    for trap in HINT_TRAPS.get(term, ()):
+        n -= len(re.findall(re.escape(trap), text))
+    return max(n, 0)
+
 
 @dataclass
 class SectorVote:
@@ -72,6 +106,10 @@ class Classification:
 def _score(text: str) -> list[SectorVote]:
     """어휘 규칙 점수.
 
+    업종을 가르지 못하는 말(`GENERIC_UTILITY`)은 아예 세지 않고, 더 긴 낱말에
+    삼켜진 오탐(`HINT_TRAPS`)도 뺀다. 이 둘이 없으면 유틸리티 설비 언급량이
+    공정 어휘를 압도해 업종이 뒤집힌다.
+
     등장 횟수의 **제곱근**을 쓴다 — 한 단어가 100번 나와도, 다른 어휘 10종이 한 번씩
     나온 쪽이 이겨야 한다. 머리말·꼬리말에 반복되는 한 단어로 업종이 뒤집히면 안 된다.
     """
@@ -80,14 +118,21 @@ def _score(text: str) -> list[SectorVote]:
         if not prof.hints:
             continue
         total, matched = 0.0, []
+        counted: set[str] = set()
         for h in prof.hints:
-            n = len(re.findall(re.escape(h), text))
+            if h in GENERIC_UTILITY:
+                continue
+            n = _occurrences(h, text)
             if n:
                 total += n ** 0.5
                 matched.append(f"{h}×{n}")
-        # 주요 설비명도 약한 신호로 센다 — 보일러는 어느 업종에나 있다
+                counted.add(h)
+        # 주요 설비명도 약한 신호로 센다. 다만 hints 에 이미 있는 말은 다시 세지
+        # 않는다 — 같은 '냉동기' 를 두 번 세면 그 업종만 점수가 부풀어 오른다.
         for eq in prof.key_equipment:
-            n = len(re.findall(re.escape(eq), text))
+            if eq in GENERIC_UTILITY or eq in counted:
+                continue
+            n = _occurrences(eq, text)
             if n:
                 total += 0.4 * (n ** 0.5)
                 matched.append(f"{eq}×{n}")

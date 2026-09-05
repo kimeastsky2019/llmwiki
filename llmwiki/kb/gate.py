@@ -197,6 +197,63 @@ def detect_pii(text: str) -> list[dict]:
     return hits
 
 
+def _squeeze_index(text: str) -> tuple[str, list[int]]:
+    """공백을 뺀 문자열과, 그 각 문자가 원문 몇 번째였는지의 대응표.
+
+    `detect_pii` 가 공백제거본에서도 탐지하므로, 치환도 같은 좌표계를 볼 수
+    있어야 한다. 대응표가 있으면 제거본에서 찾은 구간을 원문 구간으로 되돌려
+    그 자리를 정확히 치환할 수 있다.
+    """
+    chars: list[str] = []
+    index: list[int] = []
+    for i, ch in enumerate(text):
+        if ch in " \t":
+            continue
+        chars.append(ch)
+        index.append(i)
+    return "".join(chars), index
+
+
+def _mask_via_squeezed(text: str) -> tuple[str, int]:
+    """원문에서는 공백에 걸려 안 잡히지만 공백을 빼면 잡히는 값들을 치환한다.
+
+    탐지(`detect_pii`)는 원문과 공백제거본 양쪽을 보는데 치환이 원문만 보면,
+    '탐지는 되는데 절대 지워지지 않는 값' 이 생긴다. 그러면 `verify_masking` 의
+    잔존이 영원히 0 이 되지 않아 그 문서는 영구히 적재가 막힌다.
+    실제로 진단보고서의 표에서 주소가 `기업도시 1로 28` 처럼 끊겨 이 상태가 됐다.
+    """
+    squeezed, index = _squeeze_index(text)
+    if not squeezed:
+        return text, 0
+
+    spans: list[tuple[int, int, str]] = []
+    for _key, (pat, label, _sev) in PII_PATTERNS.items():
+        for m in re.finditer(pat, squeezed):
+            spans.append((m.start(), m.end(), label))
+    for m in NAME_ROLE.finditer(squeezed):
+        spans.append((m.start(2), m.end(2), "성명"))
+
+    if not spans:
+        return text, 0
+
+    # 겹치는 구간은 먼저 선언된(더 구체적인) 것만 남긴다 — detect_pii 의 규칙과 같다.
+    spans.sort(key=lambda t: (t[0], -(t[1] - t[0])))
+    kept: list[tuple[int, int, str]] = []
+    last_end = -1
+    for start, end, label in spans:
+        if start >= last_end:
+            kept.append((start, end, label))
+            last_end = end
+
+    # 뒤에서부터 치환해야 앞쪽 인덱스가 밀리지 않는다.
+    out = text
+    for start, end, label in reversed(kept):
+        o_start = index[start]
+        o_end = index[end - 1] + 1
+        out = out[:o_start] + f"[{label}]" + out[o_end:]
+    return out, len(kept)
+
+
 def mask_text(text: str) -> tuple[str, int]:
     """비식별 처리. 적재 전에 반드시 통과해야 하는 관문.
 
@@ -205,6 +262,10 @@ def mask_text(text: str) -> tuple[str, int]:
 
     성명을 먼저 처리한다. 다른 패턴이 주변 문자열을 먼저 바꿔 버리면 직위-성명의
     인접 관계가 깨져 성명이 살아남는다.
+
+    원문 기준으로 한 번 치환한 뒤, 공백 때문에 원문에서 안 잡히는 값들을 위해
+    공백제거본 좌표로 한 번 더 훑는다. 탐지가 보는 범위와 치환이 닿는 범위를
+    같게 맞추기 위한 것이다.
     """
     n = 0
 
@@ -219,6 +280,9 @@ def mask_text(text: str) -> tuple[str, int]:
     for _key, (pat, label, _sev) in PII_PATTERNS.items():
         out, k = re.subn(pat, f"[{label}]", out)
         n += k
+
+    out, k = _mask_via_squeezed(out)
+    n += k
 
     return out, n
 
