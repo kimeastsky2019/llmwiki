@@ -1462,6 +1462,9 @@ function del<T>(url: string): Promise<T> {
 }
 
 export const api = {
+  /** 로그인. 확인은 서버가 한다 — 여기서 통과시키는 것이 아니다. */
+  login: (id: string, password: string) =>
+    post<{ id: string; name: string; role: string }>("/api/auth/login", { id, password }),
   meta: () => get<Meta>("/api/meta"),
   tree: () => get<TreeLayer[]>("/api/tree"),
   doc: (id: string) => get<DocResponse>(`/api/doc/${id}`),

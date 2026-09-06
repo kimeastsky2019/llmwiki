@@ -375,11 +375,15 @@ export default function App() {
           base={BASE}
           lang={lang}
           setLang={setLang}
-          onEnter={(name, picked) => {
+          onEnter={(name, picked, remember) => {
             setWho(name);
-            storeWho(name);
             setRoleCode(picked);
-            storeRole(picked);
+            // "로그인 상태 유지" 를 껐으면 저장하지 않는다 — 새로 고치면
+            // 다시 묻는다. 켰을 때만 브라우저에 남긴다.
+            if (remember) {
+              storeWho(name);
+              storeRole(picked);
+            }
           }}
         />
       </LangContext.Provider>

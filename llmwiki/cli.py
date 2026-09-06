@@ -196,5 +196,58 @@ def pipeline(config: str = ConfigOpt, force: bool = typer.Option(False, "--force
         raise typer.Exit(code=1)
 
 
+
+@app.command()
+def auth(
+    action: str = typer.Argument("list", help="add | remove | list"),
+    user: str = typer.Option("", "--user", "-u", help="아이디"),
+    role: str = typer.Option("governance", "--role", "-r", help="역할 코드"),
+    name: str = typer.Option("", "--name", "-n", help="표시 이름"),
+    password: str = typer.Option("", "--password", help="비밀번호 (생략하면 물어본다)"),
+    config: str = ConfigOpt,
+):
+    """계정 관리. **비밀번호는 저장소에 넣지 않는다** — 서버에서 만든다.
+
+    저장은 해시(PBKDF2-SHA256)로만 하고, 파일은 .gitignore 에 있다.
+    """
+    from .server import auth as auth_mod
+
+    cfg = load_config(config)
+    root = cfg.compliance_dir
+
+    if action == "list":
+        users = auth_mod.load(root)
+        if not users:
+            console.print("[dim]계정이 없습니다.[/]")
+            return
+        for uid, info in sorted(users.items()):
+            console.print(f"  {uid:14} {info.get('role',''):12} {info.get('name','')}")
+        return
+
+    if action == "remove":
+        if not user:
+            console.print("[red]--user 가 필요합니다.[/]")
+            raise typer.Exit(code=1)
+        console.print("삭제됨" if auth_mod.remove(root, user) else "[dim]그런 계정이 없습니다.[/]")
+        return
+
+    if action != "add":
+        console.print(f"[red]알 수 없는 동작: {action}[/] (add · remove · list)")
+        raise typer.Exit(code=1)
+
+    if not user:
+        console.print("[red]--user 가 필요합니다.[/]")
+        raise typer.Exit(code=1)
+    # 인자로 주지 않으면 물어본다 — 셸 이력에 비밀번호가 남지 않는다.
+    secret = password or typer.prompt("비밀번호", hide_input=True)
+    try:
+        made = auth_mod.add(root, user_id=user, password=secret, role=role, name=name)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/]")
+        raise typer.Exit(code=1) from exc
+    console.print(f"만들었습니다: {made['id']} ({made['role']})")
+    console.print(f"[dim]{auth_mod.users_path(root)}[/]")
+
+
 if __name__ == "__main__":
     app()

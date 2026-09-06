@@ -59,6 +59,16 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ko": "뷰어가 아직 빌드되지 않았습니다.",
         "en": "The viewer has not been built yet.",
     },
+    "auth_need": {
+        "ko": "아이디와 비밀번호를 입력하세요.",
+        "en": "Enter an ID and a password.",
+    },
+    # 아이디가 없는지 비밀번호가 틀린지 구분해 주지 않는다 — 구분해 주면
+    # 어떤 아이디가 존재하는지 알려 주는 셈이다.
+    "auth_bad": {
+        "ko": "아이디 또는 비밀번호가 맞지 않습니다.",
+        "en": "The ID or password is incorrect.",
+    },
 }
 
 

@@ -831,6 +831,30 @@ def _read(path: Path) -> str | None:
 from .compliance import bind as bind_compliance  # noqa: E402
 
 app.include_router(bind_compliance(cfg))
+# --------------------------------------------------------------------------- #
+# 로그인 — 아이디·비밀번호를 서버가 확인한다
+#
+# ★ 이것은 로그인이지 권한 검사가 아니다. 들어온 뒤 각 API 는 "이 사람이 이걸
+#   해도 되나" 를 묻지 않는다. 사내 포털(SSO)·인사 테이블이 붙어야 할 수 있는
+#   일이라, 지금 없다는 사실을 화면에도 적어 둔다.
+# --------------------------------------------------------------------------- #
+@app.post("/api/auth/login")
+def auth_login(payload: dict = Body(...)):
+    from .auth import authenticate
+
+    who = str(payload.get("id", "")).strip()
+    password = str(payload.get("password", ""))
+    if not who or not password:
+        raise HTTPException(400, msg("auth_need", cfg.language))
+
+    found = authenticate(cfg.compliance_dir, who, password)
+    if found is None:
+        # 아이디가 없는지 비밀번호가 틀린지 구분해 주지 않는다 — 구분해 주면
+        # 어떤 아이디가 존재하는지 알려 주는 셈이다.
+        raise HTTPException(401, msg("auth_bad", cfg.language))
+    return found
+
+
 app.state.compliance_root = str(cfg.compliance_dir)
 
 
