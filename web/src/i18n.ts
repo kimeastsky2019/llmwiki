@@ -305,6 +305,15 @@ const STRINGS = {
     lgHost: "보안 접속 · gov.brikoai.com",
     lgExternal: "사외",
     lgLeave: "나가기",
+    rpTitle: "어떤 일을 하러 오셨습니까",
+    rpSub: "{who} 님으로 들어왔습니다. 고른 역할에 맞춰 메뉴가 정리됩니다.",
+    rpLegend: "역할",
+    rpBack: "다른 계정으로",
+    rpMine: "계정 역할",
+    rpMineHint: "이 계정에 지정된 역할입니다. 다른 역할을 골라도 됩니다.",
+    rpEnter: "{role}{ro} 들어가기",
+    rpNote:
+      "역할은 보기 필터입니다. 다른 역할을 골라도 서버가 막지 않으며, 안 보이는 메뉴도 주소로는 들어갈 수 있습니다. 사내 포털이 붙으면 이 값은 고르는 것이 아니라 로그인 권한에서 내려옵니다. 역할은 들어간 뒤 상단에서 언제든 바꿀 수 있습니다.",
     lgNotAuthz:
       "로그인이지 권한 검사가 아닙니다. 아이디·비밀번호는 서버가 확인하지만, 들어온 뒤 각 기능이 \"이 사람이 해도 되는지\" 를 따로 묻지는 않습니다. 사내 포털이 붙으면 SSO 와 인사 정보가 그 자리를 채웁니다.",
     regTabProcess: "업무 프로세스",
@@ -1357,6 +1366,15 @@ const STRINGS = {
     lgHost: "Secure · gov.brikoai.com",
     lgExternal: "external",
     lgLeave: "Leave",
+    rpTitle: "What are you here to do?",
+    rpSub: "Signed in as {who}. The menu is arranged around the role you pick.",
+    rpLegend: "Role",
+    rpBack: "Use another account",
+    rpMine: "account role",
+    rpMineHint: "The role attached to this account. You may pick a different one.",
+    rpEnter: "Enter as {role}",
+    rpNote:
+      "The role is a view filter. Picking a different one is not blocked by the server, and hidden menus are still reachable by URL. Once the corporate portal is wired up this value comes from your sign-in rather than from this screen. You can change the role at any time from the top bar.",
     lgNotAuthz:
       "This is a sign-in, not an authorization check. The server verifies id and password, but once you are in, individual features do not ask whether you are allowed to do them. SSO and HR data fill that gap when the corporate portal is wired up.",
     regTabProcess: "Process",

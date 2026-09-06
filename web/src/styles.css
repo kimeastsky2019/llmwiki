@@ -2732,6 +2732,49 @@ button.hint-ev-item:hover { text-decoration: underline; }
   font-size: 11px; line-height: 1.6; color: var(--text);
 }
 
+/* ── 역할 고르기 — 로그인 다음, 들어가기 전 ────────────────────────────── */
+/* 한 단이다. 왼쪽 브랜드 패널이 없어서 .lg-card 의 두 단 격자를 되돌린다. */
+.rp-card {
+  display: block; max-width: 560px;
+  padding: 26px 28px 22px;
+}
+.rp-head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.rp-head img { width: 40px; height: 40px; border-radius: 10px; object-fit: contain; background: #fff; }
+.rp-head h2 { margin: 0; font-size: 18px; border: 0; padding: 0; }
+.rp-head p { margin: 3px 0 0; }
+.rp-back {
+  margin-left: auto; align-self: flex-start;
+  border: 1px solid var(--line); background: none; border-radius: 999px;
+  padding: 5px 11px; font-family: inherit; font-size: 11.5px; color: var(--muted); cursor: pointer;
+}
+.rp-back:hover { border-color: var(--accent); color: var(--accent); }
+/* 계정에 붙은 역할 표시. 고르라고 두되 어느 것이 '내 것'인지는 알려 준다. */
+.rp-mine {
+  margin-left: 7px; padding: 1px 7px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent);
+  font-size: 10.5px; font-weight: 700; vertical-align: 1px;
+}
+
+.lg-roles { border: 0; padding: 0; margin: 0 0 18px; }
+.lg-roles legend { font-size: 11.5px; color: var(--muted); font-weight: 700; padding: 0 0 7px; }
+.lg-roles label {
+  display: flex; align-items: flex-start; gap: 9px;
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 11px; margin-bottom: 6px; cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, transform 0.1s ease;
+}
+.lg-roles label:hover { border-color: var(--accent); }
+.lg-roles label:active { transform: translateY(1px); }
+.lg-roles label.on { border-color: var(--accent); background: var(--accent-soft); }
+.lg-roles label input { margin-top: 3px; accent-color: var(--accent); }
+.lg-roles label b { display: block; font-size: 13.5px; }
+.lg-roles label .small { display: block; line-height: 1.5; }
+.lg-roles label .chip { margin-left: auto; align-self: center; }
+@media (prefers-reduced-motion: reduce) {
+  .lg-roles label { transition: none; }
+  .lg-roles label:active { transform: none; }
+}
+
 /* 좁은 화면에서는 브랜드 패널을 위로 접는다. */
 @media (max-width: 760px) {
   .lg-card { grid-template-columns: 1fr; max-width: 460px; }

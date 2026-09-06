@@ -3,7 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LLMWiki</title>
+    <!-- brikoai 파비콘. svg 를 먼저 두고 ico 를 남겨 둔다 — 오래된 브라우저와
+         탭 목록·북마크는 아직 ico 를 본다.
+         경로는 %BASE_URL% 로 절대화한다. 상대 경로로 두면 /reg/graph 같은
+         하위 주소에서 /reg/favicon.svg 를 찾다가 index.html 을 받아 온다. -->
+    <link rel="icon" href="%BASE_URL%favicon.svg" type="image/svg+xml" />
+    <link rel="alternate icon" href="%BASE_URL%favicon.ico" sizes="any" />
+    <title>AI 거버넌스 포털</title>
   </head>
   <body>
     <div id="root"></div>

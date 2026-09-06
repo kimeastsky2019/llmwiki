@@ -40,6 +40,7 @@ import { VISIBLE_SOLUTIONS, menuOwning, menusFor, solution, solutionOf, solution
 import { ROLES, clearWho, readRole, readWho, role as roleOf, storeRole, storeWho,
          type RoleCode } from "./roles";
 import Login from "./Login";
+import RolePick from "./RolePick";
 import {
   NgAdmin, NgDocView, NgForecast, NgGov, NgInsights,
   NgKnowledgeDb, NgMonitor, NgSection,
@@ -202,6 +203,11 @@ export default function App() {
   // 로그인한 사람. 비어 있으면 로그인 화면을 낸다. SSO 가 붙으면 이 값이
   // 포털에서 내려오고 이 화면은 사라진다.
   const [who, setWho] = useState<string>(readWho);
+  // 로그인 직후에는 역할을 한 번 묻는다. 계정에 붙은 역할을 미리 골라 두되,
+  // 한 사람이 기획도 하고 운영도 보는 조직이 많아 바꿀 수 있게 둔다.
+  // 이미 들어와 있던 사람(저장된 who)에게는 묻지 않는다 — 새로 고칠 때마다
+  // 같은 것을 묻는 화면은 금방 눈에서 지워진다.
+  const [pickRole, setPickRole] = useState<{ role: RoleCode; remember: boolean } | null>(null);
   const menuStatus = useMenuStatus();
   const [meta, setMeta] = useState<Meta | null>(null);
   const [tree, setTree] = useState<TreeLayer[]>([]);
@@ -378,12 +384,38 @@ export default function App() {
           onEnter={(name, picked, remember) => {
             setWho(name);
             setRoleCode(picked);
+            // 아직 저장하지 않는다. 다음 화면에서 역할을 고른 뒤에 함께 남긴다.
+            setPickRole({ role: picked, remember });
+          }}
+        />
+      </LangContext.Provider>
+    );
+  }
+
+  // 로그인 다음, 화면에 들어가기 전에 역할을 한 번 묻는다.
+  if (pickRole) {
+    return (
+      <LangContext.Provider value={langValue}>
+        <RolePick
+          base={BASE}
+          who={who}
+          accountRole={pickRole.role}
+          onBack={() => {
+            // 잘못 들어왔을 때 되돌아가는 길. 아무것도 저장하지 않았으므로
+            // 로그인 화면으로 그냥 돌아간다.
+            setPickRole(null);
+            setWho("");
+            clearWho();
+          }}
+          onPick={(picked) => {
+            setRoleCode(picked);
             // "로그인 상태 유지" 를 껐으면 저장하지 않는다 — 새로 고치면
             // 다시 묻는다. 켰을 때만 브라우저에 남긴다.
-            if (remember) {
-              storeWho(name);
+            if (pickRole.remember) {
+              storeWho(who);
               storeRole(picked);
             }
+            setPickRole(null);
           }}
         />
       </LangContext.Provider>
