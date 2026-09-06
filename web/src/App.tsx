@@ -37,7 +37,9 @@ import WikiStatusBoard from "./WikiStatusBoard";
 import LlmPicker from "./LlmPicker";
 import { VISIBLE_SOLUTIONS, menuOwning, menusFor, solution, solutionOf, solutionsFor,
          type SolutionCode, type SolutionMenu } from "./solutions";
-import { ROLES, readRole, role as roleOf, storeRole, type RoleCode } from "./roles";
+import { ROLES, clearWho, readRole, readWho, role as roleOf, storeRole, storeWho,
+         type RoleCode } from "./roles";
+import Login from "./Login";
 import {
   NgAdmin, NgDocView, NgForecast, NgGov, NgInsights,
   NgKnowledgeDb, NgMonitor, NgSection,
@@ -197,6 +199,9 @@ export default function App() {
   // 역할 — 회의 피드백("너무 많고 복잡하다")에 대한 답. 자기 일과 상관없는
   // 메뉴를 접어 둔다. 접근 통제가 아니라 보기 필터다.
   const [roleCode, setRoleCode] = useState<RoleCode>(readRole);
+  // 로그인한 사람. 비어 있으면 로그인 화면을 낸다. SSO 가 붙으면 이 값이
+  // 포털에서 내려오고 이 화면은 사라진다.
+  const [who, setWho] = useState<string>(readWho);
   const menuStatus = useMenuStatus();
   const [meta, setMeta] = useState<Meta | null>(null);
   const [tree, setTree] = useState<TreeLayer[]>([]);
@@ -360,6 +365,26 @@ export default function App() {
     }, 200);
     return () => clearTimeout(timer);
   }, [query]);
+
+  // ★ 여기서 분기한다. 위의 훅이 전부 불린 뒤라야 훅 순서가 유지된다 —
+  //   조건부로 일찍 return 하면 렌더마다 훅 개수가 달라져 React 가 깨진다.
+  if (!who) {
+    return (
+      <LangContext.Provider value={langValue}>
+        <Login
+          base={BASE}
+          lang={lang}
+          setLang={setLang}
+          onEnter={(name, picked) => {
+            setWho(name);
+            storeWho(name);
+            setRoleCode(picked);
+            storeRole(picked);
+          }}
+        />
+      </LangContext.Provider>
+    );
+  }
 
   return (
     <LangContext.Provider value={langValue}>
@@ -551,6 +576,19 @@ export default function App() {
             </span>
             <span className="topbar-desc">{t(roleOf(roleCode).descKey)}</span>
             <span className="topbar-note">{t("roleFilterNote")}</span>
+            {/* 누구로 들어와 있는지. SSO 가 붙으면 여기에 사번·부서가 온다. */}
+            <span className="topbar-who">
+              <b>{who}</b>
+              <button
+                className="linkish"
+                onClick={() => {
+                  clearWho();
+                  setWho("");
+                }}
+              >
+                {t("lgLeave")}
+              </button>
+            </span>
           </div>
 
           {/* 역할이 감춘 화면에 주소로 바로 들어왔을 때. 메뉴에 없는 이유를

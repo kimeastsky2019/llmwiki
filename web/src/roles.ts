@@ -51,6 +51,33 @@ export const ROLES: Role[] = [
 export const DEFAULT_ROLE: RoleCode = "governance";
 
 const ROLE_KEY = "llmwiki.role";
+const WHO_KEY = "llmwiki.who";
+
+/** 로그인한 사람. 사내 포털이 붙으면 SSO 가 이 값을 준다.
+ *  비어 있으면 아직 들어오지 않은 것으로 본다. */
+export function readWho(): string {
+  try {
+    return localStorage.getItem(WHO_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function storeWho(who: string): void {
+  try {
+    localStorage.setItem(WHO_KEY, who);
+  } catch {
+    /* 저장 못 해도 이번 세션에는 들어와 있다 */
+  }
+}
+
+export function clearWho(): void {
+  try {
+    localStorage.removeItem(WHO_KEY);
+  } catch {
+    /* 못 지워도 화면 상태는 바뀐다 */
+  }
+}
 
 export function readRole(): RoleCode {
   try {

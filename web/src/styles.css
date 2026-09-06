@@ -2626,3 +2626,61 @@ button.hint-ev-item:hover { text-decoration: underline; }
   .solution-item:hover::before, .solution-item.active::before { transform: scaleY(1) !important; }
   .linkish:hover::after { transform: scaleX(1) !important; }
 }
+
+
+/* --------------------------------------------------------------------------- */
+/* 로그인 — 인증이 아니라 '역할이 어디서 오는지' 를 보이는 자리                 */
+/* --------------------------------------------------------------------------- */
+.lg {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 32px 20px; background: var(--nav);
+}
+.lg-card {
+  width: 100%; max-width: 520px;
+  background: var(--panel); border-radius: 16px; padding: 28px 30px 24px;
+  box-shadow: 0 20px 60px rgba(6, 12, 26, 0.45);
+}
+.lg-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.lg-brand img { width: 44px; height: 44px; border-radius: 10px; object-fit: contain; background: #fff; }
+.lg-brand h1 { font-size: 19px; margin: 0; }
+.lg-brand p { margin: 2px 0 0; }
+.lg-lang { margin-left: auto; display: flex; gap: 2px; background: var(--bg); border-radius: 999px; padding: 2px; }
+.lg-lang button {
+  border: 0; background: none; border-radius: 999px; padding: 4px 10px;
+  font-family: inherit; font-size: 11.5px; font-weight: 700; color: var(--muted); cursor: pointer;
+}
+.lg-lang button.active { background: var(--accent); color: #fff; }
+
+.lg-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 18px; }
+.lg-field span { font-size: 11.5px; color: var(--muted); font-weight: 700; }
+.lg-field input {
+  border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px;
+  font-family: inherit; font-size: 14px; background: var(--panel); color: var(--text);
+}
+.lg-field input:focus { border-color: var(--accent); outline: none; }
+
+.lg-roles { border: 0; padding: 0; margin: 0 0 20px; }
+.lg-roles legend { font-size: 11.5px; color: var(--muted); font-weight: 700; padding: 0 0 7px; }
+.lg-roles label {
+  display: flex; align-items: flex-start; gap: 9px;
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 11px; margin-bottom: 6px; cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.lg-roles label:hover { border-color: var(--accent); }
+.lg-roles label.on { border-color: var(--accent); background: var(--accent-soft); }
+.lg-roles label b { display: block; font-size: 13.5px; }
+.lg-roles label .small { display: block; line-height: 1.5; }
+.lg-roles label .chip { margin-left: auto; align-self: center; }
+
+.lg-go { width: 100%; justify-content: center; text-align: center; padding: 11px; font-size: 14px; }
+/* 인증이 아니라는 말은 눈에 걸려야 한다 — 작게 쓰되 회색으로 묻지 않게 테두리를 준다. */
+.lg-note {
+  margin: 16px 0 0; padding: 10px 12px;
+  border: 1px dashed var(--warn-line); border-radius: 9px; background: var(--warn-bg);
+  font-size: 11.5px; line-height: 1.6; color: var(--text);
+}
+
+/* 헤더의 '누구로 들어와 있는지' */
+.topbar-who { order: 4; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.topbar-who b { font-weight: 650; }
