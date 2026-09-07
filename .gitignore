@@ -44,3 +44,4 @@ projects/
 # 계정 파일 — 해시만 들어 있어도 저장소에 두지 않는다.
 # 서버에서 `llmwiki auth add` 로 만든다.
 auth_users.json
+.env
