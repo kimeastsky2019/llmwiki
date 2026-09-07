@@ -900,13 +900,32 @@ const COUNT_LABELS: Record<string, L2> = {
   gov_items: { ko: "준수 체크 항목", en: "Compliance items" },
 };
 
+interface Automation {
+  days: number;
+  auto: Record<string, number>; auto_total: number;
+  human: Record<string, number>; human_total: number;
+  automation_rate_pct: number | null;
+}
+
+const AUTO_LABELS: Record<string, L2> = {
+  insight_docs: { ko: "인사이트 발행", en: "Insights published" },
+  forecast_publishes: { ko: "예측 발행", en: "Forecast publishes" },
+  training_pairs: { ko: "학습 페어 생성", en: "Pairs logged" },
+  ces_runs: { ko: "CES 측정", en: "CES runs" },
+  events_detected: { ko: "이벤트 감지", en: "Events detected" },
+  approvals_decided: { ko: "승인 결정", en: "Approvals decided" },
+  pairs_reviewed: { ko: "페어 검수", en: "Pairs reviewed" },
+};
+
 export function NgKnowledgeDb() {
   const { lang, tr } = useTr();
   const [p, setP] = useState<Pipeline | null>(null);
+  const [auto, setAuto] = useState<Automation | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getJson<Pipeline>("/api/ng/admin/pipeline").then(setP).catch((e) => setError(String(e)));
+    getJson<Automation>("/api/ng/admin/automation").then(setAuto).catch(() => {});
   }, []);
 
   if (error) return <div className="banner error">{error}</div>;
@@ -924,6 +943,42 @@ export function NgKnowledgeDb() {
         <div className="ng-panel-title">🗺 {tr("지식 파이프라인 개요도", "Knowledge Pipeline Overview")}</div>
         <PipelineDiagram counts={p.counts} lang={lang} tr={tr} />
       </div>
+
+      {auto && (
+        <div className="ng-panel">
+          <div className="ng-panel-title">
+            🤖 {tr("자동화율 계기판 — 최근 7일", "Automation Gauge — last 7 days")}
+            <span className="muted" style={{ fontWeight: 400 }}> · {tr("1차년도 목표 55%", "Year-1 target 55%")}</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+            <Donut value={auto.automation_rate_pct} size={104} stroke={12}
+              color={(auto.automation_rate_pct ?? 0) >= 55 ? C.ok : C.warn}
+              text={auto.automation_rate_pct != null ? `${auto.automation_rate_pct}%` : "—"}
+              sub={tr("자동화율", "Automation")} />
+            <div style={{ flex: 1, minWidth: 260 }}>
+              <div className="ng-cat-bar">
+                <span className="ng-cat-bar-label">{tr("자동 수행", "By agents")}</span>
+                <div className="ng-cat-bar-track"><div className="ng-cat-bar-fill"
+                  style={{ width: `${(auto.auto_total / Math.max(1, auto.auto_total + auto.human_total)) * 100}%`, background: C.batt }} /></div>
+                <span className="ng-cat-bar-value">{auto.auto_total}</span>
+              </div>
+              <div className="ng-cat-bar">
+                <span className="ng-cat-bar-label">{tr("인간 개입", "Human actions")}</span>
+                <div className="ng-cat-bar-track"><div className="ng-cat-bar-fill"
+                  style={{ width: `${(auto.human_total / Math.max(1, auto.auto_total + auto.human_total)) * 100}%`, background: C.cons }} /></div>
+                <span className="ng-cat-bar-value">{auto.human_total}</span>
+              </div>
+              <div className="ng-kpi-sub" style={{ marginTop: 6 }}>
+                {Object.entries({ ...auto.auto, ...auto.human }).map(([k, v]) => (
+                  <span key={k} style={{ marginRight: 12 }}>
+                    {AUTO_LABELS[k] ? pick(lang, AUTO_LABELS[k]) : k} <b>{v}</b>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="ng-kpis">
         {Object.entries(p.counts).map(([k, v]) => (
