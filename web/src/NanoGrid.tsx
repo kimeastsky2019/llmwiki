@@ -1888,6 +1888,14 @@ export function NgChat({ onNavigate }: { onNavigate: (p: string) => void }) {
     } catch (e) { setError(String(e)); }
   };
 
+  // 좋은 문답을 골든셋(draft)으로 승격 — 승격된 페어는 학습에서 자동 제외된다(오염 방지)
+  const promote = async (pairId: number) => {
+    try {
+      await postJson(`/api/ng/learn/pairs/${pairId}/promote`, {});
+      setMsgs((m) => m.map((x) => (x.pairId === pairId ? { ...x, approval: "golden" } : x)));
+    } catch (e) { setError(String(e)); }
+  };
+
   const EXAMPLES = [
     tr("어제 자가소비율은 어땠어?", "How was self-consumption yesterday?"),
     tr("이번 주 예측 정확도를 요약해줘", "Summarize this week's forecast accuracy"),
@@ -1928,10 +1936,14 @@ export function NgChat({ onNavigate }: { onNavigate: (p: string) => void }) {
                     {m.pairId && (
                       <span style={{ marginLeft: 8 }}>
                         {m.approval
-                          ? <b>{m.approval === "approved" ? tr("✓ 학습 승인됨", "✓ approved") : tr("✗ 반려됨", "✗ rejected")}</b>
+                          ? <b>{m.approval === "approved" ? tr("✓ 학습 승인됨", "✓ approved")
+                              : m.approval === "golden" ? tr("★ 골든 등록됨 (검수 대기)", "★ promoted to golden (draft)")
+                              : tr("✗ 반려됨", "✗ rejected")}</b>
                           : <>
                               <button className="ng-btn" onClick={() => setApproval(m.pairId!, "approved")}>{tr("학습 승인", "Approve for training")}</button>{" "}
-                              <button className="ng-btn" onClick={() => setApproval(m.pairId!, "rejected")}>{tr("반려", "Reject")}</button>
+                              <button className="ng-btn" onClick={() => setApproval(m.pairId!, "rejected")}>{tr("반려", "Reject")}</button>{" "}
+                              <button className="ng-btn" title={tr("골든셋으로 — 학습에서는 제외됩니다", "To golden set — excluded from training")}
+                                onClick={() => promote(m.pairId!)}>{tr("★ 골든 승격", "★ Promote to golden")}</button>
                             </>}
                       </span>
                     )}
@@ -2136,6 +2148,9 @@ export function NgSlm(_props: { onNavigate: (p: string) => void }) {
             </div>
             <button className="ng-btn primary" onClick={() => setPairApproval(pr.id, "approved")}>{tr("승인", "Approve")}</button>
             <button className="ng-btn" onClick={() => setPairApproval(pr.id, "rejected")}>{tr("반려", "Reject")}</button>
+            <button className="ng-btn" title={tr("골든셋으로 — 학습에서는 제외", "To golden — excluded from training")}
+              onClick={async () => { try { await postJson(`/api/ng/learn/pairs/${pr.id}/promote`, {}); refresh(); } catch (e) { setError(String(e)); } }}>
+              ★</button>
           </div>
         ))}
       </div>
