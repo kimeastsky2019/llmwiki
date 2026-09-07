@@ -10,7 +10,7 @@
 import type { StringKey } from "./i18n";
 import type { RoleCode } from "./roles";
 
-export type SolutionCode = "code" | "compliance" | "report" | "nanogrid";
+export type SolutionCode = "code" | "compliance" | "report" | "nanogrid" | "learn";
 
 export interface SolutionMenu {
   /** 이동할 경로 */
@@ -133,9 +133,12 @@ export const SOLUTIONS: Solution[] = [
       },
       { path: "/wiki", labelKey: "wikiLink", descKey: "solReportMenuWikiDesc", match: "/wiki", step: 4, statusKey: "wiki" },
       { path: "/admin", labelKey: "adminLink", descKey: "solReportMenuAdminDesc", match: "/admin", step: 5, statusKey: "review" },
+      // 나노그리드 지식DB (기획 v0.2 ③) — 데이터에서 태어난 지식도 같은 축에 선다.
+      { path: "/ng/knowledge", labelKey: "ngMenuKnowledge", descKey: "ngMenuKnowledgeDesc", match: "/ng/knowledge" },
+      { path: "/ng/insights", labelKey: "ngMenuInsights", descKey: "ngMenuInsightsDesc", match: "/ng/insights" },
+      { path: "/ng/admin", labelKey: "ngMenuNgAdmin", descKey: "ngMenuNgAdminDesc", match: "/ng/admin" },
     ],
     engines: ["sllm", "grok", "rag", "aigov"],
-    hidden: true,
   },
   {
     // 나노그리드 데이터 지식화 — 실시간·예측 데이터를 지식DB로 쌓고 AI 인사이트를
@@ -144,16 +147,40 @@ export const SOLUTIONS: Solution[] = [
     labelKey: "solNgName",
     taglineKey: "solNgTagline",
     home: "/ng/monitor",
-    menus: [],
+    // 사이드바는 NgSection 이 그리지만, 카드 노출·역할 필터는 menus 를 본다.
+    menus: [
+      { path: "/ng/monitor", labelKey: "ngMenuMonitor", descKey: "ngMenuMonitorDesc", match: "/ng/monitor", step: 1 },
+      { path: "/ng/forecast", labelKey: "ngMenuForecast", descKey: "ngMenuForecastDesc", match: "/ng/forecast", step: 2 },
+    ],
     engines: ["sllm", "grok", "aigov"],
-    // 개발이 끝나면 이 줄만 지우면 메뉴에 다시 나온다.
-    hidden: true,
+  },
+  {
+    // ④ LLM 학습 (기획 v0.2) — 지식DB를 근거로 답하고(RAG·챗봇), 그 대화를
+    // 학습 페어로 쌓고, 골든셋·CES 로 사내 sLM 을 Claude 기준에 수렴시킨다.
+    code: "learn",
+    labelKey: "solLearnName",
+    taglineKey: "solLearnTagline",
+    home: "/ng/learn/slm",
+    menus: [
+      { path: "/ng/learn/slm", labelKey: "learnMenuSlm", descKey: "learnMenuSlmDesc", match: "/ng/learn/slm", step: 1 },
+      { path: "/ng/learn/chat", labelKey: "learnMenuChat", descKey: "learnMenuChatDesc", match: "/ng/learn/chat", step: 2 },
+      { path: "/ng/learn/rag", labelKey: "learnMenuRag", descKey: "learnMenuRagDesc", match: "/ng/learn/rag", step: 3 },
+      { path: "/ng/gov", labelKey: "learnMenuGov", descKey: "learnMenuGovDesc", match: "/ng/gov" },
+    ],
+    engines: ["sllm", "grok", "rag", "aigov"],
   },
 ];
 
 /** 경로가 어느 솔루션에 속하는가. 솔루션을 별도 상태로 들지 않는 이유는,
  *  주소창으로 바로 들어온 사람과 메뉴로 들어온 사람이 다른 화면을 보면 안 되기 때문이다. */
 export function solutionOf(path: string): SolutionCode {
+  if (path.startsWith("/ng/learn") || path.startsWith("/ng/gov")) {
+    return "learn";
+  }
+  if (path.startsWith("/ng/knowledge") || path.startsWith("/ng/insights")
+      || path.startsWith("/ng/admin") || path.startsWith("/ng/doc")) {
+    return "report";
+  }
   if (path.startsWith("/ng")) {
     return "nanogrid";
   }

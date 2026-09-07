@@ -398,7 +398,9 @@ export function NgSection({
     activePath === item.path || activePath.startsWith(item.path + "/");
 
   // Source Analysis tab shows only AI-Gov; Data Knowledge tab shows the rest.
-  const visible = MENU.filter((g) => (mode === "source" ? g.gov : !g.gov));
+  // 기획 v0.2 4탭: "data" = ② 데이터 구축(운영 그룹만). 지식DB는 ③, AI-Gov 는 ④가 그린다.
+  const visible = MENU.filter((g) =>
+    mode === "source" ? g.gov : !g.gov && g.title.ko === "나노그리드 운영");
 
   return (
     <div className="ng-section">
@@ -1521,6 +1523,8 @@ export function NgAdmin({ onNavigate }: { onNavigate: (p: string) => void }) {
         )}
       </div>
 
+      <NgApprovalQueue />
+
       <div className="ng-panel">
         <div className="ng-panel-title">{tr("최근 발행 문서", "Recently Published Documents")}</div>
         {(st?.recent_docs ?? []).map((d) => (
@@ -1766,6 +1770,425 @@ export function NgDocView({ id, onNavigate }: { id: string; onNavigate: (p: stri
         {dateTimeOf(doc.updated_at, lang)}
       </div>
       <Markdown source={doc.content_md} onNavigate={onNavigate} />
+    </div>
+  );
+}
+
+
+/* ------------------------------------------------- approval gate (v0.2 §4) */
+
+interface ApprovalItem {
+  id: number; item_type: string; ref_id: string; title: string;
+  summary: string; level: string; status: string; created_at: string;
+}
+
+const ITEM_TYPE_LABELS: Record<string, L2> = {
+  insight_doc: { ko: "인사이트 문서", en: "Insight doc" },
+  gov_analysis: { ko: "법률 분석", en: "Law analysis" },
+  training_pair: { ko: "학습 페어", en: "Training pair" },
+  golden_question: { ko: "골든셋 문항", en: "Golden question" },
+  forecast_publish: { ko: "예측 발행", en: "Forecast publish" },
+};
+
+function NgApprovalQueue() {
+  const { lang, tr } = useTr();
+  const [items, setItems] = useState<ApprovalItem[]>([]);
+  const [counts, setCounts] = useState<{ pending: number; approved: number; rejected: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(() => {
+    getJson<{ counts: typeof counts; items: ApprovalItem[] }>("/api/ng/admin/approvals?status=pending")
+      .then((r) => { setItems(r.items); setCounts(r.counts as never); })
+      .catch((e) => setError(String(e)));
+  }, []);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const decide = async (id: number, status: "approved" | "rejected") => {
+    try {
+      await postJson(`/api/ng/admin/approvals/${id}/decide`, { status });
+      refresh();
+    } catch (e) { setError(String(e)); }
+  };
+
+  return (
+    <div className="ng-panel">
+      <div className="ng-panel-title">
+        ✅ {tr("승인 큐 — 에이전트 산출물 감사", "Approval Queue — agent output audit")}
+        <span className="muted" style={{ fontWeight: 400 }}>
+          {" "}· {tr("대기", "pending")} {counts?.pending ?? 0} · {tr("승인", "approved")} {counts?.approved ?? 0} · {tr("반려", "rejected")} {counts?.rejected ?? 0}
+        </span>
+      </div>
+      {error && <div className="banner error">{error}</div>}
+      {items.length === 0 && <div className="muted">{tr("대기 중인 항목이 없습니다.", "Nothing pending.")}</div>}
+      {items.map((it) => (
+        <div key={it.id} className="ng-gov-item">
+          <div style={{ flex: 1 }}>
+            <div className="ng-gov-title">
+              <span className="pill gate" style={{ marginRight: 8 }}>{it.level}</span>
+              {ITEM_TYPE_LABELS[it.item_type] ? pick(lang, ITEM_TYPE_LABELS[it.item_type]) : it.item_type}
+              {" · "}{it.title}
+            </div>
+            <div className="ng-kpi-sub">{it.summary} · {dateTimeOf(it.created_at, lang)}</div>
+          </div>
+          {it.item_type === "insight_doc" && (
+            <button className="ng-btn" onClick={() => location.assign(`/ng/doc/${it.ref_id}`)}>
+              {tr("보기", "View")}
+            </button>
+          )}
+          <button className="ng-btn primary" onClick={() => decide(it.id, "approved")}>
+            {tr("승인", "Approve")}
+          </button>
+          <button className="ng-btn" onClick={() => decide(it.id, "rejected")}>
+            {tr("반려", "Reject")}
+          </button>
+        </div>
+      ))}
+      <p className="muted" style={{ marginTop: 6 }}>
+        {tr("결정 이력이 곧 감사 로그입니다 (ng.approval_queue). L1 은 발행 후 사후 감사, L2+ 는 승인 전 미반영.",
+            "Decisions are the audit log (ng.approval_queue). L1 is post-publish audit; L2+ blocks until approved.")}
+      </p>
+    </div>
+  );
+}
+
+/* -------------------------------------------------- ④ chatbot simulator */
+
+interface ChatMsg {
+  role: "user" | "assistant";
+  text: string;
+  refs?: string[];
+  pairId?: number;
+  model?: string;
+  approval?: string;
+}
+
+export function NgChat({ onNavigate }: { onNavigate: (p: string) => void }) {
+  const { tr } = useTr();
+  const [msgs, setMsgs] = useState<ChatMsg[]>([]);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const send = async () => {
+    const q = input.trim();
+    if (!q || busy) return;
+    setInput(""); setBusy(true); setError(null);
+    setMsgs((m) => [...m, { role: "user", text: q }]);
+    try {
+      const r = await postJson<{ answer: string; model: string; refs: string[]; pair_id: number }>(
+        "/api/ng/learn/chat", { question: q });
+      setMsgs((m) => [...m, { role: "assistant", text: r.answer, refs: r.refs, pairId: r.pair_id, model: r.model }]);
+    } catch (e) { setError(String(e)); } finally { setBusy(false); }
+  };
+
+  const setApproval = async (pairId: number, status: "approved" | "rejected") => {
+    try {
+      await postJson(`/api/ng/learn/pairs/${pairId}/approval`, { status });
+      setMsgs((m) => m.map((x) => (x.pairId === pairId ? { ...x, approval: status } : x)));
+    } catch (e) { setError(String(e)); }
+  };
+
+  const EXAMPLES = [
+    tr("어제 자가소비율은 어땠어?", "How was self-consumption yesterday?"),
+    tr("이번 주 예측 정확도를 요약해줘", "Summarize this week's forecast accuracy"),
+    tr("배터리 SoC를 10~90%로 운전하는 이유는?", "Why keep battery SoC between 10–90%?"),
+  ];
+
+  return (
+    <div className="ng-page">
+      <h1 className="ng-title">💬 {tr("챗봇 시뮬레이터", "Chatbot Simulator")}</h1>
+      <p className="muted">
+        {tr("지식DB(인사이트·SQL 사실)를 근거로 답합니다. 모든 대화는 학습 페어(ng.training_pairs)로 적재되며, 승인된 대화만 sLM 학습에 쓰입니다.",
+            "Answers are grounded in the knowledge DB. Every exchange is logged as a training pair; only approved pairs feed sLM training.")}
+      </p>
+
+      <div className="ng-panel ng-chat">
+        <div className="ng-chat-log">
+          {msgs.length === 0 && (
+            <div className="ng-chat-empty">
+              <div className="muted">{tr("예시 질문으로 시작해 보세요:", "Try an example question:")}</div>
+              {EXAMPLES.map((ex) => (
+                <button key={ex} className="ng-btn" onClick={() => setInput(ex)}>{ex}</button>
+              ))}
+            </div>
+          )}
+          {msgs.map((m, i) => (
+            <div key={i} className={`ng-chat-msg ${m.role}`}>
+              <div className="ng-chat-bubble">
+                <Markdown source={m.text} onNavigate={onNavigate} />
+                {m.role === "assistant" && (
+                  <div className="ng-chat-meta">
+                    {m.refs && m.refs.length > 0 && (
+                      <span>{tr("근거", "Sources")}: {m.refs.map((r, j) => (
+                        <button key={j} className="ng-link" style={{ marginRight: 6 }}
+                          onClick={() => r.includes("/") && onNavigate(`/ng/doc/${r}`)}>{r}</button>
+                      ))}</span>
+                    )}
+                    <span className="muted"> · {m.model}</span>
+                    {m.pairId && (
+                      <span style={{ marginLeft: 8 }}>
+                        {m.approval
+                          ? <b>{m.approval === "approved" ? tr("✓ 학습 승인됨", "✓ approved") : tr("✗ 반려됨", "✗ rejected")}</b>
+                          : <>
+                              <button className="ng-btn" onClick={() => setApproval(m.pairId!, "approved")}>{tr("학습 승인", "Approve for training")}</button>{" "}
+                              <button className="ng-btn" onClick={() => setApproval(m.pairId!, "rejected")}>{tr("반려", "Reject")}</button>
+                            </>}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          {busy && <div className="muted">{tr("답변 생성 중…", "Thinking…")}</div>}
+        </div>
+        {error && <div className="banner error">{error}</div>}
+        <div className="ng-chat-input">
+          <input value={input} onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && send()}
+            placeholder={tr("나노그리드 운영에 대해 물어보세요…", "Ask about nanogrid operations…")} />
+          <button className="ng-btn primary" onClick={send} disabled={busy || !input.trim()}>
+            {tr("전송", "Send")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------- ④ sLM · CES lab */
+
+interface CesRun {
+  id: number; slm_model: string; judge_model: string; n_questions: number;
+  ces: number | null; scores_json: { axis_avg?: Record<string, number> }; created_at: string;
+}
+
+interface GoldenItem {
+  id: number; tab: string; question: string; reference_answer: string;
+  reference_model: string; status: string;
+}
+
+interface PairItem {
+  id: number; source_tab: string; question: string; answer: string;
+  answer_model: string; human_approval: string; created_at: string;
+}
+
+export function NgSlm(_props: { onNavigate: (p: string) => void }) {
+  const { lang, tr } = useTr();
+  const [runs, setRuns] = useState<CesRun[]>([]);
+  const [golden, setGolden] = useState<{ counts: { total: number; approved: number; draft: number }; items: GoldenItem[] } | null>(null);
+  const [pairs, setPairs] = useState<{ counts: { total: number; approved: number; pending: number; rejected: number }; items: PairItem[] } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(() => {
+    getJson<CesRun[]>("/api/ng/learn/ces/runs").then(setRuns).catch((e) => setError(String(e)));
+    getJson<typeof golden>("/api/ng/learn/golden").then(setGolden as never).catch(() => {});
+    getJson<typeof pairs>("/api/ng/learn/pairs?status=pending").then(setPairs as never).catch(() => {});
+  }, []);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const latest = runs[0];
+  const cesPct = latest?.ces != null ? Number(latest.ces) * 100 : null;
+  const official = latest && latest.judge_model !== "heuristic-stub";
+
+  const runCes = async () => {
+    setBusy(true); setMsg(null); setError(null);
+    try {
+      const r = await postJson<{ ces: number; judge_model: string; note: string | null; official: boolean }>(
+        "/api/ng/learn/ces/run", { limit: 20 });
+      setMsg(`CES ${(r.ces * 100).toFixed(1)}% · judge=${r.judge_model}${r.note ? ` — ${r.note}` : ""}`);
+      refresh();
+    } catch (e) { setError(String(e)); } finally { setBusy(false); }
+  };
+
+  const seed = async () => {
+    setBusy(true); setError(null);
+    try {
+      const r = await postJson<{ seeded: number; note: string }>("/api/ng/learn/golden/seed", {});
+      setMsg(`${tr("골든셋 시드", "Golden seed")}: ${r.seeded} — ${r.note}`);
+      refresh();
+    } catch (e) { setError(String(e)); } finally { setBusy(false); }
+  };
+
+  const setGoldenStatus = async (id: number, status: string) => {
+    try { await postJson(`/api/ng/learn/golden/${id}/status`, { status }); refresh(); }
+    catch (e) { setError(String(e)); }
+  };
+  const setPairApproval = async (id: number, status: string) => {
+    try { await postJson(`/api/ng/learn/pairs/${id}/approval`, { status }); refresh(); }
+    catch (e) { setError(String(e)); }
+  };
+
+  return (
+    <div className="ng-page">
+      <h1 className="ng-title">🎓 {tr("sLM 학습 — Claude 기준 수렴", "sLM Training — converging on the Claude baseline")}</h1>
+      <p className="muted">
+        {tr("CES(Claude 동등성 점수) = sLM 채점 ÷ Claude 기준 채점. 목표: Y1 ≥ 0.60 → Y3 ≥ 0.90. 골든셋은 홀드아웃 — 학습에 절대 쓰지 않습니다.",
+            "CES = sLM score ÷ Claude reference score. Target: Y1 ≥ 0.60 → Y3 ≥ 0.90. The golden set is a hold-out — never used for training.")}
+      </p>
+
+      <div className="ng-cols">
+        <div className="ng-panel" style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          <Donut value={cesPct} size={104} stroke={12}
+            color={cesPct != null && cesPct >= 60 ? C.ok : C.warn}
+            text={cesPct != null ? `${cesPct.toFixed(1)}%` : "—"} sub="CES" />
+          <div>
+            <div className="ng-kpi-label">{tr("최근 CES", "Latest CES")} {official ? "" : tr("(스텁 채점 — 비공식)", "(stub grading — unofficial)")}</div>
+            <div className="ng-kpi-sub">
+              {latest ? `sLM: ${latest.slm_model} · judge: ${latest.judge_model} · ${latest.n_questions}${tr("문항", " questions")}` : tr("측정 이력 없음", "No runs yet")}
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <button className="ng-btn primary" onClick={runCes} disabled={busy}>
+                {busy ? tr("측정 중…", "Running…") : tr("CES 측정 실행", "Run CES")}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="ng-panel">
+          <div className="ng-panel-title">{tr("데이터 현황", "Data status")}</div>
+          <table className="ng-table"><tbody>
+            <tr><td>{tr("골든셋", "Golden set")}</td>
+              <td>{golden ? `${golden.counts.total} (${tr("승인", "approved")} ${golden.counts.approved} / draft ${golden.counts.draft})` : "—"}</td></tr>
+            <tr><td>{tr("학습 페어", "Training pairs")}</td>
+              <td>{pairs ? `${pairs.counts.total} (${tr("승인", "approved")} ${pairs.counts.approved} / ${tr("대기", "pending")} ${pairs.counts.pending})` : "—"}</td></tr>
+          </tbody></table>
+          {golden && golden.counts.total === 0 && (
+            <button className="ng-btn" onClick={seed} disabled={busy}>{tr("골든셋 v0 시드", "Seed golden v0")}</button>
+          )}
+        </div>
+      </div>
+
+      {msg && <div className="banner">{msg}</div>}
+      {error && <div className="banner error">{error}</div>}
+
+      {latest?.scores_json?.axis_avg && (
+        <div className="ng-panel">
+          <div className="ng-panel-title">{tr("축별 평균 (0~5)", "Axis averages (0–5)")}</div>
+          {Object.entries(latest.scores_json.axis_avg).map(([k, v]) => (
+            <div key={k} className="ng-cat-bar">
+              <span className="ng-cat-bar-label">{k}</span>
+              <div className="ng-cat-bar-track">
+                <div className="ng-cat-bar-fill" style={{ width: `${(v / 5) * 100}%`, background: C.cons }} />
+              </div>
+              <span className="ng-cat-bar-value">{v.toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="ng-panel">
+        <div className="ng-panel-title">{tr("CES 측정 이력", "CES history")}</div>
+        {runs.length === 0 && <div className="muted">{tr("이력 없음", "No history")}</div>}
+        {runs.length > 0 && (
+          <table className="ng-table">
+            <thead><tr><th>#</th><th>CES</th><th>sLM</th><th>Judge</th><th>{tr("문항", "Q")}</th><th>{tr("시각", "At")}</th></tr></thead>
+            <tbody>
+              {runs.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.id}</td>
+                  <td><b>{r.ces != null ? `${(Number(r.ces) * 100).toFixed(1)}%` : "—"}</b>{r.judge_model === "heuristic-stub" ? "*" : ""}</td>
+                  <td>{r.slm_model}</td><td>{r.judge_model}</td>
+                  <td>{r.n_questions}</td>
+                  <td className="muted">{dateTimeOf(r.created_at, lang)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <p className="muted" style={{ marginTop: 4 }}>* {tr("휴리스틱 스텁 채점은 파이프라인 검증용 — 공식 CES 는 Claude judge 로만 인정", "stub grading validates the pipeline only — official CES requires the Claude judge")}</p>
+      </div>
+
+      <div className="ng-panel">
+        <div className="ng-panel-title">{tr("골든셋 (홀드아웃)", "Golden set (hold-out)")}</div>
+        <div className="tablewrap" style={{ overflowX: "auto" }}>
+          <table className="ng-table">
+            <thead><tr><th>{tr("탭", "Tab")}</th><th>{tr("질문", "Question")}</th><th>{tr("기준", "Reference")}</th><th>{tr("상태", "Status")}</th><th></th></tr></thead>
+            <tbody>
+              {(golden?.items ?? []).map((g) => (
+                <tr key={g.id}>
+                  <td className="mono">{g.tab}</td>
+                  <td style={{ maxWidth: 320 }}>{g.question}</td>
+                  <td className="muted">{g.reference_model}</td>
+                  <td>{g.status}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    {g.status === "draft" && (
+                      <button className="ng-btn" onClick={() => setGoldenStatus(g.id, "approved")}>{tr("검수 승인", "Approve")}</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="ng-panel">
+        <div className="ng-panel-title">{tr("학습 페어 승인 대기", "Training pairs pending approval")}</div>
+        {(pairs?.items ?? []).length === 0 && <div className="muted">{tr("대기 항목 없음 — 챗봇 시뮬레이터에서 대화가 쌓입니다", "Nothing pending — pairs accumulate from the chatbot simulator")}</div>}
+        {(pairs?.items ?? []).map((pr) => (
+          <div key={pr.id} className="ng-gov-item">
+            <div style={{ flex: 1 }}>
+              <div className="ng-gov-title">{pr.question}</div>
+              <div className="ng-kpi-sub">{pr.answer}</div>
+              <div className="ng-kpi-sub muted">{pr.answer_model} · {dateTimeOf(pr.created_at, lang)}</div>
+            </div>
+            <button className="ng-btn primary" onClick={() => setPairApproval(pr.id, "approved")}>{tr("승인", "Approve")}</button>
+            <button className="ng-btn" onClick={() => setPairApproval(pr.id, "rejected")}>{tr("반려", "Reject")}</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ ④ RAG search */
+
+export function NgRag({ onNavigate }: { onNavigate: (p: string) => void }) {
+  const { lang, tr } = useTr();
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<(WikiDocMeta & { snippet?: string })[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const doSearch = async () => {
+    if (!q.trim()) return;
+    try {
+      const r = await getJson<{ results: (WikiDocMeta & { snippet?: string })[] }>(
+        `/api/ng/wiki/search?q=${encodeURIComponent(q)}&lang=${lang}`);
+      setResults(r.results);
+    } catch (e) { setError(String(e)); }
+  };
+
+  return (
+    <div className="ng-page">
+      <h1 className="ng-title">🔎 {tr("RAG 검색", "RAG Search")}</h1>
+      <p className="muted">
+        {tr("지식 데이터베이스(인사이트 위키)를 근거 단위로 검색합니다. v0 은 키워드 검색 — Y1 에 임베딩 검색(사내 sLLM)으로 교체 예정.",
+            "Grounded search over the knowledge database. v0 is keyword search — embedding search (on-prem sLLM) lands in Y1.")}
+      </p>
+      <div className="ng-panel ng-form">
+        <label style={{ flex: 1 }}>{tr("검색어", "Query")}
+          <input value={q} onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && doSearch()}
+            placeholder={tr("예: 자가소비율, MAPE, SoC…", "e.g. self-consumption, MAPE, SoC…")} />
+        </label>
+        <button className="ng-btn primary" onClick={doSearch}>{tr("검색", "Search")}</button>
+      </div>
+      {error && <div className="banner error">{error}</div>}
+      {results && (
+        <div className="ng-panel">
+          <div className="ng-panel-title">{tr("결과", "Results")} {results.length}</div>
+          {results.length === 0 && <div className="muted">{tr("일치하는 문서 없음", "No matches")}</div>}
+          {results.map((d) => (
+            <button key={d.doc_id} className="ng-doc-link" onClick={() => onNavigate(`/ng/doc/${d.doc_id}`)}>
+              <div className="ng-doc-link-title">{d.title}</div>
+              {d.snippet && <div className="ng-kpi-sub">{d.snippet}</div>}
+              <div className="ng-doc-link-meta">{d.doc_id}</div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -42,8 +42,8 @@ import { ROLES, clearWho, readRole, readWho, role as roleOf, storeRole, storeWho
 import Login from "./Login";
 import RolePick from "./RolePick";
 import {
-  NgAdmin, NgDocView, NgForecast, NgGov, NgInsights,
-  NgKnowledgeDb, NgMonitor, NgSection,
+  NgAdmin, NgChat, NgDocView, NgForecast, NgGov, NgInsights,
+  NgKnowledgeDb, NgMonitor, NgRag, NgSection, NgSlm,
 } from "./NanoGrid";
 
 type Route =
@@ -65,6 +65,9 @@ type Route =
   | { kind: "ng-insights" }
   | { kind: "ng-admin" }
   | { kind: "ng-gov" }
+  | { kind: "ng-chat" }
+  | { kind: "ng-slm" }
+  | { kind: "ng-rag" }
   | { kind: "ng-doc"; id: string }
   | { kind: "engines" };
 
@@ -78,6 +81,9 @@ function ngRoutePath(route: Route): string {
     case "ng-insights": return "/ng/insights";
     case "ng-admin": return "/ng/admin";
     case "ng-gov": return "/ng/gov";
+    case "ng-chat": return "/ng/learn/chat";
+    case "ng-slm": return "/ng/learn/slm";
+    case "ng-rag": return "/ng/learn/rag";
     case "ng-doc": return `/ng/doc/${route.id}`;
     default: return "";
   }
@@ -170,6 +176,9 @@ function parseRoute(path: string): Route {
   if (path === "/ng/insights") return { kind: "ng-insights" };
   if (path === "/ng/admin") return { kind: "ng-admin" };
   if (path === "/ng/gov") return { kind: "ng-gov" };
+  if (path === "/ng/learn/chat") return { kind: "ng-chat" };
+  if (path === "/ng/learn/slm" || path === "/ng/learn") return { kind: "ng-slm" };
+  if (path === "/ng/learn/rag") return { kind: "ng-rag" };
   if (path.startsWith("/ng/doc/")) return { kind: "ng-doc", id: path.slice(8) };
   if (path.startsWith("/svc/")) return { kind: "svc", id: decodeURIComponent(path.slice(5)) };
   if (path.startsWith("/reg")) {
@@ -539,11 +548,28 @@ export default function App() {
             </>
           ) : activeSolution === "nanogrid" ? (
             <>
-              {/* 나노그리드 데이터 지식화 — 그룹형 메뉴(운영/지식DB/AI-Gov)와
-                  세부 메뉴는 NgSection 이 그린다. */}
+              {/* ② 데이터 구축 — 모니터링·예측. 세부 메뉴는 NgSection 이 그린다. */}
               <NgSection activePath={ngRoutePath(route)} onPick={navigate} mode="data" />
-              <NgSection activePath={ngRoutePath(route)} onPick={navigate} mode="source" />
             </>
+          ) : activeSolution === "learn" ? (
+            <nav className="solution-menu">
+              {/* ④ LLM 학습 (기획 v0.2) — 순서가 곧 파이프라인: CES → 대화 축적 → 검색 근거 */}
+              {menusFor(solution("learn"), roleCode).map((m) => (
+                <button
+                  key={m.path}
+                  className={`solution-item ${menuActive(m, route) ? "active" : ""}`}
+                  onClick={() => navigate(m.path)}
+                >
+                  <span className="solution-item-head">
+                    {m.step !== undefined && (
+                      <span className="solution-step" aria-hidden>{m.step}</span>
+                    )}
+                    <span className="solution-item-label">{t(m.labelKey)}</span>
+                  </span>
+                  <span className="solution-item-desc">{t(m.descKey)}</span>
+                </button>
+              ))}
+            </nav>
           ) : (
             <>
               {/* 보고서 지식화는 프로젝트 단위가 아니다 — 업종과 사업장이 분리 축이라
@@ -688,6 +714,9 @@ export default function App() {
           {route.kind === "ng-insights" && <NgInsights onNavigate={navigate} />}
           {route.kind === "ng-admin" && <NgAdmin onNavigate={navigate} />}
           {route.kind === "ng-gov" && <NgGov />}
+          {route.kind === "ng-chat" && <NgChat onNavigate={navigate} />}
+          {route.kind === "ng-slm" && <NgSlm onNavigate={navigate} />}
+          {route.kind === "ng-rag" && <NgRag onNavigate={navigate} />}
           {route.kind === "ng-doc" && <NgDocView id={route.id} onNavigate={navigate} />}
           {route.kind === "tables" && <TablesView onPick={navigate} />}
           {route.kind === "table" && (

@@ -2787,3 +2787,14 @@ button.hint-ev-item:hover { text-decoration: underline; }
 /* 헤더의 '누구로 들어와 있는지' */
 .topbar-who { order: 4; display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .topbar-who b { font-weight: 650; }
+
+/* ④ LLM 학습 — 챗봇 시뮬레이터 */
+.ng-chat-log { min-height: 260px; max-height: 480px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 0 10px; }
+.ng-chat-empty { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding: 20px 4px; }
+.ng-chat-msg { display: flex; }
+.ng-chat-msg.user { justify-content: flex-end; }
+.ng-chat-bubble { max-width: 78%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; background: #f8fafc; font-size: 14px; }
+.ng-chat-msg.user .ng-chat-bubble { background: #eef2ff; border-color: #c7d2fe; }
+.ng-chat-meta { margin-top: 6px; font-size: 12px; color: #64748b; }
+.ng-chat-input { display: flex; gap: 8px; border-top: 1px solid #eef2f7; padding-top: 10px; }
+.ng-chat-input input { flex: 1; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; font-size: 14px; }
